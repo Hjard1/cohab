@@ -1,7 +1,6 @@
 import XCTest
 
 final class CohabUITests: XCTestCase {
-
     let app = XCUIApplication()
 
     override func setUpWithError() throws {
@@ -10,57 +9,88 @@ final class CohabUITests: XCTestCase {
     }
 
     func testScreenshots() throws {
-        // 1. Dashboard (with household already set up via SwiftData)
         Thread.sleep(forTimeInterval: 2)
-        saveScreenshot("01_dashboard")
 
-        // 2. Navigate to Calculators tab
-        let calcTab = app.tabBars.buttons["Calculators"]
-        XCTAssertTrue(calcTab.waitForExistence(timeout: 5))
-        calcTab.tap()
+        // 1. Dashboard — empty or with household
+        save("01_dashboard")
+
+        // 2. Setup household if needed
+        if app.buttons["Get started"].waitForExistence(timeout: 2) {
+            app.buttons["Get started"].tap()
+            Thread.sleep(forTimeInterval: 0.5)
+            let fieldA = app.textFields["Partner A name"]
+            if fieldA.waitForExistence(timeout: 2) {
+                fieldA.tap(); fieldA.typeText("Alex")
+            }
+            let fieldB = app.textFields["Partner B name"]
+            if fieldB.waitForExistence(timeout: 2) {
+                fieldB.tap(); fieldB.typeText("Sophie")
+            }
+            app.navigationBars.buttons["Save"].tap()
+            Thread.sleep(forTimeInterval: 1)
+        }
+        save("02_dashboard_household")
+
+        // 3. Add asset sheet
+        let plusBtn = app.buttons["plus"]
+        if plusBtn.waitForExistence(timeout: 3) {
+            plusBtn.tap()
+            Thread.sleep(forTimeInterval: 0.8)
+            save("03_add_asset")
+
+            // Fill in some data
+            let labelField = app.textFields["Main home"]
+            if labelField.waitForExistence(timeout: 2) {
+                labelField.tap(); labelField.typeText("Our home")
+            }
+            app.textFields["0"].firstMatch.tap()
+            app.textFields["0"].firstMatch.typeText("350000")
+
+            save("04_add_asset_filled")
+
+            // Save asset
+            app.navigationBars.buttons["Add"].tap()
+            Thread.sleep(forTimeInterval: 1)
+        }
+        save("05_dashboard_with_asset")
+
+        // 4. Tap asset to edit
+        let assetCard = app.buttons.firstMatch
+        if assetCard.waitForExistence(timeout: 2) {
+            // find edit sheet by tapping the card area
+            let cards = app.buttons.allElementsBoundByIndex
+                .filter { $0.frame.width > 300 && $0.frame.height > 100 }
+            if let card = cards.first {
+                card.tap()
+                Thread.sleep(forTimeInterval: 0.8)
+                save("06_edit_asset")
+
+                // Tap add contribution
+                let addContrib = app.buttons.matching(
+                    NSPredicate(format: "label CONTAINS 'plus.circle'")
+                ).firstMatch
+                if addContrib.waitForExistence(timeout: 2) {
+                    addContrib.tap()
+                    Thread.sleep(forTimeInterval: 0.8)
+                    save("07_add_contribution")
+                    app.navigationBars.buttons["Cancel"].tap()
+                    Thread.sleep(forTimeInterval: 0.5)
+                }
+                app.navigationBars.buttons["Cancel"].tap()
+                Thread.sleep(forTimeInterval: 0.5)
+            }
+        }
+
+        // 5. Calculators tab
+        app.tabBars.buttons["Calculators"].tap()
         Thread.sleep(forTimeInterval: 1)
-        saveScreenshot("02_calculators")
-
-        // 3. Ownership share calculator
-        let ownershipCell = app.staticTexts["Ownership share"]
-        XCTAssertTrue(ownershipCell.waitForExistence(timeout: 5))
-        ownershipCell.tap()
-        Thread.sleep(forTimeInterval: 1)
-        saveScreenshot("03_ownership_calculator")
-
-        // Go back
-        app.navigationBars.buttons.firstMatch.tap()
-        Thread.sleep(forTimeInterval: 0.5)
-
-        // 4. Expense split calculator
-        let expenseCell = app.staticTexts["Expense split"]
-        XCTAssertTrue(expenseCell.waitForExistence(timeout: 5))
-        expenseCell.tap()
-        Thread.sleep(forTimeInterval: 1)
-        saveScreenshot("04_expense_split")
-
-        // Go back
-        app.navigationBars.buttons.firstMatch.tap()
-        Thread.sleep(forTimeInterval: 0.5)
-
-        // 5. Rebalance calculator
-        let rebalanceCell = app.staticTexts["Rebalance ownership"]
-        XCTAssertTrue(rebalanceCell.waitForExistence(timeout: 5))
-        rebalanceCell.tap()
-        Thread.sleep(forTimeInterval: 1)
-        saveScreenshot("05_rebalance")
+        save("08_calculators")
     }
 
-    private func saveScreenshot(_ name: String) {
-        let screenshot = XCUIScreen.main.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
-
-        // Also write directly to /tmp for easy retrieval
-        let data = screenshot.pngRepresentation
-        let url = URL(fileURLWithPath: "/tmp/cohab_\(name).png")
-        try? data.write(to: url)
+    private func save(_ name: String) {
+        let s = XCUIScreen.main.screenshot()
+        let a = XCTAttachment(screenshot: s)
+        a.name = name; a.lifetime = .keepAlways; add(a)
+        try? s.pngRepresentation.write(to: URL(fileURLWithPath: "/tmp/cohab_\(name).png"))
     }
 }

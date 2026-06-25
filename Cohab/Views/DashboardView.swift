@@ -8,6 +8,7 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showSetup = false
     @State private var showAddAsset = false
+    @State private var editingAsset: Asset?
 
     private var household: Household? { households.first }
 
@@ -41,6 +42,9 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showAddAsset) {
             if let h = household { AddAssetView(household: h) }
+        }
+        .sheet(item: $editingAsset) { asset in
+            if let h = household { EditAssetView(asset: asset, household: h) }
         }
     }
 
@@ -160,7 +164,10 @@ struct DashboardView: View {
             } else {
                 VStack(spacing: 16) {
                     ForEach(h.assets) { asset in
-                        AssetCard(asset: asset, household: h)
+                        Button { editingAsset = asset } label: {
+                            AssetCard(asset: asset, household: h)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.top, 16)
@@ -283,6 +290,14 @@ struct AssetCard: View {
                         .font(.caption2.monospacedDigit())
                         .foregroundStyle(.orange)
                 }
+                HStack(spacing: 3) {
+                    Image(systemName: "pencil")
+                        .font(.caption2)
+                    Text("Edit")
+                        .font(.caption2)
+                }
+                .foregroundStyle(Color(.tertiaryLabel))
+                .padding(.top, 2)
             }
         }
     }
@@ -651,6 +666,378 @@ struct AddAssetView: View {
             ownershipShareA: shareA
         )
         household.assets.append(asset)
+        dismiss()
+    }
+}
+
+// MARK: - Edit asset sheet
+
+struct EditAssetView: View {
+    let asset: Asset
+    let household: Household
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var selectedType: AssetType = .home
+    @State private var label = ""
+    @State private var address = ""
+    @State private var valueText = ""
+    @State private var loanText = ""
+    @State private var shareAText = "50"
+    @State private var showAddContribution = false
+    @State private var showDeleteConfirm = false
+
+    private var canSave: Bool { !label.trimmingCharacters(in: .whitespaces).isEmpty }
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    typePicker
+                    detailsSection
+                    valueSection
+                    ownershipSection
+                    contributionsSection
+                    deleteSection
+                }
+                .padding(20)
+                .padding(.bottom, 8)
+            }
+            .background(Color.cohBg.ignoresSafeArea())
+            .navigationTitle(label.isEmpty ? "Edit asset" : label)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") { save() }.bold().disabled(!canSave)
+                }
+            }
+        }
+        .onAppear { populate() }
+        .sheet(isPresented: $showAddContribution) {
+            AddContributionView(asset: asset, household: household)
+        }
+        .confirmationDialog(
+            "Delete \"\(asset.label)\"?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete asset", role: .destructive) { deleteAsset() }
+        } message: {
+            Text("All contributions linked to this asset will also be deleted.")
+        }
+    }
+
+    // MARK: Type picker
+
+    private var typePicker: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("TYPE").font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(AssetType.allCases, id: \.self) { type in
+                    let selected = selectedType == type
+                    Button { selectedType = type } label: {
+                        VStack(spacing: 8) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(selected ? type.color : type.color.opacity(0.1))
+                                    .frame(height: 56)
+                                Image(systemName: type.icon)
+                                    .font(.title2.weight(.semibold))
+                                    .foregroundStyle(selected ? .white : type.color)
+                            }
+                            Text(type.displayName)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(selected ? type.color : .secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(selected ? type.color : .clear, lineWidth: 2)
+                            .padding(.bottom, 22)
+                    )
+                }
+            }
+        }
+        .padding(18)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    // MARK: Form sections
+
+    private var detailsSection: some View {
+        formCard("DETAILS") {
+            formField(icon: "tag.fill", label: "Name",
+                      placeholder: selectedType.displayName, text: $label, keyboard: .default)
+            formField(icon: "mappin.circle.fill", label: "Address (optional)",
+                      placeholder: "10 Baker Street…", text: $address, keyboard: .default)
+        }
+    }
+
+    private var valueSection: some View {
+        formCard("VALUE & LOAN") {
+            formField(icon: "arrow.up.right.circle.fill", label: "Current value",
+                      placeholder: "0", prefix: household.currencySymbol,
+                      text: $valueText, keyboard: .decimalPad)
+            formField(icon: "arrow.down.right.circle.fill", label: "Remaining loan",
+                      placeholder: "0", prefix: household.currencySymbol,
+                      text: $loanText, keyboard: .decimalPad)
+        }
+    }
+
+    private var ownershipSection: some View {
+        formCard("OWNERSHIP") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("\(household.partnerAName)'s registered share")
+                        .font(.subheadline).foregroundStyle(.primary)
+                    Spacer()
+                    HStack(spacing: 2) {
+                        TextField("50", text: $shareAText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 44)
+                            .font(.subheadline.bold().monospacedDigit())
+                        Text("%").foregroundStyle(.secondary).font(.subheadline)
+                    }
+                }
+                Text("Percentage registered at the land registry.")
+                    .font(.caption).foregroundStyle(Color(.tertiaryLabel))
+            }
+        }
+    }
+
+    // MARK: Contributions
+
+    private var contributionsSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("EQUITY CONTRIBUTIONS")
+                        .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                    Text("Deposits, renovations, extra repayments…")
+                        .font(.caption).foregroundStyle(Color(.tertiaryLabel))
+                }
+                Spacer()
+                Button { showAddContribution = true } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Color.cohGreen)
+                }
+            }
+
+            if asset.contributions.isEmpty {
+                HStack(spacing: 10) {
+                    Image(systemName: "tray")
+                        .foregroundStyle(Color(.tertiaryLabel))
+                    Text("No contributions yet")
+                        .font(.subheadline).foregroundStyle(Color(.tertiaryLabel))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 6)
+            } else {
+                let sorted = asset.contributions.sorted { $0.date < $1.date }
+                VStack(spacing: 0) {
+                    ForEach(sorted) { c in
+                        ContributionRow(c: c, household: household) {
+                            modelContext.delete(c)
+                        }
+                        if c.id != sorted.last?.id {
+                            Divider().padding(.vertical, 4)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    private var deleteSection: some View {
+        Button { showDeleteConfirm = true } label: {
+            Label("Delete asset", systemImage: "trash")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    // MARK: Helpers
+
+    private func formCard<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+            content()
+        }
+        .padding(18)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    private func formField(
+        icon: String, label: String, placeholder: String,
+        prefix: String? = nil, text: Binding<String>, keyboard: UIKeyboardType
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon).font(.caption).foregroundStyle(Color.cohGreen)
+                Text(label).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+            }
+            HStack {
+                if let p = prefix { Text(p).foregroundStyle(.secondary).font(.subheadline) }
+                TextField(placeholder, text: text)
+                    .keyboardType(keyboard).font(.subheadline)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 11)
+            .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private func populate() {
+        selectedType = AssetType(rawValue: asset.assetType) ?? .other
+        label      = asset.label
+        address    = asset.address
+        valueText  = asset.currentValue > 0  ? String(Int(asset.currentValue))  : ""
+        loanText   = asset.remainingLoan > 0 ? String(Int(asset.remainingLoan)) : ""
+        shareAText = String(Int(asset.ownershipShareA * 100))
+    }
+
+    private func save() {
+        asset.assetType     = selectedType.rawValue
+        asset.label         = label.trimmingCharacters(in: .whitespaces)
+        asset.address       = address.trimmingCharacters(in: .whitespaces)
+        asset.currentValue  = Double(valueText.replacingOccurrences(of: ",", with: "")) ?? asset.currentValue
+        asset.remainingLoan = Double(loanText.replacingOccurrences(of: ",", with: ""))  ?? 0
+        asset.ownershipShareA = min(1, max(0, (Double(shareAText) ?? 50) / 100))
+        dismiss()
+    }
+
+    private func deleteAsset() {
+        modelContext.delete(asset)
+        dismiss()
+    }
+}
+
+// MARK: - Contribution row
+
+struct ContributionRow: View {
+    let c: ContributionRecord
+    let household: Household
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(c.label)
+                    .font(.subheadline.weight(.medium))
+                Text(c.date, style: .date)
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(household.currencySymbol + fmtAmount(c.amount))
+                    .font(.subheadline.bold().monospacedDigit())
+                Text(c.ownerKey == "A" ? household.partnerAName : household.partnerBName)
+                    .font(.caption)
+                    .foregroundStyle(c.ownerKey == "A"
+                        ? Color.cohGreen
+                        : Color(red: 0.20, green: 0.49, blue: 0.96))
+            }
+            Button(action: onDelete) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color(.quaternaryLabel))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func fmtAmount(_ v: Double) -> String {
+        let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
+        return f.string(from: NSNumber(value: v)) ?? "0"
+    }
+}
+
+// MARK: - Add contribution sheet
+
+struct AddContributionView: View {
+    let asset: Asset
+    let household: Household
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var ownerKey   = "A"
+    @State private var amountText = ""
+    @State private var date       = Date()
+    @State private var label      = ""
+    @State private var category   = "deposit"
+
+    private let categories: [(String, String)] = [
+        ("deposit",         "Deposit"),
+        ("extra_repayment", "Extra loan repayment"),
+        ("renovation",      "Renovation / improvement"),
+        ("inheritance",     "Inheritance or gift"),
+        ("other",           "Other"),
+    ]
+
+    private var canAdd: Bool {
+        (Double(amountText.replacingOccurrences(of: ",", with: "")) ?? 0) > 0
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Who contributed?") {
+                    Picker("Partner", selection: $ownerKey) {
+                        Text(household.partnerAName).tag("A")
+                        Text(household.partnerBName).tag("B")
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Section("Details") {
+                    HStack {
+                        Text(household.currencySymbol).foregroundStyle(.secondary)
+                        TextField("Amount", text: $amountText).keyboardType(.decimalPad)
+                    }
+                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                    TextField("Label (e.g. Deposit, Kitchen renovation)", text: $label)
+                }
+
+                Section("Category") {
+                    Picker("Category", selection: $category) {
+                        ForEach(categories, id: \.0) { c in Text(c.1).tag(c.0) }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+            }
+            .navigationTitle("Add contribution")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Add") { add() }.bold().disabled(!canAdd)
+                }
+            }
+        }
+    }
+
+    private func add() {
+        let amount = Double(amountText.replacingOccurrences(of: ",", with: "")) ?? 0
+        let displayLabel = label.trimmingCharacters(in: .whitespaces).isEmpty
+            ? (categories.first { $0.0 == category }?.1 ?? "Contribution")
+            : label.trimmingCharacters(in: .whitespaces)
+        asset.contributions.append(
+            ContributionRecord(ownerKey: ownerKey, amount: amount, date: date,
+                               label: displayLabel, category: category)
+        )
         dismiss()
     }
 }
