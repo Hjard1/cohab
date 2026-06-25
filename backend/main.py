@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 from models import Base
 from auth import auth_router
-from routers import households, assets
+from routers import households, assets, docuseal
 
 
 @asynccontextmanager
@@ -28,6 +28,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(households.router, prefix="/households", tags=["households"])
 app.include_router(assets.router, prefix="/assets", tags=["assets"])
+app.include_router(docuseal.router, prefix="/docuseal", tags=["docuseal"])
 
 
 @app.get("/health")

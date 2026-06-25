@@ -9,6 +9,10 @@ struct DashboardView: View {
     @State private var showSetup = false
     @State private var showAddAsset = false
     @State private var editingAsset: Asset?
+    @State private var showAgreementSheet = false
+    @State private var agreementSubmission: DocuSealSubmission?
+    @State private var isGeneratingAgreement = false
+    @State private var agreementError: String?
 
     private var household: Household? { households.first }
 
@@ -22,6 +26,11 @@ struct DashboardView: View {
                         VStack(spacing: 0) {
                             householdHeader(h)
                                 .padding(.top, 8)
+                            if h.isFormalMode {
+                                agreementCard(h)
+                                    .padding(.top, 20)
+                                    .padding(.horizontal, 20)
+                            }
                             assetsList(h)
                                 .padding(.top, 24)
                             Spacer(minLength: 100)
@@ -45,6 +54,16 @@ struct DashboardView: View {
         }
         .sheet(item: $editingAsset) { asset in
             if let h = household { EditAssetView(asset: asset, household: h) }
+        }
+        .sheet(isPresented: $showAgreementSheet) {
+            if let h = household {
+                AgreementSheetView(
+                    household: h,
+                    submission: $agreementSubmission,
+                    isGenerating: $isGeneratingAgreement,
+                    error: $agreementError
+                )
+            }
         }
     }
 
@@ -356,6 +375,221 @@ struct AssetCard: View {
     private func fmt(_ v: Double) -> String {
         let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
         return f.string(from: NSNumber(value: v)) ?? "0"
+    }
+}
+
+// MARK: - Agreement card
+
+extension DashboardView {
+    func agreementCard(_ h: Household) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.badge.checkmark.fill")
+                        .foregroundStyle(Color.cohGreen)
+                    Text("Ownership Agreement")
+                        .font(.headline)
+                }
+                Spacer()
+                statusBadge(h.agreementStatus)
+            }
+
+            Color(.separator).frame(height: 0.5)
+
+            if h.agreementStatus == "signed" {
+                Label("Signed by both parties", systemImage: "checkmark.seal.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.cohGreen)
+            } else {
+                Text(h.includeDissolutionClause
+                     ? "Covers: ownership, contributions & dissolution clause"
+                     : "Covers: ownership & contributions")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    agreementSubmission = nil
+                    agreementError = nil
+                    showAgreementSheet = true
+                } label: {
+                    HStack {
+                        if isGeneratingAgreement {
+                            ProgressView().scaleEffect(0.8)
+                        }
+                        Text(h.agreementStatus == "pending" ? "View signing links" : "Generate & sign agreement")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 10))
+                }
+                .disabled(isGeneratingAgreement)
+            }
+        }
+        .padding(18)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.05), radius: 12, y: 3)
+    }
+
+    private func statusBadge(_ status: String) -> some View {
+        let (label, color): (String, Color) = switch status {
+        case "pending": ("Pending signatures", .orange)
+        case "signed":  ("Signed ✓", .cohGreen)
+        default:        ("Not signed yet", Color(.systemGray))
+        }
+        return Text(label)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .background(color.opacity(0.1), in: Capsule())
+    }
+}
+
+// MARK: - Agreement sheet
+
+struct AgreementSheetView: View {
+    let household: Household
+    @Binding var submission: DocuSealSubmission?
+    @Binding var isGenerating: Bool
+    @Binding var error: String?
+    @Environment(\.dismiss) private var dismiss
+    @State private var hasStarted = false
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.cohBg.ignoresSafeArea()
+
+                if isGenerating {
+                    VStack(spacing: 20) {
+                        ProgressView().scaleEffect(1.3)
+                        Text("Generating agreement…")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        Text("This uploads the PDF to DocuSeal and sends signing emails.")
+                            .font(.caption).foregroundStyle(Color(.tertiaryLabel))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                } else if let err = error {
+                    VStack(spacing: 16) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 44))
+                            .foregroundStyle(.red)
+                        Text("Something went wrong")
+                            .font(.headline)
+                        Text(err)
+                            .font(.subheadline).foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                        Button("Try again") {
+                            error = nil
+                            generate()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.cohGreen)
+                    }
+                } else if let sub = submission {
+                    successView(sub)
+                } else {
+                    EmptyView()
+                }
+            }
+            .navigationTitle("Ownership Agreement")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .onAppear {
+            guard !hasStarted else { return }
+            hasStarted = true
+            if submission == nil { generate() }
+        }
+    }
+
+    private func successView(_ sub: DocuSealSubmission) -> some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                VStack(spacing: 8) {
+                    Image(systemName: "envelope.badge.fill")
+                        .font(.system(size: 48))
+                        .foregroundStyle(Color.cohGreen)
+                    Text("Signing links sent")
+                        .font(.title2.bold())
+                    Text("Signing emails have been sent to both partners. Use the links below to open the signing page directly.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 12)
+
+                VStack(spacing: 12) {
+                    signingLinkCard(
+                        name: household.partnerAName,
+                        color: Color.cohGreen,
+                        url: sub.signingUrlA
+                    )
+                    signingLinkCard(
+                        name: household.partnerBName,
+                        color: Color(red: 0.20, green: 0.49, blue: 0.96),
+                        url: sub.signingUrlB
+                    )
+                }
+            }
+            .padding(24)
+        }
+    }
+
+    private func signingLinkCard(name: String, color: Color, url: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                ZStack {
+                    Circle().fill(color.opacity(0.12)).frame(width: 30, height: 30)
+                    Text(String(name.prefix(1)).uppercased())
+                        .font(.caption.bold()).foregroundStyle(color)
+                }
+                Text(name).font(.subheadline.weight(.semibold))
+            }
+            if let signingURL = URL(string: url), !url.isEmpty {
+                Link(destination: signingURL) {
+                    HStack {
+                        Text("Open signing link")
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.vertical, 12).padding(.horizontal, 16)
+                    .background(color, in: RoundedRectangle(cornerRadius: 10))
+                }
+            } else {
+                Text("Signing link not available")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    private func generate() {
+        isGenerating = true
+        Task {
+            do {
+                let result = try await DocuSealService.submit(household: household)
+                await MainActor.run {
+                    submission = result
+                    isGenerating = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.error = error.localizedDescription
+                    isGenerating = false
+                }
+            }
+        }
     }
 }
 

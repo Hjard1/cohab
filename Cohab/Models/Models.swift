@@ -166,11 +166,22 @@ final class Household {
     @Relationship(deleteRule: .cascade) var assets: [Asset]
     @Relationship(deleteRule: .cascade) var expenses: [SharedExpense]
 
+    var setupMode: String = "memory"            // "formal" | "memory"
+    var includeDissolutionClause: Bool = true
+    var emailA: String = ""
+    var emailB: String = ""
+    var agreementStatus: String = "none"        // "none" | "pending" | "signed"
+    var docusealSlug: String = ""
+
     init(
         partnerAName: String,
         partnerBName: String,
         currency: String = "GBP",
-        annualInterestRate: Double = 0.05
+        annualInterestRate: Double = 0.05,
+        setupMode: String = "memory",
+        includeDissolutionClause: Bool = true,
+        emailA: String = "",
+        emailB: String = ""
     ) {
         self.id = UUID()
         self.partnerAName = partnerAName
@@ -178,9 +189,17 @@ final class Household {
         self.currency = currency
         self.annualInterestRate = annualInterestRate
         self.createdAt = Date()
+        self.setupMode = setupMode
+        self.includeDissolutionClause = includeDissolutionClause
+        self.emailA = emailA
+        self.emailB = emailB
+        self.agreementStatus = "none"
+        self.docusealSlug = ""
         self.assets = []
         self.expenses = []
     }
+
+    var isFormalMode: Bool { setupMode == "formal" }
 
     var currencySymbol: String {
         switch currency {
