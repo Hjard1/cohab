@@ -32,6 +32,9 @@ xcuserdata/
 .idea/
 .vscode/
 
+## Supabase CLI temp files
+supabase/.temp/
+
 ## env / secrets
 .env
 .env.*

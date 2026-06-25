@@ -29,7 +29,7 @@ enum DocuSealError: LocalizedError {
 // MARK: - Service
 
 enum DocuSealService {
-    /// Generates the agreement PDF, uploads to DocuSeal via the backend,
+    /// Generates the agreement PDF, submits it via the Supabase Edge Function,
     /// and updates the household's agreementStatus and docusealSlug.
     @MainActor
     static func submit(household: Household) async throws -> DocuSealSubmission {
@@ -40,29 +40,29 @@ enum DocuSealService {
         let output = ContractGenerator.generate(household: household)
 
         let body: [String: Any] = [
-            "pdf_base64": output.pdfData.base64EncodedString(),
-            "name_a": household.partnerAName,
-            "email_a": household.emailA,
-            "name_b": household.partnerBName,
-            "email_b": household.emailB,
-            "sig_y": Double(output.sigY),
+            "pdf_base64":   output.pdfData.base64EncodedString(),
+            "name_a":       household.partnerAName,
+            "email_a":      household.emailA,
+            "name_b":       household.partnerBName,
+            "email_b":      household.emailB,
+            "sig_y":        Double(output.sigY),
             "household_id": household.id.uuidString,
-            // [cohab] prefix keeps templates visually distinct from Samboappen
-            // on the shared DocuSeal account dashboard.
+            // [cohab] prefix keeps templates distinct from Samboappen on the
+            // shared DocuSeal account dashboard.
             "title": "[cohab] \(household.partnerAName) & \(household.partnerBName) — Ownership Agreement"
         ]
 
-        let url = APIConfig.backendURL.appendingPathComponent("docuseal/submit")
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: APIConfig.submitURL)
         request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json",        forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(APIConfig.supabaseKey)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
             let msg = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw DocuSealError.httpError(httpResponse.statusCode, msg)
+            throw DocuSealError.httpError(http.statusCode, msg)
         }
 
         let decoder = JSONDecoder()
@@ -70,7 +70,7 @@ enum DocuSealService {
         do {
             let result = try decoder.decode(DocuSealSubmission.self, from: data)
             household.agreementStatus = "pending"
-            household.docusealSlug = result.slug
+            household.docusealSlug    = result.slug
             return result
         } catch {
             throw DocuSealError.decodingError(error.localizedDescription)
