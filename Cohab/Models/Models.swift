@@ -44,6 +44,104 @@ enum AssetType: String, CaseIterable {
         case .other:      return Color(.systemGray)
         }
     }
+
+    // MARK: Field configuration
+
+    var valueLabel: String {
+        switch self {
+        case .savings:    return "Current balance"
+        case .investment: return "Portfolio value"
+        default:          return "Current market value"
+        }
+    }
+
+    var valuePlaceholder: String {
+        switch self {
+        case .home:       return "350,000"
+        case .cabin:      return "150,000"
+        case .car:        return "15,000"
+        case .investment: return "50,000"
+        case .savings:    return "10,000"
+        case .other:      return "0"
+        }
+    }
+
+    /// Whether this asset type can have an outstanding loan/finance balance.
+    var showLoan: Bool {
+        switch self {
+        case .investment, .savings: return false
+        default:                    return true
+        }
+    }
+
+    var loanLabel: String {
+        switch self {
+        case .car:   return "Remaining car finance"
+        case .other: return "Outstanding debt"
+        default:     return "Remaining mortgage"
+        }
+    }
+
+    /// Label for the "address" / secondary identifier field.
+    var secondaryLabel: String {
+        switch self {
+        case .home, .cabin: return "Address"
+        case .car:          return "Registration plate"
+        case .investment:   return "Provider / account"
+        case .savings:      return "Bank / account name"
+        case .other:        return "Notes"
+        }
+    }
+
+    var secondaryPlaceholder: String {
+        switch self {
+        case .home:       return "10 Baker Street…"
+        case .cabin:      return "Cabin address…"
+        case .car:        return "AB12 CDE"
+        case .investment: return "e.g. Vanguard ISA, Fidelity SIPP…"
+        case .savings:    return "e.g. Barclays joint savings"
+        case .other:      return "Brief description…"
+        }
+    }
+
+    var defaultSalesCostFraction: Double {
+        switch self {
+        case .home, .cabin: return 0.02
+        default:            return 0.0
+        }
+    }
+
+    var ownershipHint: String {
+        switch self {
+        case .home, .cabin:
+            return "Percentage registered at the land registry (title deed). Use the Ownership calculator if you're unsure."
+        case .car:
+            return "Who legally owns the vehicle? Split if jointly purchased and financed."
+        case .investment:
+            return "Proportion of this portfolio each partner holds."
+        case .savings:
+            return "Share each partner holds in this account."
+        case .other:
+            return "Proportion each partner owns of this asset."
+        }
+    }
+
+    var ownershipLabel: String {
+        switch self {
+        case .home, .cabin: return "registered share"
+        default:            return "ownership share"
+        }
+    }
+
+    var contributionSubtitle: String {
+        switch self {
+        case .home, .cabin: return "Deposits, renovations, extra mortgage payments…"
+        case .car:          return "Initial deposit, lump-sum payments…"
+        case .investment:   return "Initial contributions, additional deposits…"
+        case .savings:      return "Transfers in, lump-sum deposits…"
+        case .other:        return "Contributions and improvements…"
+        }
+    }
 }
 
 // MARK: - Design tokens

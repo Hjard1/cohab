@@ -541,14 +541,14 @@ struct AddAssetView: View {
                 formField(
                     icon: "tag.fill",
                     label: "Name",
-                    placeholder: selectedType == .home ? "Main home" : selectedType.displayName,
+                    placeholder: selectedType.displayName,
                     text: $label,
                     keyboard: .default
                 )
                 formField(
                     icon: "mappin.circle.fill",
-                    label: "Address (optional)",
-                    placeholder: "10 Baker Street…",
+                    label: selectedType.secondaryLabel + " (optional)",
+                    placeholder: selectedType.secondaryPlaceholder,
                     text: $address,
                     keyboard: .default
                 )
@@ -557,24 +557,27 @@ struct AddAssetView: View {
     }
 
     private var valueSection: some View {
-        formCard("VALUE & LOAN") {
+        let cfg = selectedType
+        return formCard(cfg.showLoan ? "VALUE & LOAN" : "VALUE") {
             VStack(spacing: 14) {
                 formField(
                     icon: "arrow.up.right.circle.fill",
-                    label: "Current value",
-                    placeholder: "0",
+                    label: cfg.valueLabel,
+                    placeholder: cfg.valuePlaceholder,
                     prefix: household.currencySymbol,
                     text: $valueText,
                     keyboard: .decimalPad
                 )
-                formField(
-                    icon: "arrow.down.right.circle.fill",
-                    label: "Remaining loan",
-                    placeholder: "0",
-                    prefix: household.currencySymbol,
-                    text: $loanText,
-                    keyboard: .decimalPad
-                )
+                if cfg.showLoan {
+                    formField(
+                        icon: "arrow.down.right.circle.fill",
+                        label: cfg.loanLabel,
+                        placeholder: "0",
+                        prefix: household.currencySymbol,
+                        text: $loanText,
+                        keyboard: .decimalPad
+                    )
+                }
             }
         }
     }
@@ -583,7 +586,7 @@ struct AddAssetView: View {
         formCard("OWNERSHIP") {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("\(household.partnerAName)'s registered share")
+                    Text("\(household.partnerAName)'s \(selectedType.ownershipLabel)")
                         .font(.subheadline)
                         .foregroundStyle(.primary)
                     Spacer()
@@ -598,7 +601,7 @@ struct AddAssetView: View {
                             .font(.subheadline)
                     }
                 }
-                Text("This is the percentage registered at the land registry (e.g. on the deed). Not sure? Use 50/50 and adjust later with the Ownership calculator.")
+                Text(selectedType.ownershipHint)
                     .font(.caption)
                     .foregroundStyle(Color(.tertiaryLabel))
             }
@@ -654,8 +657,10 @@ struct AddAssetView: View {
     }
 
     private func save() {
-        let value = Double(valueText) ?? 0
-        let loan  = Double(loanText)  ?? 0
+        let value  = Double(valueText.replacingOccurrences(of: ",", with: "")) ?? 0
+        let loan   = selectedType.showLoan
+            ? (Double(loanText.replacingOccurrences(of: ",", with: "")) ?? 0)
+            : 0
         let shareA = min(1, max(0, (Double(shareAText) ?? 50) / 100))
         let asset = Asset(
             assetType: selectedType.rawValue,
@@ -663,6 +668,7 @@ struct AddAssetView: View {
             address: address.trimmingCharacters(in: .whitespaces),
             currentValue: value,
             remainingLoan: loan,
+            salesCostFraction: selectedType.defaultSalesCostFraction,
             ownershipShareA: shareA
         )
         household.assets.append(asset)
@@ -772,19 +778,24 @@ struct EditAssetView: View {
         formCard("DETAILS") {
             formField(icon: "tag.fill", label: "Name",
                       placeholder: selectedType.displayName, text: $label, keyboard: .default)
-            formField(icon: "mappin.circle.fill", label: "Address (optional)",
-                      placeholder: "10 Baker Street…", text: $address, keyboard: .default)
+            formField(icon: "mappin.circle.fill",
+                      label: selectedType.secondaryLabel + " (optional)",
+                      placeholder: selectedType.secondaryPlaceholder,
+                      text: $address, keyboard: .default)
         }
     }
 
     private var valueSection: some View {
-        formCard("VALUE & LOAN") {
-            formField(icon: "arrow.up.right.circle.fill", label: "Current value",
-                      placeholder: "0", prefix: household.currencySymbol,
+        let cfg = selectedType
+        return formCard(cfg.showLoan ? "VALUE & LOAN" : "VALUE") {
+            formField(icon: "arrow.up.right.circle.fill", label: cfg.valueLabel,
+                      placeholder: cfg.valuePlaceholder, prefix: household.currencySymbol,
                       text: $valueText, keyboard: .decimalPad)
-            formField(icon: "arrow.down.right.circle.fill", label: "Remaining loan",
-                      placeholder: "0", prefix: household.currencySymbol,
-                      text: $loanText, keyboard: .decimalPad)
+            if cfg.showLoan {
+                formField(icon: "arrow.down.right.circle.fill", label: cfg.loanLabel,
+                          placeholder: "0", prefix: household.currencySymbol,
+                          text: $loanText, keyboard: .decimalPad)
+            }
         }
     }
 
@@ -792,7 +803,7 @@ struct EditAssetView: View {
         formCard("OWNERSHIP") {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("\(household.partnerAName)'s registered share")
+                    Text("\(household.partnerAName)'s \(selectedType.ownershipLabel)")
                         .font(.subheadline).foregroundStyle(.primary)
                     Spacer()
                     HStack(spacing: 2) {
@@ -804,7 +815,7 @@ struct EditAssetView: View {
                         Text("%").foregroundStyle(.secondary).font(.subheadline)
                     }
                 }
-                Text("Percentage registered at the land registry.")
+                Text(selectedType.ownershipHint)
                     .font(.caption).foregroundStyle(Color(.tertiaryLabel))
             }
         }
@@ -818,7 +829,7 @@ struct EditAssetView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("EQUITY CONTRIBUTIONS")
                         .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
-                    Text("Deposits, renovations, extra repayments…")
+                    Text(selectedType.contributionSubtitle)
                         .font(.caption).foregroundStyle(Color(.tertiaryLabel))
                 }
                 Spacer()
@@ -909,12 +920,15 @@ struct EditAssetView: View {
     }
 
     private func save() {
-        asset.assetType     = selectedType.rawValue
-        asset.label         = label.trimmingCharacters(in: .whitespaces)
-        asset.address       = address.trimmingCharacters(in: .whitespaces)
-        asset.currentValue  = Double(valueText.replacingOccurrences(of: ",", with: "")) ?? asset.currentValue
-        asset.remainingLoan = Double(loanText.replacingOccurrences(of: ",", with: ""))  ?? 0
-        asset.ownershipShareA = min(1, max(0, (Double(shareAText) ?? 50) / 100))
+        asset.assetType       = selectedType.rawValue
+        asset.label           = label.trimmingCharacters(in: .whitespaces)
+        asset.address         = address.trimmingCharacters(in: .whitespaces)
+        asset.currentValue    = Double(valueText.replacingOccurrences(of: ",", with: "")) ?? asset.currentValue
+        asset.remainingLoan   = selectedType.showLoan
+            ? (Double(loanText.replacingOccurrences(of: ",", with: "")) ?? 0)
+            : 0
+        asset.salesCostFraction = selectedType.defaultSalesCostFraction
+        asset.ownershipShareA   = min(1, max(0, (Double(shareAText) ?? 50) / 100))
         dismiss()
     }
 

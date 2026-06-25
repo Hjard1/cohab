@@ -2,95 +2,53 @@ import XCTest
 
 final class CohabUITests: XCTestCase {
     let app = XCUIApplication()
-
     override func setUpWithError() throws {
         continueAfterFailure = false
         app.launch()
     }
 
-    func testScreenshots() throws {
+    func testAssetTypeForms() throws {
         Thread.sleep(forTimeInterval: 2)
 
-        // 1. Dashboard — empty or with household
-        save("01_dashboard")
-
-        // 2. Setup household if needed
+        // Ensure household exists
         if app.buttons["Get started"].waitForExistence(timeout: 2) {
             app.buttons["Get started"].tap()
-            Thread.sleep(forTimeInterval: 0.5)
-            let fieldA = app.textFields["Partner A name"]
-            if fieldA.waitForExistence(timeout: 2) {
-                fieldA.tap(); fieldA.typeText("Alex")
-            }
-            let fieldB = app.textFields["Partner B name"]
-            if fieldB.waitForExistence(timeout: 2) {
-                fieldB.tap(); fieldB.typeText("Sophie")
-            }
+            Thread.sleep(forTimeInterval: 0.4)
+            let fA = app.textFields["Partner A name"]
+            if fA.waitForExistence(timeout: 2) { fA.tap(); fA.typeText("Alex") }
+            let fB = app.textFields["Partner B name"]
+            if fB.waitForExistence(timeout: 2) { fB.tap(); fB.typeText("Sophie") }
             app.navigationBars.buttons["Save"].tap()
             Thread.sleep(forTimeInterval: 1)
         }
-        save("02_dashboard_household")
 
-        // 3. Add asset sheet
-        let plusBtn = app.buttons["plus"]
-        if plusBtn.waitForExistence(timeout: 3) {
-            plusBtn.tap()
-            Thread.sleep(forTimeInterval: 0.8)
-            save("03_add_asset")
+        // Open add-asset sheet
+        let plus = app.buttons["plus"]
+        guard plus.waitForExistence(timeout: 3) else { return }
+        plus.tap()
+        Thread.sleep(forTimeInterval: 0.8)
 
-            // Fill in some data
-            let labelField = app.textFields["Main home"]
-            if labelField.waitForExistence(timeout: 2) {
-                labelField.tap(); labelField.typeText("Our home")
-            }
-            app.textFields["0"].firstMatch.tap()
-            app.textFields["0"].firstMatch.typeText("350000")
+        // 1. Home (default)
+        save("add_home")
 
-            save("04_add_asset_filled")
+        // 2. Tap Car
+        app.staticTexts["Car"].tap(); Thread.sleep(forTimeInterval: 0.4)
+        save("add_car")
 
-            // Save asset
-            app.navigationBars.buttons["Add"].tap()
-            Thread.sleep(forTimeInterval: 1)
-        }
-        save("05_dashboard_with_asset")
+        // 3. Investment
+        app.staticTexts["Investment"].tap(); Thread.sleep(forTimeInterval: 0.4)
+        save("add_investment")
 
-        // 4. Tap asset to edit
-        let assetCard = app.buttons.firstMatch
-        if assetCard.waitForExistence(timeout: 2) {
-            // find edit sheet by tapping the card area
-            let cards = app.buttons.allElementsBoundByIndex
-                .filter { $0.frame.width > 300 && $0.frame.height > 100 }
-            if let card = cards.first {
-                card.tap()
-                Thread.sleep(forTimeInterval: 0.8)
-                save("06_edit_asset")
+        // 4. Savings
+        app.staticTexts["Savings"].tap(); Thread.sleep(forTimeInterval: 0.4)
+        save("add_savings")
 
-                // Tap add contribution
-                let addContrib = app.buttons.matching(
-                    NSPredicate(format: "label CONTAINS 'plus.circle'")
-                ).firstMatch
-                if addContrib.waitForExistence(timeout: 2) {
-                    addContrib.tap()
-                    Thread.sleep(forTimeInterval: 0.8)
-                    save("07_add_contribution")
-                    app.navigationBars.buttons["Cancel"].tap()
-                    Thread.sleep(forTimeInterval: 0.5)
-                }
-                app.navigationBars.buttons["Cancel"].tap()
-                Thread.sleep(forTimeInterval: 0.5)
-            }
-        }
-
-        // 5. Calculators tab
-        app.tabBars.buttons["Calculators"].tap()
-        Thread.sleep(forTimeInterval: 1)
-        save("08_calculators")
+        app.navigationBars.buttons["Cancel"].tap()
     }
 
     private func save(_ name: String) {
         let s = XCUIScreen.main.screenshot()
-        let a = XCTAttachment(screenshot: s)
-        a.name = name; a.lifetime = .keepAlways; add(a)
-        try? s.pngRepresentation.write(to: URL(fileURLWithPath: "/tmp/cohab_\(name).png"))
+        let a = XCTAttachment(screenshot: s); a.name = name; a.lifetime = .keepAlways; add(a)
+        try? s.pngRepresentation.write(to: URL(fileURLWithPath: "/tmp/cohab_type_\(name).png"))
     }
 }
