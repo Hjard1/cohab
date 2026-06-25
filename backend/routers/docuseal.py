@@ -1,7 +1,15 @@
 import os
+import uuid
+from datetime import datetime, timezone
+
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from database import get_db
+from models import DocuSealSubmissionRecord
 
 router = APIRouter()
 
@@ -17,6 +25,7 @@ class DocuSealSubmitBody(BaseModel):
     email_b: str
     sig_y: float
     title: str
+    household_id: str
 
 
 class DocuSealSubmitResponse(BaseModel):
@@ -29,21 +38,24 @@ class DocuSealSubmitResponse(BaseModel):
 def _headers() -> dict:
     if not DOCUSEAL_API_KEY:
         raise HTTPException(status_code=500, detail="DOCUSEAL_API_KEY is not configured")
-    # DocuSeal EU uses X-Auth-Token; docuseal.com accepts Bearer.
-    # X-Auth-Token works on both regions.
+    # DocuSeal EU uses X-Auth-Token. Bearer returns 401 on the EU region.
     return {"X-Auth-Token": DOCUSEAL_API_KEY, "Content-Type": "application/json"}
 
 
 @router.post("/submit", response_model=DocuSealSubmitResponse)
-async def submit(body: DocuSealSubmitBody):
+async def submit(body: DocuSealSubmitBody, db: AsyncSession = Depends(get_db)):
     """
-    1. Upload the PDF to DocuSeal to create a signable template.
-    2. Create a submission with both partners as submitters.
-    3. Return signing URLs for each partner.
+    1. Upload PDF to DocuSeal → creates a signable template.
+    2. Create submission with both partners as parallel signers.
+    3. Track the submission in cohab_docuseal_submissions for webhook isolation.
+    4. Return signing URLs.
+
+    Template names are prefixed with [cohab] to keep them visually distinct
+    from Samboappen templates on the shared DocuSeal account dashboard.
     """
     headers = _headers()
 
-    # A4 page is 595×842 points.  sig_y comes from ContractGenerator (origin top-left).
+    # A4 = 595×842 pt. sig_y is measured from the top (UIKit coordinate space).
     sig_fields = [
         {
             "name": f"{body.name_a} Signature",
@@ -62,20 +74,14 @@ async def submit(body: DocuSealSubmitBody):
     ]
 
     async with httpx.AsyncClient(timeout=30.0) as client:
-        # Step 1: Create template from PDF
+        # ── Step 1: Create PDF template ───────────────────────────────────────
         try:
             template_resp = await client.post(
                 f"{DOCUSEAL_BASE_URL}/templates/pdf",
                 headers=headers,
                 json={
-                    "name": body.title,
-                    "documents": [
-                        {
-                            "name": body.title,
-                            "file": body.pdf_base64,
-                            "fields": sig_fields,
-                        }
-                    ],
+                    "name": body.title,   # already prefixed [cohab] by iOS client
+                    "documents": [{"name": body.title, "file": body.pdf_base64, "fields": sig_fields}],
                 },
             )
         except httpx.RequestError as e:
@@ -91,7 +97,7 @@ async def submit(body: DocuSealSubmitBody):
         if not template_id:
             raise HTTPException(status_code=502, detail="DocuSeal did not return a template id")
 
-        # Step 2: Create submission (sends signing emails)
+        # ── Step 2: Create submission ─────────────────────────────────────────
         try:
             sub_resp = await client.post(
                 f"{DOCUSEAL_BASE_URL}/submissions",
@@ -106,9 +112,10 @@ async def submit(body: DocuSealSubmitBody):
                     "message": {
                         "subject": f"Agreement ready to sign: {body.title}",
                         "body": (
-                            f"Hi {{{{submitter.name}}}},\n\n"
-                            f"{body.name_a} and {body.name_b} have created a shared ownership agreement "
-                            f"using cohab.\n\nClick below to review and sign:\n{{{{submitter.link}}}}"
+                            "Hi {{submitter.name}},\n\n"
+                            f"{body.name_a} and {body.name_b} have created a shared ownership "
+                            "agreement using cohab.\n\n"
+                            "Click below to review and sign:\n{{submitter.link}}"
                         ),
                     },
                 },
@@ -126,15 +133,71 @@ async def submit(body: DocuSealSubmitBody):
         if not isinstance(submitters, list) or len(submitters) < 2:
             raise HTTPException(status_code=502, detail="Unexpected DocuSeal submission response")
 
-        # submitters[0] = Partner A, submitters[1] = Partner B (order=0 means parallel signing)
         submission_id = str(submitters[0].get("submission_id", ""))
-        slug = submitters[0].get("slug", "")
-        url_a = submitters[0].get("embed_src", "")
-        url_b = submitters[1].get("embed_src", "")
+        slug          = submitters[0].get("slug", "")
+        url_a         = submitters[0].get("embed_src", "")
+        url_b         = submitters[1].get("embed_src", "")
 
-        return DocuSealSubmitResponse(
+    # ── Step 3: Track submission in local DB (isolation from Samboappen) ──────
+    try:
+        record = DocuSealSubmissionRecord(
+            household_id=uuid.UUID(body.household_id),
             submission_id=submission_id,
             slug=slug,
-            signing_url_a=url_a,
-            signing_url_b=url_b,
+            status="pending",
+            email_a=body.email_a,
+            email_b=body.email_b,
         )
+        db.add(record)
+        await db.commit()
+    except Exception:
+        # Non-fatal: signing still works even if DB tracking fails
+        await db.rollback()
+
+    return DocuSealSubmitResponse(
+        submission_id=submission_id,
+        slug=slug,
+        signing_url_a=url_a,
+        signing_url_b=url_b,
+    )
+
+
+@router.post("/webhook")
+async def webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Receives DocuSeal submission.completed events.
+
+    ISOLATION STRATEGY: Samboappen also uses the same DocuSeal account and
+    receives ALL events on its own webhook endpoint. To prevent cross-
+    contamination we only process events where the submission slug exists
+    in cohab's own tracking table. Anything else returns 200 and is ignored.
+    """
+    payload = await request.json()
+
+    event_type = payload.get("event_type")
+    if event_type != "submission.completed":
+        return {"ok": True, "action": "ignored", "reason": "not submission.completed"}
+
+    submission = payload.get("submission", {})
+    slug = submission.get("slug", "")
+    submission_id = str(submission.get("id", ""))
+
+    # Check ownership: is this a cohab submission?
+    result = await db.execute(
+        select(DocuSealSubmissionRecord).where(
+            DocuSealSubmissionRecord.slug == slug
+        )
+    )
+    record = result.scalar_one_or_none()
+
+    if not record:
+        # Not a cohab submission — could be Samboappen or another app on the account.
+        # Return 200 to acknowledge receipt without processing.
+        return {"ok": True, "action": "ignored", "reason": "submission not tracked by cohab"}
+
+    # Mark as signed
+    record.status = "completed"
+    record.completed_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return {"ok": True, "action": "marked_completed", "slug": slug}

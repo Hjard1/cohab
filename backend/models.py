@@ -190,3 +190,33 @@ class ExpenseOut(BaseModel):
     date: datetime
     category: str
     is_recurring: bool
+
+
+# ── DocuSeal submission tracking ──────────────────────────────────────────────
+# Tracks every submission cohab creates so the webhook can verify ownership
+# and ignore events that belong to other apps (e.g. Samboappen) on the
+# same DocuSeal account.
+
+class DocuSealSubmissionRecord(Base):
+    __tablename__ = "cohab_docuseal_submissions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    household_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("households.id"))
+    submission_id: Mapped[str] = mapped_column(String, index=True)   # DocuSeal numeric id
+    slug: Mapped[str] = mapped_column(String, unique=True, index=True)
+    status: Mapped[str] = mapped_column(String, default="pending")   # pending|completed|declined
+    email_a: Mapped[str] = mapped_column(String)
+    email_b: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class DocuSealSubmissionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    household_id: uuid.UUID
+    submission_id: str
+    slug: str
+    status: str
+    created_at: datetime
+    completed_at: Optional[datetime]

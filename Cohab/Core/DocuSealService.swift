@@ -46,7 +46,10 @@ enum DocuSealService {
             "name_b": household.partnerBName,
             "email_b": household.emailB,
             "sig_y": Double(output.sigY),
-            "title": "\(household.partnerAName) & \(household.partnerBName) — Ownership Agreement"
+            "household_id": household.id.uuidString,
+            // [cohab] prefix keeps templates visually distinct from Samboappen
+            // on the shared DocuSeal account dashboard.
+            "title": "[cohab] \(household.partnerAName) & \(household.partnerBName) — Ownership Agreement"
         ]
 
         let url = APIConfig.backendURL.appendingPathComponent("docuseal/submit")
