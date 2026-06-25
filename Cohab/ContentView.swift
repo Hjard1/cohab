@@ -8,8 +8,8 @@ struct ContentView: View {
             CalculatorsView()
                 .tabItem { Label("Calculators", systemImage: "function") }
         }
-        .tint(.green)
-        .preferredColorScheme(.dark)
+        .tint(.cohGreen)
+        .preferredColorScheme(.light)
     }
 }
 

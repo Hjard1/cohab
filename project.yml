@@ -22,3 +22,17 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGNING_ALLOWED: NO
+
+  CohabUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - CohabUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cohab.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        TEST_TARGET_NAME: Cohab
+    dependencies:
+      - target: Cohab

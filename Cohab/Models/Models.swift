@@ -1,5 +1,60 @@
 import SwiftData
+import SwiftUI
 import Foundation
+
+// MARK: - Asset type
+
+enum AssetType: String, CaseIterable {
+    case home       = "home"
+    case car        = "car"
+    case cabin      = "cabin"
+    case investment = "investment"
+    case savings    = "savings"
+    case other      = "other"
+
+    var displayName: String {
+        switch self {
+        case .home:       return "Home"
+        case .car:        return "Car"
+        case .cabin:      return "Cabin"
+        case .investment: return "Investment"
+        case .savings:    return "Savings"
+        case .other:      return "Other"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .home:       return "house.fill"
+        case .car:        return "car.fill"
+        case .cabin:      return "tent.fill"
+        case .investment: return "chart.line.uptrend.xyaxis"
+        case .savings:    return "banknote.fill"
+        case .other:      return "shippingbox.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .home:       return Color(red: 0.10, green: 0.68, blue: 0.45)
+        case .car:        return Color(red: 0.20, green: 0.49, blue: 0.96)
+        case .cabin:      return Color(red: 0.93, green: 0.50, blue: 0.18)
+        case .investment: return Color(red: 0.54, green: 0.31, blue: 0.96)
+        case .savings:    return Color(red: 0.04, green: 0.65, blue: 0.75)
+        case .other:      return Color(.systemGray)
+        }
+    }
+}
+
+// MARK: - Design tokens
+
+extension Color {
+    static let cohGreen   = Color(red: 0.10, green: 0.68, blue: 0.45)
+    static let cohBg      = Color(.systemGroupedBackground)
+    static let cohCard    = Color(.systemBackground)
+}
+
+// MARK: - SwiftData models
 
 @Model
 final class Household {
@@ -45,6 +100,7 @@ final class Household {
 @Model
 final class Asset {
     var id: UUID
+    var assetType: String       // AssetType.rawValue, default "home"
     var label: String
     var address: String
     var currentValue: Double
@@ -56,6 +112,7 @@ final class Asset {
     @Relationship(deleteRule: .cascade) var contributions: [ContributionRecord]
 
     init(
+        assetType: String = "home",
         label: String,
         address: String = "",
         currentValue: Double,
@@ -65,6 +122,7 @@ final class Asset {
         purchaseDate: Date = Date()
     ) {
         self.id = UUID()
+        self.assetType = assetType
         self.label = label
         self.address = address
         self.currentValue = currentValue
@@ -78,6 +136,7 @@ final class Asset {
     var netEquity: Double { currentValue - remainingLoan }
     var estimatedSalesCost: Double { currentValue * salesCostFraction }
     var netProceeds: Double { netEquity - estimatedSalesCost }
+    var type: AssetType { AssetType(rawValue: assetType) ?? .other }
 }
 
 @Model
@@ -134,7 +193,4 @@ final class SharedExpense {
         self.category = category
         self.isRecurring = isRecurring
     }
-
-    var amountOwedByA: Double { amount * splitRatioA }
-    var amountOwedByB: Double { amount * (1 - splitRatioA) }
 }
