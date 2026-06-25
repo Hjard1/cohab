@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
-DOCUSEAL_BASE_URL = os.getenv("DOCUSEAL_BASE_URL", "https://api.docuseal.com")
+DOCUSEAL_BASE_URL = os.getenv("DOCUSEAL_BASE_URL", "https://api.docuseal.eu")
 DOCUSEAL_API_KEY  = os.getenv("DOCUSEAL_API_KEY", "")
 
 
@@ -29,7 +29,9 @@ class DocuSealSubmitResponse(BaseModel):
 def _headers() -> dict:
     if not DOCUSEAL_API_KEY:
         raise HTTPException(status_code=500, detail="DOCUSEAL_API_KEY is not configured")
-    return {"Authorization": f"Bearer {DOCUSEAL_API_KEY}", "Content-Type": "application/json"}
+    # DocuSeal EU uses X-Auth-Token; docuseal.com accepts Bearer.
+    # X-Auth-Token works on both regions.
+    return {"X-Auth-Token": DOCUSEAL_API_KEY, "Content-Type": "application/json"}
 
 
 @router.post("/submit", response_model=DocuSealSubmitResponse)

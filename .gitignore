@@ -36,3 +36,4 @@ xcuserdata/
 .env
 .env.*
 !.env.example
+env/
