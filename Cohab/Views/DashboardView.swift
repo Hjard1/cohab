@@ -455,6 +455,7 @@ struct AgreementSheetView: View {
     @Binding var error: String?
     @Environment(\.dismiss) private var dismiss
     @State private var hasStarted = false
+    @State private var selectedPartner = 0   // 0 = A, 1 = B
 
     var body: some View {
         NavigationStack {
@@ -462,40 +463,16 @@ struct AgreementSheetView: View {
                 Color.cohBg.ignoresSafeArea()
 
                 if isGenerating {
-                    VStack(spacing: 20) {
-                        ProgressView().scaleEffect(1.3)
-                        Text("Generating agreement…")
-                            .font(.subheadline).foregroundStyle(.secondary)
-                        Text("This uploads the PDF to DocuSeal and sends signing emails.")
-                            .font(.caption).foregroundStyle(Color(.tertiaryLabel))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
-                    }
+                    generatingView
                 } else if let err = error {
-                    VStack(spacing: 16) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 44))
-                            .foregroundStyle(.red)
-                        Text("Something went wrong")
-                            .font(.headline)
-                        Text(err)
-                            .font(.subheadline).foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
-                        Button("Try again") {
-                            error = nil
-                            generate()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.cohGreen)
-                    }
+                    errorView(err)
                 } else if let sub = submission {
-                    successView(sub)
+                    signingView(sub)
                 } else {
                     EmptyView()
                 }
             }
-            .navigationTitle("Ownership Agreement")
+            .navigationTitle("Sign Agreement")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -510,84 +487,72 @@ struct AgreementSheetView: View {
         }
     }
 
-    private func successView(_ sub: DocuSealSubmission) -> some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                VStack(spacing: 8) {
-                    Image(systemName: "envelope.badge.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(Color.cohGreen)
-                    Text("Signing links sent")
-                        .font(.title2.bold())
-                    Text("Signing emails have been sent to both partners. Use the links below to open the signing page directly.")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.top, 12)
+    // MARK: Loading
 
-                VStack(spacing: 12) {
-                    signingLinkCard(
-                        name: household.partnerAName,
-                        color: Color.cohGreen,
-                        url: sub.signingUrlA
-                    )
-                    signingLinkCard(
-                        name: household.partnerBName,
-                        color: Color(red: 0.20, green: 0.49, blue: 0.96),
-                        url: sub.signingUrlB
-                    )
-                }
-            }
-            .padding(24)
+    private var generatingView: some View {
+        VStack(spacing: 20) {
+            ProgressView().scaleEffect(1.3)
+            Text("Preparing agreement…")
+                .font(.subheadline).foregroundStyle(.secondary)
+            Text("Generating PDF and creating signing session in DocuSeal.")
+                .font(.caption).foregroundStyle(Color(.tertiaryLabel))
+                .multilineTextAlignment(.center).padding(.horizontal, 40)
         }
     }
 
-    private func signingLinkCard(name: String, color: Color, url: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                ZStack {
-                    Circle().fill(color.opacity(0.12)).frame(width: 30, height: 30)
-                    Text(String(name.prefix(1)).uppercased())
-                        .font(.caption.bold()).foregroundStyle(color)
-                }
-                Text(name).font(.subheadline.weight(.semibold))
-            }
-            if let signingURL = URL(string: url), !url.isEmpty {
-                Link(destination: signingURL) {
-                    HStack {
-                        Text("Open signing link")
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.vertical, 12).padding(.horizontal, 16)
-                    .background(color, in: RoundedRectangle(cornerRadius: 10))
-                }
-            } else {
-                Text("Signing link not available")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
+    // MARK: Error
+
+    private func errorView(_ msg: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "xmark.circle.fill").font(.system(size: 44)).foregroundStyle(.red)
+            Text("Something went wrong").font(.headline)
+            Text(msg).font(.subheadline).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center).padding(.horizontal, 32)
+            Button("Try again") { error = nil; generate() }
+                .buttonStyle(.borderedProminent).tint(.cohGreen)
         }
-        .padding(16)
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
     }
+
+    // MARK: Signing form (in-app WKWebView)
+
+    private func signingView(_ sub: DocuSealSubmission) -> some View {
+        VStack(spacing: 0) {
+            // Partner picker
+            Picker("Partner", selection: $selectedPartner) {
+                Text(household.partnerAName).tag(0)
+                Text(household.partnerBName).tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(Color.cohBg)
+
+            // Embedded DocuSeal signing form
+            let url = selectedPartner == 0 ? sub.signingUrlA : sub.signingUrlB
+            DocuSealSigningView(signingURL: url)
+                .id(selectedPartner)   // force reload when switching partners
+                .ignoresSafeArea(edges: .bottom)
+
+            // Email fallback notice
+            HStack(spacing: 6) {
+                Image(systemName: "envelope").font(.caption2).foregroundStyle(.secondary)
+                Text("Signing links also sent by email.")
+                    .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+            }
+            .padding(.bottom, 8)
+        }
+    }
+
+    // MARK: Generate
 
     private func generate() {
         isGenerating = true
         Task {
             do {
                 let result = try await DocuSealService.submit(household: household)
-                await MainActor.run {
-                    submission = result
-                    isGenerating = false
-                }
+                await MainActor.run { submission = result; isGenerating = false }
             } catch {
-                await MainActor.run {
-                    self.error = error.localizedDescription
-                    isGenerating = false
-                }
+                await MainActor.run { self.error = error.localizedDescription; isGenerating = false }
             }
         }
     }
