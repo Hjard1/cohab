@@ -14,6 +14,7 @@ struct DashboardView: View {
     @State private var isGeneratingAgreement = false
     @State private var agreementError: String?
     @State private var availableRate: CentralBankRate?
+    @State private var showRateSaved = false
 
     private var household: Household? { households.first }
 
@@ -105,45 +106,55 @@ struct DashboardView: View {
     // MARK: Equity header
 
     private func equityHeader(_ h: Household) -> some View {
-        let equity = totalEquity(h)
-        let settlement = totalSettlement(h)
-        return VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("YOUR EQUITY")
-                    .font(.caption.bold()).tracking(1)
-                    .foregroundStyle(Color.cohMuted)
-                Text("\(h.currencySymbol)\(Int(equity).formatted())")
-                    .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(Color.cohInk)
-                if settlement > equity {
-                    Label("+\(h.currencySymbol)\(Int(settlement - equity).formatted()) in contributions", systemImage: "arrow.up")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.cohGreen)
-                }
+        let (payoutA, payoutB) = totalPayouts(h)
+        let totalNet = payoutA + payoutB
+        return VStack(spacing: 14) {
+            // Both partners side by side
+            HStack(spacing: 0) {
+                partnerEquityColumn(
+                    name: h.partnerAName,
+                    amount: payoutA,
+                    symbol: h.currencySymbol,
+                    color: Color.cohGreen
+                )
+                Divider().frame(height: 48).padding(.horizontal, 16)
+                partnerEquityColumn(
+                    name: h.partnerBName,
+                    amount: payoutB,
+                    symbol: h.currencySymbol,
+                    color: Color(red: 0.20, green: 0.49, blue: 0.96)
+                )
+                Spacer()
             }
 
-            if settlement > 0 {
+            if totalNet > 0 {
                 HStack(spacing: 8) {
-                    Image(systemName: "pencil.and.list.clipboard")
-                        .font(.subheadline).foregroundStyle(Color.cohGreen)
-                    Text("\(h.currencySymbol)\(Int(settlement).formatted()) settlement value")
-                        .font(.subheadline.weight(.medium)).foregroundStyle(Color.cohGreen)
+                    Image(systemName: "house.fill")
+                        .font(.caption).foregroundStyle(Color.cohGreen)
+                    Text("Combined settlement value: \(h.currencySymbol)\(Int(totalNet).formatted())")
+                        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
                     Spacer()
                 }
-                .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(Color.cohGreen.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Color.cohGreen.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
             }
         }
     }
 
-    private func totalEquity(_ h: Household) -> Double {
-        h.assets.reduce(0.0) { sum, asset in
-            sum + (asset.currentValue - asset.remainingLoan) * asset.ownershipShareA
+    private func partnerEquityColumn(name: String, amount: Double, symbol: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(name.uppercased())
+                .font(.caption2.bold()).tracking(1)
+                .foregroundStyle(Color.cohMuted)
+                .lineLimit(1)
+            Text("\(symbol)\(Int(amount).formatted())")
+                .font(.system(size: 26, weight: .bold, design: .rounded).monospacedDigit())
+                .foregroundStyle(color)
         }
     }
 
-    private func totalSettlement(_ h: Household) -> Double {
-        h.assets.reduce(0.0) { sum, asset in
+    private func totalPayouts(_ h: Household) -> (Double, Double) {
+        h.assets.reduce((0.0, 0.0)) { acc, asset in
             let r = SettlementEngine.settle(SettlementInput(
                 salePrice: asset.currentValue,
                 remainingLoan: asset.remainingLoan,
@@ -156,7 +167,7 @@ struct DashboardView: View {
                 },
                 settlementDate: Date()
             ))
-            return sum + (r.payout[.a] ?? 0)
+            return (acc.0 + (r.payout[.a] ?? 0), acc.1 + (r.payout[.b] ?? 0))
         }
     }
 
@@ -627,13 +638,22 @@ extension DashboardView {
                     .font(.caption2).foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Update") {
-                household.annualInterestRate = rate.rate
-                availableRate = nil
+            if showRateSaved {
+                Label("Saved", systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.semibold)).foregroundStyle(Color.cohGreen)
+            } else {
+                Button("Update") {
+                    household.annualInterestRate = rate.rate
+                    showRateSaved = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        availableRate = nil
+                        showRateSaved = false
+                    }
+                }
+                .font(.caption.weight(.semibold)).foregroundStyle(.white)
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(Color.cohGreen, in: Capsule())
             }
-            .font(.caption.weight(.semibold)).foregroundStyle(.white)
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(Color.cohGreen, in: Capsule())
             Button { availableRate = nil } label: {
                 Image(systemName: "xmark")
                     .font(.caption2).foregroundStyle(.secondary)
@@ -788,18 +808,34 @@ struct AgreementSheetView: View {
         .onAppear {
             guard !hasStarted else { return }
             hasStarted = true
+
+            // Recovery: if we have a pending slug but lost the in-memory submission
+            // (e.g. after a crash), don't re-generate — check status silently instead.
+            if submission == nil, !household.docusealSlug.isEmpty,
+               household.agreementStatus == "pending" {
+                Task {
+                    let signed = await DocuSealService.checkSigned(household: household)
+                    if signed { withAnimation { isSigned = true } }
+                }
+                return
+            }
+
             if submission == nil { generate() }
         }
-        // Poll every 6s while the sheet is open and a submission is pending
+        // Poll every 6s — uses try await so the loop exits cleanly on dismiss
         .task(id: submission?.slug) {
             guard let slug = submission?.slug, !slug.isEmpty else { return }
-            while !isSigned {
-                try? await Task.sleep(for: .seconds(6))
-                let signed = await DocuSealService.checkSigned(household: household)
-                if signed {
-                    withAnimation { isSigned = true }
-                    return
+            do {
+                while !isSigned {
+                    try await Task.sleep(for: .seconds(6))
+                    let signed = await DocuSealService.checkSigned(household: household)
+                    if signed {
+                        withAnimation { isSigned = true }
+                        return
+                    }
                 }
+            } catch {
+                // Task cancelled — sheet was dismissed, nothing to do
             }
         }
     }

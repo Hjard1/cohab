@@ -185,17 +185,51 @@ enum ContractGenerator {
 
         sections.append(("\(n).  SHARED ASSETS", {
             n += 1
-            let list = household.assets.isEmpty
-                ? "No assets registered at signing. Assets will be added by mutual agreement."
-                : household.assets.map {
-                    "• \($0.label) — \($0.type.displayName), \(Int($0.ownershipShareA * 100))% / \(Int((1 - $0.ownershipShareA) * 100))%"
-                  }.joined(separator: "\n")
-            return "The parties jointly hold the following assets. Ownership percentages are as registered in the cohab application:\n\n\(list)"
+            let sym = household.currencySymbol
+            if household.assets.isEmpty {
+                return "No assets registered at signing. Assets will be added by mutual agreement."
+            }
+            let list = household.assets.map { a -> String in
+                let equity = a.currentValue - a.remainingLoan
+                var line = "• \(a.label) (\(a.type.displayName))"
+                line += "\n  Market value: \(sym)\(Int(a.currentValue).formatted())"
+                if a.remainingLoan > 0 {
+                    line += "  |  Remaining loan: \(sym)\(Int(a.remainingLoan).formatted())"
+                }
+                line += "  |  Net equity: \(sym)\(Int(equity).formatted())"
+                line += "\n  Ownership: \(household.partnerAName) \(Int(a.ownershipShareA * 100))%  —  \(household.partnerBName) \(Int((1 - a.ownershipShareA) * 100))%"
+                return line
+            }.joined(separator: "\n\n")
+            return "The parties jointly hold the following assets as registered in the cohab application at the time of signing:\n\n\(list)"
         }()))
 
         sections.append(("\(n).  EQUITY CONTRIBUTIONS", {
             n += 1
-            return "Contributions — including deposits, extra mortgage payments, renovations, and other capital inputs — are recorded digitally. Each contribution accrues interest at \(rateStr) per annum, compounded annually, from the date of contribution to final settlement."
+            let sym = household.currencySymbol
+            let allContribs = household.assets.flatMap { asset in
+                asset.contributions.map { (asset: asset, contrib: $0) }
+            }.sorted { $0.contrib.date < $1.contrib.date }
+
+            if allContribs.isEmpty {
+                return "No equity contributions recorded at signing. Contributions — including deposits, extra mortgage payments, renovations, and other capital inputs — may be added at any time. Each contribution accrues interest at \(rateStr) per annum, compounded annually."
+            }
+
+            let contribA = allContribs.filter { $0.contrib.ownerKey == "A" }
+            let contribB = allContribs.filter { $0.contrib.ownerKey == "B" }
+            let totalA = contribA.reduce(0) { $0 + $1.contrib.amount }
+            let totalB = contribB.reduce(0) { $0 + $1.contrib.amount }
+
+            let fmtDate: (Date) -> String = {
+                let f = DateFormatter(); f.dateStyle = .medium; f.timeStyle = .none
+                return f.string(from: $0)
+            }
+
+            var lines = ["Contributions accrue interest at \(rateStr) per annum, compounded annually.\n"]
+            lines.append("\(household.partnerAName) — total \(sym)\(Int(totalA).formatted()):")
+            lines += contribA.map { "  \(fmtDate($0.contrib.date))  \($0.asset.label)  \(sym)\(Int($0.contrib.amount).formatted())  (\($0.contrib.label))" }
+            lines.append("\n\(household.partnerBName) — total \(sym)\(Int(totalB).formatted()):")
+            lines += contribB.map { "  \(fmtDate($0.contrib.date))  \($0.asset.label)  \(sym)\(Int($0.contrib.amount).formatted())  (\($0.contrib.label))" }
+            return lines.joined(separator: "\n")
         }()))
 
         if household.includeDissolutionClause {

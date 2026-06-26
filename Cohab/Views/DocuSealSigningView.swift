@@ -52,14 +52,22 @@ struct DocuSealSigningView: UIViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {}
 
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            // Ignore cancellation errors (happen when DocuSeal redirects mid-form)
+        }
+
+        func webView(_ webView: WKWebView,
+                     didFailProvisionalNavigation navigation: WKNavigation!,
+                     withError error: Error) {
+            // Ignore provisional failures (SSL/redirect edge cases)
+        }
+
         func webView(_ webView: WKWebView,
                      decidePolicyFor action: WKNavigationAction,
                      decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            // Let DocuSeal's own redirects through; block external navigation
-            guard let url = action.request.url else { return decisionHandler(.allow) }
-            let host = url.host ?? ""
-            let allowed = host.contains("docuseal") || host.isEmpty || url.isFileURL
-            decisionHandler(allowed ? .allow : .cancel)
+            // Allow all navigations — DocuSeal uses redirects and CDN resources
+            // that span multiple domains. Cancelling them can cause crashes.
+            decisionHandler(.allow)
         }
     }
 }
