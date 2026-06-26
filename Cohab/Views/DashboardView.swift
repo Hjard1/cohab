@@ -183,10 +183,8 @@ struct DashboardView: View {
             } else {
                 VStack(spacing: 16) {
                     ForEach(h.assets) { asset in
-                        Button { editingAsset = asset } label: {
-                            AssetCard(asset: asset, household: h)
-                        }
-                        .buttonStyle(.plain)
+                        AssetCard(asset: asset, household: h,
+                                  onEdit: { editingAsset = asset })
                     }
                 }
                 .padding(.top, 16)
@@ -232,37 +230,31 @@ struct DashboardView: View {
 struct AssetCard: View {
     let asset: Asset
     let household: Household
+    let onEdit: () -> Void
+
+    @State private var showBreakdown = false
 
     private var result: SettlementResult {
-        SettlementEngine.settle(
-            SettlementInput(
-                salePrice: asset.currentValue,
-                remainingLoan: asset.remainingLoan,
-                salesCosts: asset.estimatedSalesCost,
-                ownershipShareA: asset.ownershipShareA,
-                annualRate: household.annualInterestRate,
-                contributions: asset.contributions.map { c in
-                    Contribution(
-                        owner: c.ownerKey == "A" ? .a : .b,
-                        amount: c.amount,
-                        date: c.date,
-                        label: c.label
-                    )
-                },
-                settlementDate: Date()
-            )
-        )
+        SettlementEngine.settle(SettlementInput(
+            salePrice: asset.currentValue,
+            remainingLoan: asset.remainingLoan,
+            salesCosts: asset.estimatedSalesCost,
+            ownershipShareA: asset.ownershipShareA,
+            annualRate: household.annualInterestRate,
+            contributions: asset.contributions.map {
+                Contribution(owner: $0.ownerKey == "A" ? .a : .b,
+                             amount: $0.amount, date: $0.date, label: $0.label)
+            },
+            settlementDate: Date()
+        ))
     }
 
     private let typeColor: Color
     private let typeIcon: String
 
-    init(asset: Asset, household: Household) {
-        self.asset = asset
-        self.household = household
-        let t = asset.type
-        self.typeColor = t.color
-        self.typeIcon = t.icon
+    init(asset: Asset, household: Household, onEdit: @escaping () -> Void) {
+        self.asset = asset; self.household = household; self.onEdit = onEdit
+        self.typeColor = asset.type.color; self.typeIcon = asset.type.icon
     }
 
     var body: some View {
@@ -270,106 +262,254 @@ struct AssetCard: View {
             assetHeader
             Color(.separator).frame(height: 0.5).padding(.vertical, 16)
             settlementRow
-            if result.shortfall { shortfallBadge.padding(.top, 12) }
+            if result.shortfall { shortfallBadge.padding(.top, 10) }
+            Color(.separator).frame(height: 0.5).padding(.top, 14)
+            breakdownToggle
+            if showBreakdown {
+                breakdownContent.padding(.top, 14)
+            }
         }
         .padding(20)
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.06), radius: 16, y: 4)
         .padding(.horizontal, 20)
+        .animation(.easeInOut(duration: 0.22), value: showBreakdown)
     }
+
+    // MARK: Header
 
     private var assetHeader: some View {
         HStack(spacing: 14) {
             ZStack {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(typeColor.opacity(0.1))
-                    .frame(width: 50, height: 50)
-                Image(systemName: typeIcon)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(typeColor)
+                RoundedRectangle(cornerRadius: 14).fill(typeColor.opacity(0.1)).frame(width: 50, height: 50)
+                Image(systemName: typeIcon).font(.title3.weight(.semibold)).foregroundStyle(typeColor)
             }
-
             VStack(alignment: .leading, spacing: 3) {
-                Text(asset.label)
-                    .font(.headline)
+                Text(asset.label).font(.headline)
                 if !asset.address.isEmpty {
-                    Text(asset.address)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(asset.address).font(.caption).foregroundStyle(.secondary)
                 }
             }
-
             Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: 4) {
                 Text(household.currencySymbol + fmt(asset.currentValue))
                     .font(.subheadline.bold().monospacedDigit())
                 if asset.remainingLoan > 0 {
                     Text("Loan: −" + fmt(asset.remainingLoan))
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.orange)
+                        .font(.caption2.monospacedDigit()).foregroundStyle(.orange)
                 }
-                HStack(spacing: 3) {
-                    Image(systemName: "pencil")
-                        .font(.caption2)
-                    Text("Edit")
-                        .font(.caption2)
+                Button(action: onEdit) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "pencil").font(.caption2)
+                        Text("Edit").font(.caption2)
+                    }
+                    .foregroundStyle(Color(.tertiaryLabel))
                 }
-                .foregroundStyle(Color(.tertiaryLabel))
-                .padding(.top, 2)
+                .buttonStyle(.plain)
             }
         }
     }
 
+    // MARK: Settlement summary row
+
     private var settlementRow: some View {
         HStack(alignment: .top) {
-            payoutColumn(
-                household.partnerAName,
-                payout: result.payout[.a] ?? 0,
-                accrued: result.accrued[.a] ?? 0,
-                color: .cohGreen
-            )
+            payoutColumn(household.partnerAName, payout: result.payout[.a] ?? 0,
+                         accrued: result.accrued[.a] ?? 0, color: .cohGreen)
             Spacer()
             VStack(spacing: 2) {
-                Text("If settled today")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Image(systemName: "arrow.left.arrow.right")
-                    .font(.caption)
+                Text("If settled today").font(.caption2).foregroundStyle(.secondary)
+                Image(systemName: "arrow.left.arrow.right").font(.caption)
                     .foregroundStyle(Color(.tertiaryLabel))
             }
             Spacer()
-            payoutColumn(
-                household.partnerBName,
-                payout: result.payout[.b] ?? 0,
-                accrued: result.accrued[.b] ?? 0,
-                color: Color(red: 0.20, green: 0.49, blue: 0.96)
-            )
+            payoutColumn(household.partnerBName, payout: result.payout[.b] ?? 0,
+                         accrued: result.accrued[.b] ?? 0,
+                         color: Color(red: 0.20, green: 0.49, blue: 0.96))
         }
     }
 
     private func payoutColumn(_ name: String, payout: Double, accrued: Double, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(name)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(color)
+            Text(name).font(.caption.weight(.medium)).foregroundStyle(color)
             Text(household.currencySymbol + fmt(payout))
                 .font(.title3.bold().monospacedDigit())
             if accrued > 0 {
-                Text("incl. " + household.currencySymbol + fmt(accrued) + " contributions")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                Text("incl. \(household.currencySymbol)\(fmt(accrued)) contributions")
+                    .font(.caption2).foregroundStyle(.secondary)
             }
         }
     }
 
     private var shortfallBadge: some View {
-        Label("Net value below contributions — proportional split applied", systemImage: "exclamationmark.triangle.fill")
-            .font(.caption)
-            .foregroundStyle(.orange)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+        Label("Net value below contributions — proportional split applied",
+              systemImage: "exclamationmark.triangle.fill")
+            .font(.caption).foregroundStyle(.orange)
+            .padding(.horizontal, 12).padding(.vertical, 6)
             .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: Breakdown toggle
+
+    private var breakdownToggle: some View {
+        Button { showBreakdown.toggle() } label: {
+            HStack {
+                Image(systemName: "function")
+                    .font(.caption2).foregroundStyle(Color.cohGreen)
+                Text(showBreakdown ? "Hide calculation" : "Show calculation")
+                    .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                Spacer()
+                Image(systemName: showBreakdown ? "chevron.up" : "chevron.down")
+                    .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+            }
+            .padding(.top, 4)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: Expandable breakdown
+
+    private var breakdownContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            netProceedsSection
+            contributionSection(partner: .a, name: household.partnerAName, color: .cohGreen)
+            contributionSection(partner: .b, name: household.partnerBName,
+                                color: Color(red: 0.20, green: 0.49, blue: 0.96))
+            surplusSection
+            finalPayoutSection
+        }
+        .padding(14)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // ── Net proceeds ────────────────────────────────────────────────────
+
+    private var netProceedsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            sectionLabel("NET PROCEEDS")
+            calcRow("Current value", fmt(asset.currentValue))
+            if asset.remainingLoan > 0 {
+                calcRow("Remaining loan", "−" + fmt(asset.remainingLoan), dim: true)
+            }
+            if asset.estimatedSalesCost > 0 {
+                let pct = Int(asset.salesCostFraction * 100)
+                calcRow("Sale costs (\(pct)%)", "−" + fmt(asset.estimatedSalesCost), dim: true)
+            }
+            Divider()
+            calcRow("Net proceeds", fmt(result.netProceeds), bold: true)
+        }
+    }
+
+    // ── Per-partner contributions ────────────────────────────────────────
+
+    private func contributionSection(partner: Partner, name: String, color: Color) -> some View {
+        let rows = contribRows(partner: partner)
+        let total = result.accrued[partner] ?? 0
+        guard !rows.isEmpty else { return AnyView(EmptyView()) }
+        return AnyView(VStack(alignment: .leading, spacing: 6) {
+            sectionLabel(name.uppercased() + "'S CONTRIBUTIONS")
+            ForEach(rows, id: \.id) { row in
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(row.label).font(.caption).foregroundStyle(.primary)
+                        Text(row.dateStr).font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text(household.currencySymbol + fmt(row.withInterest))
+                            .font(.caption.monospacedDigit().weight(.medium))
+                            .foregroundStyle(color)
+                        if row.interest > 1 {
+                            Text("+\(household.currencySymbol)\(fmt(row.interest)) interest")
+                                .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            if rows.count > 1 { Divider() }
+            if rows.count > 1 { calcRow("Total returned", fmt(total), bold: true, tint: color) }
+        })
+    }
+
+    // ── Surplus / shortfall ──────────────────────────────────────────────
+
+    private var surplusSection: some View {
+        let totalAccrued = (result.accrued[.a] ?? 0) + (result.accrued[.b] ?? 0)
+        return VStack(alignment: .leading, spacing: 6) {
+            if result.shortfall {
+                sectionLabel("SHORTFALL")
+                Text("Net proceeds (\(household.currencySymbol)\(fmt(result.netProceeds))) are below total contributions (\(household.currencySymbol)\(fmt(totalAccrued))). Each partner receives a proportional share.")
+                    .font(.caption2).foregroundStyle(.secondary)
+            } else {
+                let surplus = result.netProceeds - totalAccrued
+                let shareA = Int(asset.ownershipShareA * 100)
+                let shareB = 100 - shareA
+                sectionLabel("SURPLUS")
+                calcRow("Contributions returned", fmt(totalAccrued), dim: true)
+                calcRow("Remaining surplus", fmt(surplus))
+                Divider()
+                calcRow("\(household.partnerAName) (\(shareA)%)", fmt(surplus * asset.ownershipShareA))
+                calcRow("\(household.partnerBName) (\(shareB)%)", fmt(surplus * (1 - asset.ownershipShareA)))
+            }
+        }
+    }
+
+    // ── Final payout ─────────────────────────────────────────────────────
+
+    private var finalPayoutSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            sectionLabel("FINAL PAYOUT")
+            calcRow(household.partnerAName, fmt(result.payout[.a] ?? 0), bold: true, tint: .cohGreen)
+            calcRow(household.partnerBName, fmt(result.payout[.b] ?? 0), bold: true,
+                    tint: Color(red: 0.20, green: 0.49, blue: 0.96))
+            Text("Interest rate used: \(String(format: "%.1f%%", household.annualInterestRate * 100)) p.a.")
+                .font(.caption2).foregroundStyle(Color(.tertiaryLabel)).padding(.top, 2)
+        }
+    }
+
+    // MARK: Data helpers
+
+    private struct ContribRow: Identifiable {
+        let id = UUID()
+        let label: String
+        let dateStr: String
+        let original: Double
+        let withInterest: Double
+        var interest: Double { withInterest - original }
+    }
+
+    private func contribRows(partner: Partner) -> [ContribRow] {
+        let key = partner == .a ? "A" : "B"
+        let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .none
+        let now = Date()
+        return asset.contributions
+            .filter { $0.ownerKey == key }
+            .sorted { $0.date < $1.date }
+            .map { c in
+                let accrued = SettlementEngine.accrue(c.amount, rate: household.annualInterestRate,
+                                                       from: c.date, to: now)
+                return ContribRow(label: c.label, dateStr: df.string(from: c.date),
+                                  original: c.amount, withInterest: accrued)
+            }
+    }
+
+    // MARK: UI building blocks
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text).font(.caption2.bold()).tracking(0.8).foregroundStyle(Color(.tertiaryLabel))
+    }
+
+    private func calcRow(_ label: String, _ value: String, bold: Bool = false,
+                          dim: Bool = false, tint: Color? = nil) -> some View {
+        HStack {
+            Text(label)
+                .font(bold ? .caption.weight(.semibold) : .caption)
+                .foregroundStyle(dim ? Color(.tertiaryLabel) : .secondary)
+            Spacer()
+            Text(household.currencySymbol + value)
+                .font(bold ? .caption.bold().monospacedDigit() : .caption.monospacedDigit())
+                .foregroundStyle(tint ?? (bold ? Color(.label) : .secondary))
+        }
     }
 
     private func fmt(_ v: Double) -> String {
