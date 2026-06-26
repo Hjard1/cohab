@@ -70,8 +70,11 @@ enum DocuSealService {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         do {
             let result = try decoder.decode(DocuSealSubmission.self, from: data)
-            household.agreementStatus = "pending"
-            household.docusealSlug    = result.slug
+            household.agreementStatus   = "pending"
+            household.docusealSlug      = result.slug
+            // Snapshot state so we can detect changes later
+            household.signedAssetCount  = household.assets.count
+            household.signedContribCount = household.assets.reduce(0) { $0 + $1.contributions.count }
             return result
         } catch {
             throw DocuSealError.decodingError(error.localizedDescription)

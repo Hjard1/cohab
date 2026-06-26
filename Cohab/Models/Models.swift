@@ -201,6 +201,31 @@ final class Household {
 
     var isFormalMode: Bool { setupMode == "formal" }
 
+    // Snapshot of what was included in the last submitted agreement.
+    // Used to detect changes and prompt for an update.
+    var signedAssetCount: Int = 0
+    var signedContribCount: Int = 0
+
+    /// True when assets or contributions have changed since the last agreement was sent.
+    var agreementNeedsUpdate: Bool {
+        guard agreementStatus != "none" else { return false }
+        let currentContribs = assets.reduce(0) { $0 + $1.contributions.count }
+        return assets.count != signedAssetCount || currentContribs != signedContribCount
+    }
+
+    /// Human-readable summary of what changed since last signing.
+    var changesSinceSigning: String {
+        let assetDiff  = assets.count - signedAssetCount
+        let contribDiff = assets.reduce(0) { $0 + $1.contributions.count } - signedContribCount
+        var parts: [String] = []
+        if assetDiff == 1  { parts.append("1 new asset") }
+        if assetDiff > 1   { parts.append("\(assetDiff) new assets") }
+        if assetDiff < 0   { parts.append("\(-assetDiff) asset\(-assetDiff == 1 ? "" : "s") removed") }
+        if contribDiff == 1 { parts.append("1 new contribution") }
+        if contribDiff > 1  { parts.append("\(contribDiff) new contributions") }
+        return parts.joined(separator: " · ")
+    }
+
     var currencySymbol: String {
         switch currency {
         case "GBP": return "£"

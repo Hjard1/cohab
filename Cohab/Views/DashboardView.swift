@@ -523,6 +523,7 @@ struct AssetCard: View {
 extension DashboardView {
     func agreementCard(_ h: Household) -> some View {
         VStack(alignment: .leading, spacing: 14) {
+            // ── Header ───────────────────────────────────────────────
             HStack {
                 HStack(spacing: 8) {
                     Image(systemName: "doc.badge.checkmark.fill")
@@ -531,38 +532,63 @@ extension DashboardView {
                         .font(.headline)
                 }
                 Spacer()
-                statusBadge(h.agreementStatus)
+                statusBadge(h.agreementStatus, needsUpdate: h.agreementNeedsUpdate)
             }
 
             Color(.separator).frame(height: 0.5)
 
-            if h.agreementStatus == "signed" {
+            // ── Scope description ─────────────────────────────────────
+            Text(h.includeDissolutionClause
+                 ? "Covers: ownership, contributions & dissolution clause"
+                 : "Covers: ownership & contributions")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            // ── Update notice ─────────────────────────────────────────
+            if h.agreementNeedsUpdate && h.agreementStatus != "none" {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.subheadline)
+                    Text(h.changesSinceSigning + " since last agreement.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+            }
+
+            // ── Signed state ──────────────────────────────────────────
+            if h.agreementStatus == "signed" && !h.agreementNeedsUpdate {
                 Label("Signed by both parties", systemImage: "checkmark.seal.fill")
                     .font(.subheadline)
                     .foregroundStyle(Color.cohGreen)
-            } else {
-                Text(h.includeDissolutionClause
-                     ? "Covers: ownership, contributions & dissolution clause"
-                     : "Covers: ownership & contributions")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            }
 
+            // ── Action button ─────────────────────────────────────────
+            if h.agreementStatus != "signed" || h.agreementNeedsUpdate {
+                let buttonLabel = buttonText(for: h)
                 Button {
                     agreementSubmission = nil
                     agreementError = nil
                     showAgreementSheet = true
                 } label: {
-                    HStack {
+                    HStack(spacing: 8) {
                         if isGeneratingAgreement {
                             ProgressView().scaleEffect(0.8)
                         }
-                        Text(h.agreementStatus == "pending" ? "View signing links" : "Generate & sign agreement")
+                        Text(buttonLabel)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.white)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 10))
+                    .background(
+                        h.agreementNeedsUpdate ? Color.orange : Color.cohGreen,
+                        in: RoundedRectangle(cornerRadius: 10)
+                    )
                 }
                 .disabled(isGeneratingAgreement)
             }
@@ -572,12 +598,21 @@ extension DashboardView {
         .shadow(color: .black.opacity(0.05), radius: 12, y: 3)
     }
 
-    private func statusBadge(_ status: String) -> some View {
-        let (label, color): (String, Color) = switch status {
-        case "pending": ("Pending signatures", .orange)
-        case "signed":  ("Signed ✓", .cohGreen)
-        default:        ("Not signed yet", Color(.systemGray))
-        }
+    private func buttonText(for h: Household) -> String {
+        if h.agreementNeedsUpdate    { return "Update & resend agreement" }
+        if h.agreementStatus == "pending" { return "View signing links" }
+        return "Generate & sign agreement"
+    }
+
+    private func statusBadge(_ status: String, needsUpdate: Bool) -> some View {
+        let (label, color): (String, Color) = {
+            if needsUpdate && status != "none" { return ("Update needed", .orange) }
+            switch status {
+            case "pending": return ("Pending signatures", .orange)
+            case "signed":  return ("Signed ✓", .cohGreen)
+            default:        return ("Not signed yet", Color(.systemGray))
+            }
+        }()
         return Text(label)
             .font(.caption.weight(.semibold))
             .foregroundStyle(color)
