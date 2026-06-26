@@ -29,6 +29,32 @@ enum DocuSealError: LocalizedError {
 // MARK: - Service
 
 enum DocuSealService {
+    /// Polls Supabase to check if a submission has been completed by both parties.
+    /// Returns true when the status is "completed" in the DB.
+    @MainActor
+    static func checkSigned(household: Household) async -> Bool {
+        guard !household.docusealSlug.isEmpty else { return false }
+
+        // Query Supabase REST API directly — no Edge Function needed.
+        let urlStr = "\(APIConfig.supabaseURL)/rest/v1/cohab_docuseal_submissions"
+            + "?slug=eq.\(household.docusealSlug)&select=status&limit=1"
+        guard let url = URL(string: urlStr) else { return false }
+
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(APIConfig.supabaseKey)", forHTTPHeaderField: "Authorization")
+        req.setValue(APIConfig.supabaseKey,             forHTTPHeaderField: "apikey")
+        req.timeoutInterval = 8
+
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              let status = rows.first?["status"] as? String else { return false }
+
+        if status == "completed" {
+            household.agreementStatus = "signed"
+            return true
+        }
+        return false
+    }
     /// Generates the agreement PDF, submits it via the Supabase Edge Function,
     /// and updates the household's agreementStatus and docusealSlug.
     @MainActor

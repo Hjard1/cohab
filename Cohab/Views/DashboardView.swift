@@ -46,6 +46,12 @@ struct DashboardView: View {
                     .task {
                         availableRate = await InterestRateService.fetch(currency: h.currency)
                     }
+                    .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                        // Re-check signing status whenever the app comes back to foreground
+                        if h.agreementStatus == "pending" {
+                            Task { await DocuSealService.checkSigned(household: h) }
+                        }
+                    }
 
                     addButton
                 } else {
@@ -674,13 +680,16 @@ struct AgreementSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var hasStarted = false
     @State private var selectedPartner = 0   // 0 = A, 1 = B
+    @State private var isSigned = false
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.cohBg.ignoresSafeArea()
 
-                if isGenerating {
+                if isSigned {
+                    signedConfirmation
+                } else if isGenerating {
                     generatingView
                 } else if let err = error {
                     errorView(err)
@@ -690,7 +699,7 @@ struct AgreementSheetView: View {
                     EmptyView()
                 }
             }
-            .navigationTitle("Sign Agreement")
+            .navigationTitle(isSigned ? "Agreement Signed" : "Sign Agreement")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -702,6 +711,39 @@ struct AgreementSheetView: View {
             guard !hasStarted else { return }
             hasStarted = true
             if submission == nil { generate() }
+        }
+        // Poll every 6s while the sheet is open and a submission is pending
+        .task(id: submission?.slug) {
+            guard let slug = submission?.slug, !slug.isEmpty else { return }
+            while !isSigned {
+                try? await Task.sleep(for: .seconds(6))
+                let signed = await DocuSealService.checkSigned(household: household)
+                if signed {
+                    withAnimation { isSigned = true }
+                    return
+                }
+            }
+        }
+    }
+
+    // MARK: Signed confirmation
+
+    private var signedConfirmation: some View {
+        VStack(spacing: 24) {
+            ZStack {
+                Circle().fill(Color.cohGreen.opacity(0.1)).frame(width: 90, height: 90)
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 44)).foregroundStyle(Color.cohGreen)
+            }
+            VStack(spacing: 8) {
+                Text("Agreement signed")
+                    .font(.title2.bold())
+                Text("Both \(household.partnerAName) and \(household.partnerBName) have signed. Your agreement is now complete.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center).padding(.horizontal, 32)
+            }
+            Button("Done") { dismiss() }
+                .buttonStyle(.borderedProminent).tint(Color.cohGreen)
         }
     }
 
