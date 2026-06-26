@@ -286,12 +286,11 @@ struct OnboardingView: View {
 
             Spacer()
 
-            // Disclaimer acknowledgement
-            VStack(spacing: 10) {
-                Button {
-                    showDisclaimerSheet = true
-                } label: {
-                    HStack(spacing: 8) {
+            // Disclaimer acknowledgement — checkbox left, info button right
+            HStack(spacing: 12) {
+                // Checkbox — toggles acceptance
+                Button { disclaimerAccepted.toggle() } label: {
+                    HStack(spacing: 10) {
                         Image(systemName: disclaimerAccepted ? "checkmark.square.fill" : "square")
                             .font(.title3)
                             .foregroundStyle(disclaimerAccepted ? Color.cohGreen : Color(.tertiaryLabel))
@@ -299,16 +298,18 @@ struct OnboardingView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.leading)
-                        Spacer()
-                        Image(systemName: "info.circle")
-                            .font(.caption)
-                            .foregroundStyle(Color(.tertiaryLabel))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .buttonStyle(.plain)
-                .simultaneousGesture(TapGesture().onEnded {
-                    disclaimerAccepted.toggle()
-                })
+
+                // Info — opens full disclaimer sheet
+                Button { showDisclaimerSheet = true } label: {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(Color(.tertiaryLabel))
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 28)
             .padding(.bottom, 12)

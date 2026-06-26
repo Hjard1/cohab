@@ -8,93 +8,92 @@ final class CohabUITests: XCTestCase {
         app.launch()
     }
 
-    func testSettlementBreakdown() throws {
+    func testFullFlow() throws {
         Thread.sleep(forTimeInterval: 2)
+        shot("01_intro")
 
         // ── Onboarding ────────────────────────────────────────────────
-        if app.buttons["Get started"].waitForExistence(timeout: 3) {
-            app.buttons["Get started"].tap()
-            Thread.sleep(forTimeInterval: 0.5)
+        app.buttons["Get started"].tap()
+        Thread.sleep(forTimeInterval: 0.5)
+        shot("02_purpose")
 
-            // Purpose: tap "Formal ownership record"
-            app.staticTexts["Formal ownership record"].tap()
-            Thread.sleep(forTimeInterval: 0.5)
+        // Formal ownership record
+        app.staticTexts["Formal ownership record"].tap()
+        Thread.sleep(forTimeInterval: 0.5)
+        shot("03_dissolution")
 
-            // Dissolution: tap "Yes — include it"
-            app.staticTexts["Yes — include it"].tap()
-            Thread.sleep(forTimeInterval: 0.5)
+        // Yes include it
+        app.staticTexts["Yes — include it"].tap()
+        Thread.sleep(forTimeInterval: 0.5)
+        shot("04_partners")
 
-            // Partners
-            let fields = app.textFields.allElementsBoundByIndex
-            if fields.count > 0 { fields[0].tap(); fields[0].typeText("Alex") }
-            if fields.count > 1 { fields[1].tap(); fields[1].typeText("alex@example.com") }
-            if fields.count > 2 { fields[2].tap(); fields[2].typeText("Sophie") }
-            if fields.count > 3 { fields[3].tap(); fields[3].typeText("sophie@example.com") }
-            app.buttons["Continue"].tap()
-            Thread.sleep(forTimeInterval: 0.6)
+        // Fill in partner names
+        let fields = app.textFields.allElementsBoundByIndex
+        if fields.count > 0 { fields[0].tap(); fields[0].typeText("Alex") }
+        if fields.count > 2 { fields[2].tap(); fields[2].typeText("Sophie") }
 
-            // Ready
-            app.buttons["Start tracking"].tap()
-            Thread.sleep(forTimeInterval: 1)
+        // Scroll down to see Continue
+        app.swipeUp()
+        Thread.sleep(forTimeInterval: 0.3)
+        shot("04b_partners_filled")
+
+        // Continue
+        let cont = app.buttons["Continue"]
+        if cont.waitForExistence(timeout: 3) { cont.tap() }
+        Thread.sleep(forTimeInterval: 0.6)
+        shot("05_ready_disclaimer")
+
+        // Tap disclaimer checkbox
+        let checkbox = app.buttons.matching(NSPredicate(format: "label CONTAINS 'understand'")).firstMatch
+        if checkbox.waitForExistence(timeout: 2) {
+            checkbox.tap()
+            Thread.sleep(forTimeInterval: 0.4)
         }
+        shot("05b_disclaimer_checked")
 
-        shot("01_dashboard_empty")
+        // Start tracking
+        app.buttons["Start tracking"].tap()
+        Thread.sleep(forTimeInterval: 1.5)
+        shot("06_dashboard_empty")
 
         // ── Add asset ─────────────────────────────────────────────────
         let plus = app.buttons["plus"]
         if plus.waitForExistence(timeout: 3) {
             plus.tap()
             Thread.sleep(forTimeInterval: 0.8)
+            shot("07_add_asset")
 
-            // Name
-            let labelField = app.textFields.element(matching: .textField, identifier: "")
-                .firstMatch
-            if labelField.waitForExistence(timeout: 2) {
-                let nameField = app.textFields.allElementsBoundByIndex.first(where: {
-                    $0.placeholderValue == "Home"
-                })
-                nameField?.tap()
-                nameField?.typeText("Our home")
-            }
+            // Type name
+            let nameFields = app.textFields.allElementsBoundByIndex.filter { $0.placeholderValue == "Home" }
+            nameFields.first?.tap()
+            nameFields.first?.typeText("Our home")
 
-            // Value
-            let valueFields = app.textFields.allElementsBoundByIndex.filter {
-                $0.placeholderValue == "350,000"
-            }
-            valueFields.first?.tap()
-            valueFields.first?.typeText("450000")
+            app.swipeUp()
+            Thread.sleep(forTimeInterval: 0.3)
+            shot("07b_add_asset_value")
 
-            // Loan
-            let loanFields = app.textFields.allElementsBoundByIndex.filter {
-                $0.placeholderValue == "0" || $0.value as? String == ""
-            }
-            // tap the second numeric field (loan)
-            let allNumeric = app.textFields.allElementsBoundByIndex
-            for f in allNumeric where f.placeholderValue == "0" {
-                f.tap(); f.typeText("300000")
-                break
-            }
-
-            shot("02_add_asset_filled")
             app.navigationBars.buttons["Add"].tap()
             Thread.sleep(forTimeInterval: 1)
         }
-
-        shot("03_dashboard_with_asset")
+        shot("08_dashboard_with_asset")
 
         // ── Expand settlement breakdown ───────────────────────────────
         let showCalc = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Show calculation'")).firstMatch
         if showCalc.waitForExistence(timeout: 3) {
             showCalc.tap()
             Thread.sleep(forTimeInterval: 0.5)
-            shot("04_settlement_breakdown_expanded")
+            shot("09_settlement_breakdown")
         }
+
+        // ── Calculators tab ───────────────────────────────────────────
+        app.tabBars.buttons["Calculators"].tap()
+        Thread.sleep(forTimeInterval: 0.6)
+        shot("10_calculators")
     }
 
     private func shot(_ name: String) {
         let s = XCUIScreen.main.screenshot()
-        let a = XCTAttachment(screenshot: s)
-        a.name = name; a.lifetime = .keepAlways; add(a)
-        try? s.pngRepresentation.write(to: URL(fileURLWithPath: "/tmp/settle_\(name).png"))
+        let a = XCTAttachment(screenshot: s); a.name = name; a.lifetime = .keepAlways; add(a)
+        try? s.pngRepresentation.write(to: URL(fileURLWithPath: "/tmp/live_\(name).png"))
     }
 }
