@@ -203,55 +203,84 @@ struct AgreementTabView: View {
         }
     }
 
-    // MARK: - Clauses card
+    // MARK: - Agreement summary card
 
     private func clausesCard(_ h: Household) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(clauses(for: h).indices, id: \.self) { i in
-                let clause = clauses(for: h)[i]
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.cohGreen.opacity(0.08))
-                            .frame(width: 40, height: 40)
-                        Image(systemName: "doc.text")
-                            .font(.subheadline).foregroundStyle(Color.cohGreen)
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(clause.title)
-                            .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
-                        Text(clause.subtitle)
-                            .font(.caption).foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption.bold()).foregroundStyle(Color(.tertiaryLabel))
-                }
-                .padding(.vertical, 14)
-                .padding(.horizontal, 18)
+        VStack(alignment: .leading, spacing: 16) {
+            Text("What's in your agreement")
+                .font(.subheadline.bold())
+                .foregroundStyle(Color.cohInk)
 
-                if i < clauses(for: h).count - 1 {
-                    Divider().padding(.leading, 72)
-                }
+            // Assets
+            summaryRow(
+                icon: "house.fill",
+                color: Color.cohGreen,
+                title: h.assets.isEmpty
+                    ? "No assets added yet"
+                    : "\(h.assets.count) shared \(h.assets.count == 1 ? "asset" : "assets")",
+                detail: h.assets.map { "\($0.label) — \(h.partnerAName) \(Int($0.ownershipShareA * 100))% · \(h.partnerBName) \(Int((1 - $0.ownershipShareA) * 100))%" }.joined(separator: "\n")
+            )
+
+            Divider()
+
+            // Contributions
+            let totalContribs = h.assets.reduce(0) { $0 + $1.contributions.count }
+            let contribA = h.assets.flatMap { $0.contributions }.filter { $0.ownerKey == "A" }.reduce(0) { $0 + $1.amount }
+            let contribB = h.assets.flatMap { $0.contributions }.filter { $0.ownerKey == "B" }.reduce(0) { $0 + $1.amount }
+
+            summaryRow(
+                icon: "banknote",
+                color: Color(red: 0.20, green: 0.49, blue: 0.96),
+                title: "\(totalContribs) contribution\(totalContribs == 1 ? "" : "s") tracked",
+                detail: totalContribs > 0
+                    ? "\(h.partnerAName): \(h.currencySymbol)\(Int(contribA).formatted())  ·  \(h.partnerBName): \(h.currencySymbol)\(Int(contribB).formatted())"
+                    : "No contributions recorded yet"
+            )
+
+            if h.includeDissolutionClause {
+                Divider()
+                summaryRow(
+                    icon: "scale.3d",
+                    color: Color(red: 0.54, green: 0.31, blue: 0.96),
+                    title: "Dissolution terms included",
+                    detail: "Contributions returned first; remaining split by ownership share."
+                )
             }
         }
+        .padding(18)
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
         .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
     }
 
-    private struct Clause {
-        let title: String
-        let subtitle: String
+    private func summaryRow(icon: String, color: Color, title: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(color.opacity(0.10))
+                    .frame(width: 38, height: 38)
+                Image(systemName: icon)
+                    .font(.subheadline).foregroundStyle(color)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.cohInk)
+                if !detail.isEmpty {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
     }
 
-    private func clauses(for h: Household) -> [Clause] {
-        var result = [
-            Clause(title: "Property ownership", subtitle: "Equal split of the primary residence value"),
-            Clause(title: "Financial contributions", subtitle: "Monthly mortgage and bills breakdown.")
-        ]
+    private func clauses(for h: Household) -> [(title: String, subtitle: String)] {
+        var result = [(title: String, subtitle: String)]()
+        result.append(("Property ownership", ""))
+        result.append(("Financial contributions", ""))
         if h.includeDissolutionClause {
-            result.append(Clause(title: "Dissolution terms", subtitle: "90-day transition period if the relationship ends."))
+            result.append(("Dissolution terms", ""))
         }
         return result
     }
