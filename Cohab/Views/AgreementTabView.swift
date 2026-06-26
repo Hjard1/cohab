@@ -15,7 +15,7 @@ struct AgreementTabView: View {
 
     private var missingEmails: Bool {
         guard let h = household, h.isFormalMode else { return false }
-        return h.emailA.isEmpty || h.emailB.isEmpty
+        return !DocuSealService.isValidEmail(h.emailA) || !DocuSealService.isValidEmail(h.emailB)
     }
 
     var body: some View {

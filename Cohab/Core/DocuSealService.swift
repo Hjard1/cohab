@@ -57,9 +57,24 @@ enum DocuSealService {
     }
     /// Generates the agreement PDF, submits it via the Supabase Edge Function,
     /// and updates the household's agreementStatus and docusealSlug.
+    static func isValidEmail(_ email: String) -> Bool {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.contains("@") else { return false }
+        let parts = trimmed.split(separator: "@", maxSplits: 1)
+        guard parts.count == 2,
+              !parts[0].isEmpty,
+              parts[1].contains("."),
+              !parts[1].hasPrefix("."),
+              !parts[1].hasSuffix(".") else { return false }
+        return true
+    }
+
     @MainActor
     static func submit(household: Household) async throws -> DocuSealSubmission {
-        guard !household.emailA.isEmpty, !household.emailB.isEmpty else {
+        let emailA = household.emailA.trimmingCharacters(in: .whitespacesAndNewlines)
+        let emailB = household.emailB.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard isValidEmail(emailA), isValidEmail(emailB) else {
             throw DocuSealError.missingEmail
         }
 
@@ -68,9 +83,9 @@ enum DocuSealService {
         let body: [String: Any] = [
             "pdf_base64":   output.pdfData.base64EncodedString(),
             "name_a":       household.partnerAName,
-            "email_a":      household.emailA,
+            "email_a":      emailA,
             "name_b":       household.partnerBName,
-            "email_b":      household.emailB,
+            "email_b":      emailB,
             "sig_y":        output.sigYFraction,   // fraction 0–1, from top
             "sig_page":     output.sigPage,         // 1-indexed (DocuSeal: 1 = first page)
             "household_id": household.id.uuidString,
