@@ -8,20 +8,9 @@ struct AssetDetailView: View {
     @State private var showEdit = false
     @Environment(\.modelContext) private var modelContext
 
-    private var result: SettlementResult {
-        SettlementEngine.settle(SettlementInput(
-            salePrice: asset.currentValue,
-            remainingLoan: asset.remainingLoan,
-            salesCosts: asset.estimatedSalesCost,
-            ownershipShareA: asset.ownershipShareA,
-            annualRate: household.annualInterestRate,
-            contributions: asset.contributions.map {
-                Contribution(owner: $0.ownerKey == "A" ? .a : .b,
-                             amount: $0.amount, date: $0.date, label: $0.label)
-            },
-            settlementDate: Date()
-        ))
-    }
+    private var netEquity: Double { asset.currentValue - asset.remainingLoan }
+    private var equityA: Double { netEquity * asset.ownershipShareA }
+    private var equityB: Double { netEquity * (1 - asset.ownershipShareA) }
 
     var body: some View {
         ScrollView {
@@ -29,8 +18,8 @@ struct AssetDetailView: View {
                 // Donut chart
                 ownershipChart
 
-                // Settlement value card
-                settlementCard
+                // Net equity card
+                equityCard
 
                 // Contribution history
                 contributionHistory
@@ -117,23 +106,47 @@ struct AssetDetailView: View {
         }
     }
 
-    // MARK: - Settlement card
+    // MARK: - Equity card
 
-    private var settlementCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Settlement value")
+    private var equityCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Net equity")
                 .font(.caption.bold()).tracking(0.5)
                 .foregroundStyle(.secondary)
-            Text("\(household.currencySymbol)\(Int(result.payout[.a] ?? 0).formatted())")
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.cohInk)
-            Text("If sold today at current market value")
-                .font(.caption).foregroundStyle(.secondary)
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(household.currencySymbol)
+                    .font(.title3.bold()).foregroundStyle(.secondary)
+                Text("\(Int(netEquity).formatted())")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.cohInk)
+            }
+
+            Divider()
+
+            HStack {
+                equityRow(name: household.partnerAName, amount: equityA, color: Color.cohGreen)
+                Spacer()
+                equityRow(name: household.partnerBName, amount: equityB,
+                          color: Color(red: 0.20, green: 0.49, blue: 0.96))
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
         .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    private func equityRow(name: String, amount: Double, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(name)
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            HStack(spacing: 3) {
+                Circle().fill(color).frame(width: 7, height: 7)
+                Text("\(household.currencySymbol)\(Int(amount).formatted())")
+                    .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
+            }
+        }
     }
 
     // MARK: - Contribution history

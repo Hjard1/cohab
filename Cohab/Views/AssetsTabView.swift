@@ -44,14 +44,8 @@ struct AssetsTabView: View {
                     emptyState {}
                 }
             }
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Text("Assets")
-                        .font(.system(.title2, design: .rounded).weight(.bold))
-                        .foregroundStyle(Color.cohInk)
-                }
-            }
+            .navigationTitle("Assets")
+            .navigationBarTitleDisplayMode(.inline)
         }
         .sheet(isPresented: $showAddAsset) {
             if let h = household { AddAssetView(household: h) }

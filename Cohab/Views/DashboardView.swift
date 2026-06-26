@@ -89,11 +89,6 @@ struct DashboardView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Text("cohab")
-                .font(.system(.title3, design: .rounded).weight(.bold))
-                .foregroundStyle(Color.cohGreen)
-        }
         ToolbarItem(placement: .topBarTrailing) {
             Button { showSetup = true } label: {
                 Image(systemName: "gearshape.fill")
@@ -106,32 +101,31 @@ struct DashboardView: View {
     // MARK: Equity header
 
     private func equityHeader(_ h: Household) -> some View {
-        let (payoutA, payoutB) = totalPayouts(h)
-        let totalNet = payoutA + payoutB
+        let (equityA, equityB) = totalNetEquity(h)
+        let total = equityA + equityB
         return VStack(spacing: 14) {
-            // Both partners side by side
             HStack(spacing: 0) {
                 partnerEquityColumn(
                     name: h.partnerAName,
-                    amount: payoutA,
+                    amount: equityA,
                     symbol: h.currencySymbol,
                     color: Color.cohGreen
                 )
                 Divider().frame(height: 48).padding(.horizontal, 16)
                 partnerEquityColumn(
                     name: h.partnerBName,
-                    amount: payoutB,
+                    amount: equityB,
                     symbol: h.currencySymbol,
                     color: Color(red: 0.20, green: 0.49, blue: 0.96)
                 )
                 Spacer()
             }
 
-            if totalNet > 0 {
+            if total > 0 {
                 HStack(spacing: 8) {
                     Image(systemName: "house.fill")
                         .font(.caption).foregroundStyle(Color.cohGreen)
-                    Text("Combined settlement value: \(h.currencySymbol)\(Int(totalNet).formatted())")
+                    Text("Total net equity: \(h.currencySymbol)\(Int(total).formatted())")
                         .font(.caption.weight(.medium)).foregroundStyle(.secondary)
                     Spacer()
                 }
@@ -143,9 +137,9 @@ struct DashboardView: View {
 
     private func partnerEquityColumn(name: String, amount: Double, symbol: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(name.uppercased())
-                .font(.caption2.bold()).tracking(1)
-                .foregroundStyle(Color.cohMuted)
+            Text(name)
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
             Text("\(symbol)\(Int(amount).formatted())")
                 .font(.system(size: 26, weight: .bold, design: .rounded).monospacedDigit())
@@ -153,21 +147,11 @@ struct DashboardView: View {
         }
     }
 
-    private func totalPayouts(_ h: Household) -> (Double, Double) {
+    private func totalNetEquity(_ h: Household) -> (Double, Double) {
         h.assets.reduce((0.0, 0.0)) { acc, asset in
-            let r = SettlementEngine.settle(SettlementInput(
-                salePrice: asset.currentValue,
-                remainingLoan: asset.remainingLoan,
-                salesCosts: asset.estimatedSalesCost,
-                ownershipShareA: asset.ownershipShareA,
-                annualRate: h.annualInterestRate,
-                contributions: asset.contributions.map {
-                    Contribution(owner: $0.ownerKey == "A" ? .a : .b,
-                                 amount: $0.amount, date: $0.date, label: $0.label)
-                },
-                settlementDate: Date()
-            ))
-            return (acc.0 + (r.payout[.a] ?? 0), acc.1 + (r.payout[.b] ?? 0))
+            let net = asset.currentValue - asset.remainingLoan
+            return (acc.0 + net * asset.ownershipShareA,
+                    acc.1 + net * (1 - asset.ownershipShareA))
         }
     }
 
@@ -339,6 +323,8 @@ struct AssetCard: View {
 
     @State private var showBreakdown = false
 
+    private var netEquity: Double { asset.currentValue - asset.remainingLoan }
+
     private var result: SettlementResult {
         SettlementEngine.settle(SettlementInput(
             salePrice: asset.currentValue,
@@ -366,8 +352,7 @@ struct AssetCard: View {
         VStack(alignment: .leading, spacing: 0) {
             assetHeader
             Color(.separator).frame(height: 0.5).padding(.vertical, 16)
-            settlementRow
-            if result.shortfall { shortfallBadge.padding(.top, 10) }
+            equityRow
             Color(.separator).frame(height: 0.5).padding(.top, 14)
             breakdownToggle
             if showBreakdown {
@@ -415,43 +400,26 @@ struct AssetCard: View {
         }
     }
 
-    // MARK: Settlement summary row
+    // MARK: Equity row
 
-    private var settlementRow: some View {
+    private var equityRow: some View {
         HStack(alignment: .top) {
-            payoutColumn(household.partnerAName, payout: result.payout[.a] ?? 0,
-                         accrued: result.accrued[.a] ?? 0, color: .cohGreen)
+            equityColumn(household.partnerAName,
+                         equity: netEquity * asset.ownershipShareA,
+                         color: .cohGreen)
             Spacer()
-            VStack(spacing: 2) {
-                Text("If settled today").font(.caption2).foregroundStyle(.secondary)
-                Image(systemName: "arrow.left.arrow.right").font(.caption)
-                    .foregroundStyle(Color(.tertiaryLabel))
-            }
-            Spacer()
-            payoutColumn(household.partnerBName, payout: result.payout[.b] ?? 0,
-                         accrued: result.accrued[.b] ?? 0,
+            equityColumn(household.partnerBName,
+                         equity: netEquity * (1 - asset.ownershipShareA),
                          color: Color(red: 0.20, green: 0.49, blue: 0.96))
         }
     }
 
-    private func payoutColumn(_ name: String, payout: Double, accrued: Double, color: Color) -> some View {
+    private func equityColumn(_ name: String, equity: Double, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(name).font(.caption.weight(.medium)).foregroundStyle(color)
-            Text(household.currencySymbol + fmt(payout))
+            Text(household.currencySymbol + fmt(equity))
                 .font(.title3.bold().monospacedDigit())
-            if accrued > 0 {
-                Text("incl. \(household.currencySymbol)\(fmt(accrued)) contributions")
-                    .font(.caption2).foregroundStyle(.secondary)
-            }
         }
-    }
-
-    private var shortfallBadge: some View {
-        Label("Net value below contributions — proportional split applied",
-              systemImage: "exclamationmark.triangle.fill")
-            .font(.caption).foregroundStyle(.orange)
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: Breakdown toggle
@@ -777,7 +745,6 @@ struct AgreementSheetView: View {
     @Binding var error: String?
     @Environment(\.dismiss) private var dismiss
     @State private var hasStarted = false
-    @State private var selectedPartner = 0   // 0 = A, 1 = B
     @State private var isSigned = false
 
     var body: some View {
@@ -891,26 +858,14 @@ struct AgreementSheetView: View {
 
     private func signingView(_ sub: DocuSealSubmission) -> some View {
         VStack(spacing: 0) {
-            // Partner picker
-            Picker("Partner", selection: $selectedPartner) {
-                Text(household.partnerAName).tag(0)
-                Text(household.partnerBName).tag(1)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(Color.cohBg)
-
-            // Embedded DocuSeal signing form
-            let url = selectedPartner == 0 ? sub.signingUrlA : sub.signingUrlB
-            DocuSealSigningView(signingURL: url)
-                .id(selectedPartner)   // force reload when switching partners
+            // Embedded DocuSeal signing form — only for the current user (Partner A)
+            DocuSealSigningView(signingURL: sub.signingUrlA)
                 .ignoresSafeArea(edges: .bottom)
 
-            // Email fallback notice
+            // Partner B must sign from their own device via email
             HStack(spacing: 6) {
                 Image(systemName: "envelope").font(.caption2).foregroundStyle(.secondary)
-                Text("Signing links also sent by email.")
+                Text("\(household.partnerBName) will receive a signing link by email.")
                     .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
             }
             .padding(.bottom, 8)
