@@ -13,6 +13,7 @@ struct DashboardView: View {
     @State private var agreementSubmission: DocuSealSubmission?
     @State private var isGeneratingAgreement = false
     @State private var agreementError: String?
+    @State private var availableRate: CentralBankRate?
 
     private var household: Household? { households.first }
 
@@ -26,6 +27,12 @@ struct DashboardView: View {
                         VStack(spacing: 0) {
                             householdHeader(h)
                                 .padding(.top, 8)
+                            if let rate = availableRate,
+                               abs(rate.rate - h.annualInterestRate) > 0.001 {
+                                rateUpdateBanner(household: h, rate: rate)
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 12)
+                            }
                             if h.isFormalMode {
                                 agreementCard(h)
                                     .padding(.top, 20)
@@ -35,6 +42,9 @@ struct DashboardView: View {
                                 .padding(.top, 24)
                             Spacer(minLength: 100)
                         }
+                    }
+                    .task {
+                        availableRate = await InterestRateService.fetch(currency: h.currency)
                     }
 
                     addButton
@@ -515,6 +525,39 @@ struct AssetCard: View {
     private func fmt(_ v: Double) -> String {
         let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
         return f.string(from: NSNumber(value: v)) ?? "0"
+    }
+}
+
+// MARK: - Rate update banner
+
+extension DashboardView {
+    func rateUpdateBanner(household: Household, rate: CentralBankRate) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
+                .font(.subheadline)
+                .foregroundStyle(.blue)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(rate.source) rate updated")
+                    .font(.caption.weight(.semibold))
+                Text(String(format: "%.2f%%", rate.rate * 100) + " (currently " + String(format: "%.2f%%", household.annualInterestRate * 100) + ")")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Update") {
+                household.annualInterestRate = rate.rate
+                availableRate = nil
+            }
+            .font(.caption.weight(.semibold)).foregroundStyle(.white)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .background(Color.cohGreen, in: Capsule())
+            Button { availableRate = nil } label: {
+                Image(systemName: "xmark")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
     }
 }
 

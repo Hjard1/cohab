@@ -166,6 +166,7 @@ final class Household {
     @Relationship(deleteRule: .cascade) var assets: [Asset]
     @Relationship(deleteRule: .cascade) var expenses: [SharedExpense]
 
+    var country: String = "GB"                  // ISO 3166 country code
     var setupMode: String = "memory"            // "formal" | "memory"
     var includeDissolutionClause: Bool = true
     var emailA: String = ""
@@ -176,6 +177,7 @@ final class Household {
     init(
         partnerAName: String,
         partnerBName: String,
+        country: String = "GB",
         currency: String = "GBP",
         annualInterestRate: Double = 0.05,
         setupMode: String = "memory",
@@ -186,6 +188,7 @@ final class Household {
         self.id = UUID()
         self.partnerAName = partnerAName
         self.partnerBName = partnerBName
+        self.country = country
         self.currency = currency
         self.annualInterestRate = annualInterestRate
         self.createdAt = Date()

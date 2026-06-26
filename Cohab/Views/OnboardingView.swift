@@ -14,9 +14,9 @@ struct OnboardingView: View {
     @State private var nameB = ""
     @State private var emailA = ""
     @State private var emailB = ""
-    @State private var currency = "GBP"
+    @State private var selectedCountry = CohabCountry.defaults.first(where: { $0.code == "GB" }) ?? CohabCountry.defaults[0]
 
-    private let currencies = ["GBP", "USD", "EUR", "AUD", "CAD", "NOK", "SEK"]
+    private var currency: String { selectedCountry.currency }
 
     var body: some View {
         ZStack {
@@ -209,14 +209,25 @@ struct OnboardingView: View {
                     )
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("CURRENCY")
+                        Text("COUNTRY")
                             .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
-                        Picker("Currency", selection: $currency) {
-                            ForEach(currencies, id: \.self) { c in
-                                Text(c).tag(c)
+                        Picker("Country", selection: $selectedCountry) {
+                            ForEach(CohabCountry.defaults) { country in
+                                HStack(spacing: 8) {
+                                    Text(country.flag)
+                                    Text(country.name)
+                                    Spacer()
+                                    Text(country.currency)
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                .tag(country)
                             }
                         }
-                        .pickerStyle(.segmented)
+                        .pickerStyle(.wheel)
+                        .frame(height: 120)
+                        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+                        Text("\(selectedCountry.flag)  \(selectedCountry.currency) · rate from \(selectedCountry.bankName)")
+                            .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
                     }
                 }
                 .padding(.horizontal, 28)
@@ -288,7 +299,7 @@ struct OnboardingView: View {
                 partnerChip(nameB.trimmingCharacters(in: .whitespaces),
                             color: Color(red: 0.20, green: 0.49, blue: 0.96))
                 Spacer()
-                Text(currency)
+                Text(selectedCountry.flag + " " + selectedCountry.currency)
                     .font(.caption.bold()).foregroundStyle(.secondary)
             }
 
@@ -459,7 +470,8 @@ struct OnboardingView: View {
         let h = Household(
             partnerAName: nameA.trimmingCharacters(in: .whitespaces),
             partnerBName: nameB.trimmingCharacters(in: .whitespaces),
-            currency: currency,
+            country: selectedCountry.code,
+            currency: selectedCountry.currency,
             setupMode: setupMode,
             includeDissolutionClause: includeDissolution,
             emailA: emailA.trimmingCharacters(in: .whitespaces),
