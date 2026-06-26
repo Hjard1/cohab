@@ -147,9 +147,11 @@ enum AssetType: String, CaseIterable {
 // MARK: - Design tokens
 
 extension Color {
-    static let cohGreen   = Color(red: 0.10, green: 0.68, blue: 0.45)
-    static let cohBg      = Color(.systemGroupedBackground)
-    static let cohCard    = Color(.systemBackground)
+    static let cohGreen   = Color(red: 0.10, green: 0.60, blue: 0.38)
+    static let cohBg      = Color(red: 0.980, green: 0.976, blue: 0.965)
+    static let cohCard    = Color.white
+    static let cohInk     = Color(red: 0.13, green: 0.12, blue: 0.11)
+    static let cohMuted   = Color(red: 0.50, green: 0.48, blue: 0.46)
 }
 
 // MARK: - SwiftData models
@@ -173,6 +175,7 @@ final class Household {
     var emailB: String = ""
     var agreementStatus: String = "none"        // "none" | "pending" | "signed"
     var docusealSlug: String = ""
+    var relationshipType: String = "couple"    // "couple" | "housemates" | "business"
 
     init(
         partnerAName: String,
@@ -183,7 +186,8 @@ final class Household {
         setupMode: String = "memory",
         includeDissolutionClause: Bool = true,
         emailA: String = "",
-        emailB: String = ""
+        emailB: String = "",
+        relationshipType: String = "couple"
     ) {
         self.id = UUID()
         self.partnerAName = partnerAName
@@ -198,6 +202,7 @@ final class Household {
         self.emailB = emailB
         self.agreementStatus = "none"
         self.docusealSlug = ""
+        self.relationshipType = relationshipType
         self.assets = []
         self.expenses = []
     }

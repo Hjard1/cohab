@@ -72,7 +72,7 @@ enum DocuSealService {
             "name_b":       household.partnerBName,
             "email_b":      household.emailB,
             "sig_y":        output.sigYFraction,   // fraction 0–1, from top
-            "sig_page":     output.sigPage,         // 0-indexed (DocuSeal: 0 = first page)
+            "sig_page":     output.sigPage,         // 1-indexed (DocuSeal: 1 = first page)
             "household_id": household.id.uuidString,
             // [cohab] prefix keeps templates distinct from Samboappen on the
             // shared DocuSeal account dashboard.

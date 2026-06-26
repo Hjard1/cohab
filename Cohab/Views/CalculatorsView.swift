@@ -4,26 +4,26 @@ struct CalculatorsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 14) {
                     calcCard(
-                        icon: "chart.pie.fill",
-                        color: .cohGreen,
-                        title: "Ownership share",
-                        subtitle: "What % should each partner own given their deposits and loan responsibility?",
+                        icon: "person.2.fill",
+                        color: Color.cohGreen,
+                        title: "Ownership split",
+                        subtitle: "Calculate equity based on deposits and payments.",
                         destination: { OwnershipCalculatorView() }
                     )
                     calcCard(
-                        icon: "arrow.left.arrow.right.circle.fill",
+                        icon: "dollarsign.circle.fill",
                         color: Color(red: 0.20, green: 0.49, blue: 0.96),
                         title: "Expense split",
-                        subtitle: "Find a fair monthly split based on income — weighted or equal disposable income.",
+                        subtitle: "Fairly divide monthly household costs.",
                         destination: { ExpenseSplitView() }
                     )
                     calcCard(
-                        icon: "scalemass.fill",
+                        icon: "xmark.circle.fill",
                         color: Color(red: 0.93, green: 0.50, blue: 0.18),
-                        title: "Rebalance ownership",
-                        subtitle: "How much to pay to reach a new ownership split, with an optional payment plan.",
+                        title: "Rebalance",
+                        subtitle: "See what it takes to reach 50/50 ownership.",
                         destination: { RebalanceView() }
                     )
                 }
@@ -36,6 +36,7 @@ struct CalculatorsView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Text("Calculators")
                         .font(.system(.title2, design: .rounded).weight(.bold))
+                        .foregroundStyle(Color.cohInk)
                 }
             }
         }
@@ -52,7 +53,7 @@ struct CalculatorsView: View {
             HStack(spacing: 16) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 14)
-                        .fill(color.opacity(0.1))
+                        .fill(color.opacity(0.10))
                         .frame(width: 54, height: 54)
                     Image(systemName: icon)
                         .font(.title2.weight(.semibold))
@@ -62,7 +63,7 @@ struct CalculatorsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.cohInk)
                     Text(subtitle)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -77,7 +78,7 @@ struct CalculatorsView: View {
             }
             .padding(18)
             .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
-            .shadow(color: .black.opacity(0.05), radius: 12, y: 3)
+            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
         }
     }
 }

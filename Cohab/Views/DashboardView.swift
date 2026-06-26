@@ -25,21 +25,22 @@ struct DashboardView: View {
                 if let h = household {
                     ScrollView {
                         VStack(spacing: 0) {
-                            householdHeader(h)
-                                .padding(.top, 8)
+                            equityHeader(h)
+                                .padding(.horizontal, 20)
+                                .padding(.top, 16)
                             if let rate = availableRate,
                                abs(rate.rate - h.annualInterestRate) > 0.001 {
                                 rateUpdateBanner(household: h, rate: rate)
                                     .padding(.horizontal, 20)
                                     .padding(.top, 12)
                             }
-                            if h.isFormalMode {
-                                agreementCard(h)
-                                    .padding(.top, 20)
-                                    .padding(.horizontal, 20)
-                            }
                             assetsList(h)
                                 .padding(.top, 24)
+                            if h.isFormalMode {
+                                agreementStatusRow(h)
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 12)
+                            }
                             Spacer(minLength: 100)
                         }
                     }
@@ -97,6 +98,83 @@ struct DashboardView: View {
                 Image(systemName: "gearshape.fill")
                     .foregroundStyle(Color(.tertiaryLabel))
                     .font(.body)
+            }
+        }
+    }
+
+    // MARK: Equity header
+
+    private func equityHeader(_ h: Household) -> some View {
+        let equity = totalEquity(h)
+        let settlement = totalSettlement(h)
+        return VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("YOUR EQUITY")
+                    .font(.caption.bold()).tracking(1)
+                    .foregroundStyle(Color.cohMuted)
+                Text("\(h.currencySymbol)\(Int(equity).formatted())")
+                    .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(Color.cohInk)
+                if settlement > equity {
+                    Label("+\(h.currencySymbol)\(Int(settlement - equity).formatted()) in contributions", systemImage: "arrow.up")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.cohGreen)
+                }
+            }
+
+            if settlement > 0 {
+                HStack(spacing: 8) {
+                    Image(systemName: "pencil.and.list.clipboard")
+                        .font(.subheadline).foregroundStyle(Color.cohGreen)
+                    Text("\(h.currencySymbol)\(Int(settlement).formatted()) settlement value")
+                        .font(.subheadline.weight(.medium)).foregroundStyle(Color.cohGreen)
+                    Spacer()
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(Color.cohGreen.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+            }
+        }
+    }
+
+    private func totalEquity(_ h: Household) -> Double {
+        h.assets.reduce(0.0) { sum, asset in
+            sum + (asset.currentValue - asset.remainingLoan) * asset.ownershipShareA
+        }
+    }
+
+    private func totalSettlement(_ h: Household) -> Double {
+        h.assets.reduce(0.0) { sum, asset in
+            let r = SettlementEngine.settle(SettlementInput(
+                salePrice: asset.currentValue,
+                remainingLoan: asset.remainingLoan,
+                salesCosts: asset.estimatedSalesCost,
+                ownershipShareA: asset.ownershipShareA,
+                annualRate: h.annualInterestRate,
+                contributions: asset.contributions.map {
+                    Contribution(owner: $0.ownerKey == "A" ? .a : .b,
+                                 amount: $0.amount, date: $0.date, label: $0.label)
+                },
+                settlementDate: Date()
+            ))
+            return sum + (r.payout[.a] ?? 0)
+        }
+    }
+
+    private func agreementStatusRow(_ h: Household) -> some View {
+        Group {
+            switch h.agreementStatus {
+            case "signed" where !h.agreementNeedsUpdate:
+                Label("Agreement signed ✓", systemImage: "checkmark.seal.fill")
+                    .font(.subheadline.bold()).foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                    .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 12))
+            case "pending":
+                Label("Waiting for signatures…", systemImage: "clock.fill")
+                    .font(.subheadline.bold()).foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                    .background(Color.orange, in: RoundedRectangle(cornerRadius: 12))
+            default:
+                EmptyView()
             }
         }
     }

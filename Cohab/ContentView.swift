@@ -31,11 +31,16 @@ struct ContentView: View {
     }
 
     private var mainApp: some View {
-        TabView {
+        let s = AppStrings.shared
+        return TabView {
             DashboardView()
-                .tabItem { Label("Home", systemImage: "house.fill") }
+                .tabItem { Label(s.tabHome, systemImage: "house.fill") }
+            AssetsTabView()
+                .tabItem { Label(s.tabAssets, systemImage: "folder.fill") }
+            AgreementTabView()
+                .tabItem { Label(s.tabAgreement, systemImage: "doc.text.fill") }
             CalculatorsView()
-                .tabItem { Label("Calculators", systemImage: "function") }
+                .tabItem { Label(s.tabCalculators, systemImage: "function") }
         }
         .tint(.cohGreen)
         .preferredColorScheme(.light)

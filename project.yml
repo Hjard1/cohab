@@ -1,6 +1,6 @@
 name: Cohab
 options:
-  bundleIdPrefix: com.cohab
+  bundleIdPrefix: com.hjard
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -9,6 +9,10 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
+packages:
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: "8.0.0"
 targets:
   Cohab:
     type: application
@@ -17,11 +21,24 @@ targets:
       - Cohab
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.cohab.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.hjard.cohab
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         TARGETED_DEVICE_FAMILY: "1"
-        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: V83XPV3UQD
+        GOOGLE_REVERSED_CLIENT_ID: com.googleusercontent.apps.202318303891-bk19jn92jfdg01t6r3p7v6nqp53gk9ai
+    dependencies:
+      - package: GoogleSignIn
+    info:
+      path: Cohab/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - $(GOOGLE_REVERSED_CLIENT_ID)
+        LSApplicationQueriesSchemes:
+          - googlegmail
+          - googlegmail-hd
 
   CohabUITests:
     type: bundle.ui-testing
@@ -30,9 +47,9 @@ targets:
       - CohabUITests
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.cohab.app.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.hjard.cohab.uitests
         GENERATE_INFOPLIST_FILE: YES
-        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGN_STYLE: Automatic
         TEST_TARGET_NAME: Cohab
     dependencies:
       - target: Cohab

@@ -108,9 +108,9 @@ enum ContractGenerator {
             y += 22
 
             // Record signature position BEFORE drawing (this is where DocuSeal fields go).
-            // currentPage is 1-based after the first newPage(), so subtract 1 for 0-indexed.
+            // DocuSeal expects 1-indexed pages (1 = first page).
             layout.sigY    = y
-            layout.sigPage = layout.currentPage - 1   // 0-indexed
+            layout.sigPage = layout.currentPage   // 1-indexed
 
             let nameAttrs: Attrs = [.font: UIFont.systemFont(ofSize: 11, weight: .medium),
                                     .foregroundColor: UIColor(white: 0.18, alpha: 1)]
@@ -137,7 +137,7 @@ enum ContractGenerator {
             let lang = AppLanguage.from(country: household.country)
             AppStrings.shared.language = lang
             let footerText = AppStrings.shared.disclaimerFooter
-            let footerAttrs: Attrs = [.font: UIFont.systemFont(ofSize: 7.5),
+            let _: Attrs = [.font: UIFont.systemFont(ofSize: 7.5),
                                       .foregroundColor: UIColor(white: 0.55, alpha: 1)]
             let footerStyle = NSMutableParagraphStyle()
             footerStyle.lineSpacing = 1.5

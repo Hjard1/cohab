@@ -158,6 +158,133 @@ og fraskriver sig ethvert ansvar for et aftalets juridiske gyldighed i nogen jur
     var onboardingContinue: String   { s(en: "Continue",    nb: "Fortsett",   sv: "Fortsätt", da: "Fortsæt") }
     var onboardingStartTracking: String { s(en: "Start tracking", nb: "Start registrering", sv: "Börja registrera", da: "Start registrering") }
 
+    // MARK: Onboarding — new screens
+
+    var onboardingHero: String { s(
+        en: "Own it together.\nKnow where you stand.",
+        nb: "Eie det sammen.\nVit hvor dere står.",
+        sv: "Äg det tillsammans.\nVet var ni står.",
+        da: "Ej det sammen.\nVid hvor I står.") }
+
+    var onboardingHeroSub: String { s(
+        en: "Remove the uncertainty. Get in control of what you own — alone and together.",
+        nb: "Fjern usikkerheten. Ta kontroll over hva dere eier — alene og sammen.",
+        sv: "Ta bort osäkerheten. Ta kontroll över vad ni äger — ensamma och tillsammans.",
+        da: "Fjern usikkerheden. Tag kontrol over hvad I ejer — alene og sammen.") }
+
+    var onboardingAlreadyHaveAccount: String { s(
+        en: "I already have an account",
+        nb: "Jeg har allerede en konto",
+        sv: "Jag har redan ett konto",
+        da: "Jeg har allerede en konto") }
+
+    var onboardingWhereDoYouLive: String { s(
+        en: "Where do you\nlive?",
+        nb: "Hvor bor\ndere?",
+        sv: "Var bor\nni?",
+        da: "Hvor bor\nI?") }
+
+    var onboardingCountrySub: String { s(
+        en: "Laws around cohabitation vary by country.",
+        nb: "Samboerregler varierer fra land til land.",
+        sv: "Sambolagarnas regler varierar från land till land.",
+        da: "Regler om samliv varierer fra land til land.") }
+
+    var onboardingWhoDoYouShare: String { s(
+        en: "Who do you\nshare with?",
+        nb: "Hvem deler\ndere med?",
+        sv: "Vem delar\nni med?",
+        da: "Hvem deler\nI med?") }
+
+    var onboardingPartnerSub: String { s(
+        en: "We'll use this to personalise your dashboard.",
+        nb: "Vi bruker dette til å tilpasse dashbordet ditt.",
+        sv: "Vi använder detta för att anpassa din instrumentpanel.",
+        da: "Vi bruger dette til at tilpasse dit dashboard.") }
+
+    var onboardingYourName: String  { s(en: "YOUR NAME",     nb: "DITT NAVN",      sv: "DITT NAMN",    da: "DIT NAVN") }
+    var onboardingPartnerName: String { s(en: "PARTNER'S NAME", nb: "PARTNERS NAVN", sv: "PARTNERNS NAMN", da: "PARTNERS NAVN") }
+    var onboardingYourEmail: String { s(en: "YOUR EMAIL",    nb: "DIN E-POST",     sv: "DIN E-POST",   da: "DIN E-MAIL") }
+    var onboardingPartnerEmail: String { s(en: "PARTNER'S EMAIL", nb: "PARTNERS E-POST", sv: "PARTNERNS E-POST", da: "PARTNERS E-MAIL") }
+
+    var onboardingRelationship: String { s(en: "RELATIONSHIP", nb: "FORHOLD", sv: "RELATION", da: "FORHOLD") }
+    var onboardingCouple: String     { s(en: "Couple",            nb: "Par",               sv: "Par",             da: "Par") }
+    var onboardingHousemates: String { s(en: "Housemates",        nb: "Samboere",          sv: "Sambos",          da: "Samboere") }
+    var onboardingBusiness: String   { s(en: "Business partners", nb: "Forretningspartnere", sv: "Affärspartners", da: "Forretningspartnere") }
+
+    var onboardingProtect: String { s(
+        en: "Protect what you\nbuild together.",
+        nb: "Beskytt det dere\nbygger sammen.",
+        sv: "Skydda det ni\nbygger tillsammans.",
+        da: "Beskyt det I\nbygger sammen.") }
+
+    var onboardingProtectSub: String { s(
+        en: "A cohabitation agreement is a legal document that protects both partners if circumstances change.",
+        nb: "En samboerkontrakt er et dokument som beskytter begge parter hvis situasjonen endrer seg.",
+        sv: "Ett samboavtal är ett dokument som skyddar båda parter om situationen förändras.",
+        da: "En samlejekontrakt er et dokument der beskytter begge parter hvis situationen ændrer sig.") }
+
+    var onboardingYesAgreement: String { s(
+        en: "Yes, add an agreement",
+        nb: "Ja, legg til en avtale",
+        sv: "Ja, lägg till ett avtal",
+        da: "Ja, tilføj en aftale") }
+
+    var onboardingYesAgreementSub: String { s(
+        en: "A simple document recording who owns what. You'll set it up after adding your assets.",
+        nb: "Et enkelt dokument som registrerer hvem som eier hva. Du setter det opp etter å ha lagt til eiendeler.",
+        sv: "Ett enkelt dokument som registrerar vem som äger vad. Du sätter upp det efter att ha lagt till tillgångar.",
+        da: "Et enkelt dokument der registrerer hvem der ejer hvad. Du opsætter det efter at have tilføjet aktiver.") }
+
+    var onboardingSkipForNow: String { s(
+        en: "Not right now",
+        nb: "Ikke nå",
+        sv: "Inte just nu",
+        da: "Ikke lige nu") }
+
+    var onboardingSkipSub: String { s(
+        en: "You can always add this later from the Agreement tab.",
+        nb: "Du kan alltid legge dette til senere fra Avtale-fanen.",
+        sv: "Du kan alltid lägga till detta senare från fliken Avtal.",
+        da: "Du kan altid tilføje dette senere fra Aftale-fanen.") }
+
+    var onboardingAgreementNote: String { s(
+        en: "The agreement records ownership shares, contributions, and what happens to assets if you separate — nothing more. You confirm your own ownership; cohab doesn't verify identity.",
+        nb: "Avtalen registrerer eierandeler, bidrag og hva som skjer med eiendeler ved brudd — ingenting mer. Du bekrefter ditt eget eierskap; cohab verifiserer ikke identitet.",
+        sv: "Avtalet registrerar ägarandelar, bidrag och vad som händer med tillgångar vid separation — inget mer. Du bekräftar ditt eget ägande; cohab verifierar inte identitet.",
+        da: "Aftalen registrerer ejerandele, bidrag og hvad der sker med aktiver ved separation — intet mere. Du bekræfter dit eget ejerskab; cohab verificerer ikke identitet.") }
+
+    var onboardingWhatDoYouShare: String { s(
+        en: "What do you\nshare?",
+        nb: "Hva eier\ndere sammen?",
+        sv: "Vad äger\nni gemensamt?",
+        da: "Hvad ejer\nI sammen?") }
+
+    var onboardingWhatSub: String { s(
+        en: "Add the assets you own together.",
+        nb: "Legg til eiendelene dere eier sammen.",
+        sv: "Lägg till tillgångarna ni äger tillsammans.",
+        da: "Tilføj de aktiver I ejer sammen.") }
+
+    var onboardingAllSet: String { s(
+        en: "You're all set.",
+        nb: "Dere er klare.",
+        sv: "Ni är redo.",
+        da: "I er klar.") }
+
+    var onboardingDisclaimerAck: String { s(
+        en: "I understand — cohab provides tools, not legal advice",
+        nb: "Jeg forstår — cohab er et verktøy, ikke juridisk rådgivning",
+        sv: "Jag förstår — cohab är ett verktyg, inte juridisk rådgivning",
+        da: "Jeg forstår — cohab er et værktøj, ikke juridisk rådgivning") }
+
+    // MARK: Navigation tabs
+
+    var tabHome: String       { s(en: "Home",      nb: "Hjem",     sv: "Hem",     da: "Hjem") }
+    var tabAssets: String     { s(en: "Assets",    nb: "Eiendeler", sv: "Tillgångar", da: "Aktiver") }
+    var tabAgreement: String  { s(en: "Agreement", nb: "Avtale",   sv: "Avtal",   da: "Aftale") }
+    var tabCalculators: String { s(en: "Calculators", nb: "Kalkulatorer", sv: "Kalkylatorer", da: "Kalkulatorer") }
+
     // MARK: Dashboard
 
     var dashboardAssets: String       { s(en: "Assets",          nb: "Eiendeler",    sv: "Tillgångar",    da: "Aktiver") }
