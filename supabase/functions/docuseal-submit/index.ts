@@ -22,10 +22,13 @@ serve(async (req) => {
       email_a,
       name_b,
       email_b,
-      sig_y,
+      sig_y,       // fraction 0–1 from top of page
+      sig_page,    // 0-indexed page number (0 = first page)
       title,
       household_id,
     } = await req.json();
+
+    const page = typeof sig_page === "number" ? sig_page : 0;
 
     if (!DOCUSEAL_API_KEY) {
       return new Response(
@@ -49,20 +52,23 @@ serve(async (req) => {
           {
             name: title,
             file: pdf_base64,
+            // DocuSeal areas use fractional coords (0–1) and 0-indexed pages.
+            // sig_y arrives as a fraction from ContractGenerator.
+            // x/w/h are fixed fractions: 56/595, 200/595, 50/842, 320/595.
             fields: [
               {
                 name: `${name_a} Signature`,
                 role: "Partner A",
                 type: "signature",
                 required: true,
-                areas: [{ x: 56, y: sig_y, w: 200, h: 50, page: 1 }],
+                areas: [{ x: 0.094, y: sig_y, w: 0.336, h: 0.059, page }],
               },
               {
                 name: `${name_b} Signature`,
                 role: "Partner B",
                 type: "signature",
                 required: true,
-                areas: [{ x: 320, y: sig_y, w: 200, h: 50, page: 1 }],
+                areas: [{ x: 0.538, y: sig_y, w: 0.336, h: 0.059, page }],
               },
             ],
           },
