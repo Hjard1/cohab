@@ -15,6 +15,8 @@ struct OnboardingView: View {
     @State private var emailA = ""
     @State private var emailB = ""
     @State private var selectedCountry = CohabCountry.defaults.first(where: { $0.code == "GB" }) ?? CohabCountry.defaults[0]
+    @State private var disclaimerAccepted = false
+    @State private var showDisclaimerSheet = false
 
     private var currency: String { selectedCountry.currency }
 
@@ -284,10 +286,79 @@ struct OnboardingView: View {
 
             Spacer()
 
-            ctaButton("Start tracking", enabled: true, dark: false) { finish() }
+            // Disclaimer acknowledgement
+            VStack(spacing: 10) {
+                Button {
+                    showDisclaimerSheet = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: disclaimerAccepted ? "checkmark.square.fill" : "square")
+                            .font(.title3)
+                            .foregroundStyle(disclaimerAccepted ? Color.cohGreen : Color(.tertiaryLabel))
+                        Text("I understand — cohab provides tools, not legal advice")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.leading)
+                        Spacer()
+                        Image(systemName: "info.circle")
+                            .font(.caption)
+                            .foregroundStyle(Color(.tertiaryLabel))
+                    }
+                }
+                .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture().onEnded {
+                    disclaimerAccepted.toggle()
+                })
+            }
+            .padding(.horizontal, 28)
+            .padding(.bottom, 12)
+
+            ctaButton("Start tracking", enabled: disclaimerAccepted, dark: false) { finish() }
                 .padding(.horizontal, 28)
                 .padding(.bottom, 52)
         }
+        .sheet(isPresented: $showDisclaimerSheet) {
+            disclaimerSheet
+        }
+    }
+
+    private var disclaimerSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.orange.opacity(0.1)).frame(width: 48, height: 48)
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.title3).foregroundStyle(.orange)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Important notice").font(.headline)
+                            Text("cohab · Legal notice").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Text(legalNotice)
+                        .font(.subheadline).foregroundStyle(.primary).lineSpacing(3)
+                    Button { disclaimerAccepted = true; showDisclaimerSheet = false } label: {
+                        Text("I understand")
+                            .font(.headline).foregroundStyle(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 14)
+                            .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+                .padding(24)
+            }
+            .background(Color.cohBg.ignoresSafeArea())
+            .navigationTitle("").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close") { showDisclaimerSheet = false } } }
+        }
+    }
+
+    private var legalNotice: String {
+        let lang = AppLanguage.from(country: selectedCountry.code)
+        AppStrings.shared.language = lang
+        return AppStrings.shared.disclaimerBody
     }
 
     private var summaryCard: some View {
