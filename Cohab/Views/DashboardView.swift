@@ -517,15 +517,19 @@ struct AssetCard: View {
         return VStack(alignment: .leading, spacing: 6) {
             if result.shortfall {
                 sectionLabel("SHORTFALL")
-                Text("Net proceeds (\(household.currencySymbol)\(fmt(result.netProceeds))) are below total contributions (\(household.currencySymbol)\(fmt(totalAccrued))). Each partner receives a proportional share.")
+                Text("Net proceeds (\(household.currencySymbol)\(fmt(result.netProceeds))) are below total contributions (\(household.currencySymbol)\(fmt(totalAccrued))). Each partner receives a proportional share of available funds.")
                     .font(.caption2).foregroundStyle(.secondary)
             } else {
                 let surplus = result.netProceeds - totalAccrued
                 let shareA = Int(asset.ownershipShareA * 100)
                 let shareB = 100 - shareA
-                sectionLabel("SURPLUS")
-                calcRow("Contributions returned", fmt(totalAccrued), dim: true)
-                calcRow("Remaining surplus", fmt(surplus))
+                sectionLabel("DISTRIBUTION")
+                // Step 1: contributions + interest returned first
+                if totalAccrued > 0 {
+                    calcRow("① Contributions & interest returned", fmt(totalAccrued), dim: true)
+                }
+                // Step 2: remaining surplus split by ownership share
+                calcRow("② Remaining surplus", fmt(surplus))
                 Divider()
                 calcRow("\(household.partnerAName) (\(shareA)%)", fmt(surplus * asset.ownershipShareA))
                 calcRow("\(household.partnerBName) (\(shareB)%)", fmt(surplus * (1 - asset.ownershipShareA)))
@@ -536,12 +540,23 @@ struct AssetCard: View {
     // ── Final payout ─────────────────────────────────────────────────────
 
     private var finalPayoutSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            sectionLabel("FINAL PAYOUT")
+        let accruedA = result.accrued[.a] ?? 0
+        let accruedB = result.accrued[.b] ?? 0
+        let hasContribs = accruedA + accruedB > 0
+        return VStack(alignment: .leading, spacing: 6) {
+            sectionLabel("TOTAL PAYOUT")
             calcRow(household.partnerAName, fmt(result.payout[.a] ?? 0), bold: true, tint: .cohGreen)
+            if hasContribs && accruedA > 0 {
+                Text("  Contributions & interest: \(household.currencySymbol)\(fmt(accruedA))")
+                    .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+            }
             calcRow(household.partnerBName, fmt(result.payout[.b] ?? 0), bold: true,
                     tint: Color(red: 0.20, green: 0.49, blue: 0.96))
-            Text("Interest rate used: \(String(format: "%.1f%%", household.annualInterestRate * 100)) p.a.")
+            if hasContribs && accruedB > 0 {
+                Text("  Contributions & interest: \(household.currencySymbol)\(fmt(accruedB))")
+                    .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+            }
+            Text("Rate: \(String(format: "%.1f%%", household.annualInterestRate * 100)) p.a. · Per agreement between parties")
                 .font(.caption2).foregroundStyle(Color(.tertiaryLabel)).padding(.top, 2)
         }
     }
