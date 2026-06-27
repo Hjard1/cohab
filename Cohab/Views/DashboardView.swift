@@ -849,10 +849,16 @@ struct AgreementSheetView: View {
             guard !hasStarted else { return }
             hasStarted = true
 
-            // Recovery: if we have a pending slug but lost the in-memory submission
-            // (e.g. after a crash), don't re-generate — check status silently instead.
-            if submission == nil, !household.docusealSlug.isEmpty,
+            // Recovery: rebuild the in-memory submission from the URL we stored at creation time.
+            // Without this, returning to the sheet after a crash/restart shows a blank page.
+            if submission == nil, !household.docusealViewUrl.isEmpty,
                household.agreementStatus == "pending" {
+                submission = DocuSealSubmission(
+                    submissionId: household.docusealSlug,
+                    slug: household.docusealSlug,
+                    signingUrlA: household.docusealViewUrl,
+                    signingUrlB: ""
+                )
                 Task {
                     let signed = await DocuSealService.checkSigned(household: household)
                     if signed { withAnimation { isSigned = true } }

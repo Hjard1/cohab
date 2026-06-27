@@ -10,6 +10,8 @@ struct AgreementTabView: View {
     @State private var showEmailPrompt = false
     @State private var draftEmailA = ""
     @State private var draftEmailB = ""
+    @State private var isCheckingStatus = false
+    @State private var lastChecked: Date? = nil
 
     private var household: Household? { households.first }
 
@@ -166,11 +168,46 @@ struct AgreementTabView: View {
                 .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
 
             case "pending":
-                HStack(spacing: 12) {
-                    ProgressView().tint(.white)
-                    Text("Waiting for signatures…")
-                        .font(.subheadline.bold()).foregroundStyle(.white)
-                    Spacer()
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "envelope.badge.fill")
+                            .font(.title3).foregroundStyle(.white)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Sent — waiting for signatures")
+                                .font(.subheadline.bold()).foregroundStyle(.white)
+                            if let checked = lastChecked {
+                                Text("Checked \(checked.formatted(date: .omitted, time: .shortened))")
+                                    .font(.caption).foregroundStyle(.white.opacity(0.75))
+                            } else {
+                                Text("Signing links sent to both parties by email")
+                                    .font(.caption).foregroundStyle(.white.opacity(0.75))
+                            }
+                        }
+                        Spacer()
+                    }
+                    Button {
+                        isCheckingStatus = true
+                        Task {
+                            await DocuSealService.checkSigned(household: h)
+                            lastChecked = Date()
+                            isCheckingStatus = false
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            if isCheckingStatus {
+                                ProgressView().scaleEffect(0.7).tint(.orange)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.caption.bold())
+                            }
+                            Text(isCheckingStatus ? "Checking…" : "Check signing status")
+                                .font(.caption.bold())
+                        }
+                        .foregroundStyle(Color.orange)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(Color.white, in: Capsule())
+                    }
+                    .disabled(isCheckingStatus)
                 }
                 .padding(16)
                 .background(Color.orange, in: RoundedRectangle(cornerRadius: 14))
