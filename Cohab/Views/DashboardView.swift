@@ -429,8 +429,14 @@ struct AssetCard: View {
             HStack {
                 Image(systemName: "function")
                     .font(.caption2).foregroundStyle(Color.cohGreen)
-                Text(showBreakdown ? "Hide calculation" : "Show calculation")
-                    .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(showBreakdown ? "Hide settlement estimate" : "Settlement estimate")
+                        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    if !showBreakdown {
+                        Text("Incl. sale costs & contribution returns")
+                            .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                    }
+                }
                 Spacer()
                 Image(systemName: showBreakdown ? "chevron.up" : "chevron.down")
                     .font(.caption2).foregroundStyle(Color(.tertiaryLabel))

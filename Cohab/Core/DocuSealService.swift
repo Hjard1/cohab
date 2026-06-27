@@ -51,6 +51,7 @@ enum DocuSealService {
 
         if status == "completed" {
             household.agreementStatus = "signed"
+            if household.signedAt == nil { household.signedAt = Date() }
             return true
         }
         return false
@@ -113,6 +114,7 @@ enum DocuSealService {
             let result = try decoder.decode(DocuSealSubmission.self, from: data)
             household.agreementStatus   = "pending"
             household.docusealSlug      = result.slug
+            household.docusealViewUrl   = result.signingUrlA
             // Snapshot state so we can detect changes later
             household.signedAssetCount  = household.assets.count
             household.signedContribCount = household.assets.reduce(0) { $0 + $1.contributions.count }

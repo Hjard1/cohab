@@ -175,6 +175,8 @@ final class Household {
     var emailB: String = ""
     var agreementStatus: String = "none"        // "none" | "pending" | "signed"
     var docusealSlug: String = ""
+    var docusealViewUrl: String = ""           // signingUrlA — usable as view/download link post-signing
+    var signedAt: Date? = nil
     var relationshipType: String = "couple"    // "couple" | "housemates" | "business"
 
     init(

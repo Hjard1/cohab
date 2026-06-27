@@ -161,8 +161,8 @@ struct AgreementTabView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Signed by both parties")
                             .font(.subheadline.bold()).foregroundStyle(.white)
-                        if !h.docusealSlug.isEmpty {
-                            Text("14 Jan 2025")
+                        if let date = h.signedAt {
+                            Text(date.formatted(date: .abbreviated, time: .omitted))
                                 .font(.caption).foregroundStyle(.white.opacity(0.75))
                         }
                     }
@@ -312,11 +312,12 @@ struct AgreementTabView: View {
                     .background(color, in: RoundedRectangle(cornerRadius: 14))
             }
 
-            if h.agreementStatus == "signed" {
-                Button {} label: {
+            if h.agreementStatus == "signed", !h.docusealViewUrl.isEmpty,
+               let url = URL(string: h.docusealViewUrl) {
+                Button { UIApplication.shared.open(url) } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: "arrow.down.doc")
-                        Text("Download PDF")
+                        Image(systemName: "arrow.up.right.square")
+                        Text("View & download agreement")
                     }
                     .font(.headline).foregroundStyle(Color.cohInk)
                     .frame(maxWidth: .infinity).padding(.vertical, 16)
@@ -332,7 +333,6 @@ struct AgreementTabView: View {
     private func primaryAction(for h: Household) -> (String, Color) {
         if h.agreementNeedsUpdate  { return ("Update & resend agreement", .orange) }
         if h.agreementStatus == "pending" { return ("View signing links", Color.cohGreen) }
-        if h.agreementStatus == "signed"  { return ("View full agreement", Color.cohGreen) }
         return ("Generate & sign agreement", Color.cohGreen)
     }
 
@@ -342,17 +342,8 @@ struct AgreementTabView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Need to update?")
                 .font(.headline).foregroundStyle(Color.cohInk)
-            Text("Agreed terms can be amended with both parties' consent.")
+            Text("Generate a new agreement above — both parties will need to sign again.")
                 .font(.subheadline).foregroundStyle(.secondary)
-            Button {} label: {
-                Text("Request amendment")
-                    .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
-                    .padding(.horizontal, 16).padding(.vertical, 10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .strokeBorder(Color.cohInk.opacity(0.25), lineWidth: 1)
-                    )
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)

@@ -102,7 +102,7 @@ struct AssetRowCard: View {
                         .lineLimit(1)
                 }
                 HStack(spacing: 4) {
-                    Text("\(Int(asset.ownershipShareA * 100))% you")
+                    Text("\(Int(asset.ownershipShareA * 100))% \(household.partnerAName)")
                         .font(.caption.bold()).foregroundStyle(Color.cohGreen)
                     Text("·")
                         .font(.caption).foregroundStyle(.secondary)
