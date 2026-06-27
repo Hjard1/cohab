@@ -9,8 +9,24 @@ struct AssetDetailView: View {
     @Environment(\.modelContext) private var modelContext
 
     private var netEquity: Double { asset.currentValue - asset.remainingLoan }
-    private var equityA: Double { netEquity * asset.ownershipShareA }
-    private var equityB: Double { netEquity * (1 - asset.ownershipShareA) }
+
+    // Contribution-adjusted equity (no sale costs so totals sum to netEquity)
+    private var equityResult: SettlementResult {
+        SettlementEngine.settle(SettlementInput(
+            salePrice: asset.currentValue,
+            remainingLoan: asset.remainingLoan,
+            salesCosts: 0,
+            ownershipShareA: asset.ownershipShareA,
+            annualRate: household.annualInterestRate,
+            contributions: asset.contributions.map {
+                Contribution(owner: $0.ownerKey == "A" ? .a : .b,
+                             amount: $0.amount, date: $0.date, label: $0.label)
+            },
+            settlementDate: Date()
+        ))
+    }
+    private var equityA: Double { equityResult.payout[.a] ?? 0 }
+    private var equityB: Double { equityResult.payout[.b] ?? 0 }
 
     var body: some View {
         ScrollView {

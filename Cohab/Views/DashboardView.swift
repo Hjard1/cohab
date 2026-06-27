@@ -103,11 +103,10 @@ struct DashboardView: View {
     private func equityHeader(_ h: Household) -> some View {
         let (equityA, equityB) = totalNetEquity(h)
         let total = equityA + equityB
-        let shareA = total > 0 ? equityA / total : 0.5
-        let shareB = total > 0 ? equityB / total : 0.5
+        let hasContributions = h.assets.contains { !$0.contributions.isEmpty }
 
         return VStack(alignment: .leading, spacing: 0) {
-            // Total
+            // Total net equity
             VStack(alignment: .leading, spacing: 4) {
                 Text("Net equity")
                     .font(.caption.bold()).tracking(0.3)
@@ -124,30 +123,27 @@ struct DashboardView: View {
 
             Divider().padding(.horizontal, 20)
 
-            // Per-partner rows
+            // Per-partner rows (contribution-adjusted)
             VStack(spacing: 0) {
-                equityPartnerRow(
-                    name: h.partnerAName,
-                    share: shareA,
-                    amount: equityA,
-                    symbol: h.currencySymbol,
-                    color: Color.cohGreen
-                )
+                equityPartnerRow(name: h.partnerAName, amount: equityA,
+                                 symbol: h.currencySymbol, color: Color.cohGreen)
                 Divider().padding(.leading, 56)
-                equityPartnerRow(
-                    name: h.partnerBName,
-                    share: shareB,
-                    amount: equityB,
-                    symbol: h.currencySymbol,
-                    color: Color(red: 0.20, green: 0.49, blue: 0.96)
-                )
+                equityPartnerRow(name: h.partnerBName, amount: equityB,
+                                 symbol: h.currencySymbol,
+                                 color: Color(red: 0.20, green: 0.49, blue: 0.96))
+            }
+
+            if hasContributions {
+                Text("Contributions returned first, surplus split by ownership")
+                    .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                    .padding(.horizontal, 20).padding(.bottom, 14).padding(.top, 8)
             }
         }
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 12, y: 3)
     }
 
-    private func equityPartnerRow(name: String, share: Double, amount: Double,
+    private func equityPartnerRow(name: String, amount: Double,
                                   symbol: String, color: Color) -> some View {
         HStack(spacing: 14) {
             Circle().fill(color).frame(width: 10, height: 10)
@@ -157,9 +153,6 @@ struct DashboardView: View {
                 .foregroundStyle(Color.cohInk)
                 .lineLimit(1)
             Spacer()
-            Text("\(Int(share * 100))%")
-                .font(.subheadline).foregroundStyle(.secondary)
-                .frame(width: 40, alignment: .trailing)
             Text(symbol + Int(amount).formatted())
                 .font(.subheadline.bold().monospacedDigit())
                 .foregroundStyle(Color.cohInk)
@@ -170,9 +163,22 @@ struct DashboardView: View {
 
     private func totalNetEquity(_ h: Household) -> (Double, Double) {
         h.assets.reduce((0.0, 0.0)) { acc, asset in
-            let net = asset.currentValue - asset.remainingLoan
-            return (acc.0 + net * asset.ownershipShareA,
-                    acc.1 + net * (1 - asset.ownershipShareA))
+            // Use SettlementEngine with no sale costs so payout[A]+payout[B] = net equity.
+            // This correctly returns contributions+interest first, then splits surplus by ownership.
+            let r = SettlementEngine.settle(SettlementInput(
+                salePrice: asset.currentValue,
+                remainingLoan: asset.remainingLoan,
+                salesCosts: 0,
+                ownershipShareA: asset.ownershipShareA,
+                annualRate: h.annualInterestRate,
+                contributions: asset.contributions.map {
+                    Contribution(owner: $0.ownerKey == "A" ? .a : .b,
+                                 amount: $0.amount, date: $0.date, label: $0.label)
+                },
+                settlementDate: Date()
+            ))
+            return (acc.0 + (r.payout[.a] ?? 0),
+                    acc.1 + (r.payout[.b] ?? 0))
         }
     }
 
@@ -346,6 +352,24 @@ struct AssetCard: View {
 
     private var netEquity: Double { asset.currentValue - asset.remainingLoan }
 
+    // Equity result: no sale costs, so payout[A]+payout[B] = netEquity.
+    // Contributions + interest returned first; surplus split by ownership share.
+    private var equityResult: SettlementResult {
+        SettlementEngine.settle(SettlementInput(
+            salePrice: asset.currentValue,
+            remainingLoan: asset.remainingLoan,
+            salesCosts: 0,
+            ownershipShareA: asset.ownershipShareA,
+            annualRate: household.annualInterestRate,
+            contributions: asset.contributions.map {
+                Contribution(owner: $0.ownerKey == "A" ? .a : .b,
+                             amount: $0.amount, date: $0.date, label: $0.label)
+            },
+            settlementDate: Date()
+        ))
+    }
+
+    // Settlement result: includes 2% sale costs — used only in the expandable estimate.
     private var result: SettlementResult {
         SettlementEngine.settle(SettlementInput(
             salePrice: asset.currentValue,
@@ -424,14 +448,21 @@ struct AssetCard: View {
     // MARK: Equity row
 
     private var equityRow: some View {
-        HStack(alignment: .top) {
-            equityColumn(household.partnerAName,
-                         equity: netEquity * asset.ownershipShareA,
-                         color: .cohGreen)
-            Spacer()
-            equityColumn(household.partnerBName,
-                         equity: netEquity * (1 - asset.ownershipShareA),
-                         color: Color(red: 0.20, green: 0.49, blue: 0.96))
+        let payoutA = equityResult.payout[.a] ?? 0
+        let payoutB = equityResult.payout[.b] ?? 0
+        let hasContribs = !asset.contributions.isEmpty
+        return VStack(spacing: 10) {
+            HStack(alignment: .top) {
+                equityColumn(household.partnerAName, equity: payoutA, color: .cohGreen)
+                Spacer()
+                equityColumn(household.partnerBName, equity: payoutB,
+                             color: Color(red: 0.20, green: 0.49, blue: 0.96))
+            }
+            if hasContribs {
+                Text("Contributions returned first · surplus split \(Int(asset.ownershipShareA * 100))/\(100 - Int(asset.ownershipShareA * 100))")
+                    .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
