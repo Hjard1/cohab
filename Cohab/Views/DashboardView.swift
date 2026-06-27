@@ -60,7 +60,7 @@ struct DashboardView: View {
                     emptyState
                 }
             }
-            .navigationTitle("")
+            .navigationTitle("cohab")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
         }
@@ -103,48 +103,69 @@ struct DashboardView: View {
     private func equityHeader(_ h: Household) -> some View {
         let (equityA, equityB) = totalNetEquity(h)
         let total = equityA + equityB
-        return VStack(spacing: 14) {
-            HStack(spacing: 0) {
-                partnerEquityColumn(
+        let shareA = total > 0 ? equityA / total : 0.5
+        let shareB = total > 0 ? equityB / total : 0.5
+
+        return VStack(alignment: .leading, spacing: 0) {
+            // Total
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Net equity")
+                    .font(.caption.bold()).tracking(0.3)
+                    .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(h.currencySymbol)
+                        .font(.title3.bold()).foregroundStyle(Color(.secondaryLabel))
+                    Text(Int(total).formatted())
+                        .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Color.cohInk)
+                }
+            }
+            .padding(20)
+
+            Divider().padding(.horizontal, 20)
+
+            // Per-partner rows
+            VStack(spacing: 0) {
+                equityPartnerRow(
                     name: h.partnerAName,
+                    share: shareA,
                     amount: equityA,
                     symbol: h.currencySymbol,
                     color: Color.cohGreen
                 )
-                Divider().frame(height: 48).padding(.horizontal, 16)
-                partnerEquityColumn(
+                Divider().padding(.leading, 56)
+                equityPartnerRow(
                     name: h.partnerBName,
+                    share: shareB,
                     amount: equityB,
                     symbol: h.currencySymbol,
                     color: Color(red: 0.20, green: 0.49, blue: 0.96)
                 )
-                Spacer()
-            }
-
-            if total > 0 {
-                HStack(spacing: 8) {
-                    Image(systemName: "house.fill")
-                        .font(.caption).foregroundStyle(Color.cohGreen)
-                    Text("Total net equity: \(h.currencySymbol)\(Int(total).formatted())")
-                        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(Color.cohGreen.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
             }
         }
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 12, y: 3)
     }
 
-    private func partnerEquityColumn(name: String, amount: Double, symbol: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+    private func equityPartnerRow(name: String, share: Double, amount: Double,
+                                  symbol: String, color: Color) -> some View {
+        HStack(spacing: 14) {
+            Circle().fill(color).frame(width: 10, height: 10)
+                .padding(.leading, 20)
             Text(name)
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color.cohInk)
                 .lineLimit(1)
-            Text("\(symbol)\(Int(amount).formatted())")
-                .font(.system(size: 26, weight: .bold, design: .rounded).monospacedDigit())
-                .foregroundStyle(color)
+            Spacer()
+            Text("\(Int(share * 100))%")
+                .font(.subheadline).foregroundStyle(.secondary)
+                .frame(width: 40, alignment: .trailing)
+            Text(symbol + Int(amount).formatted())
+                .font(.subheadline.bold().monospacedDigit())
+                .foregroundStyle(Color.cohInk)
+                .padding(.trailing, 20)
         }
+        .padding(.vertical, 14)
     }
 
     private func totalNetEquity(_ h: Household) -> (Double, Double) {

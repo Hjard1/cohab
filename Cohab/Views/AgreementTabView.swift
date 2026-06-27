@@ -29,14 +29,8 @@ struct AgreementTabView: View {
                     noAgreementState
                 }
             }
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Text("Agreement")
-                        .font(.system(.title2, design: .rounded).weight(.bold))
-                        .foregroundStyle(Color.cohInk)
-                }
-            }
+            .navigationTitle("Agreement")
+            .navigationBarTitleDisplayMode(.inline)
         }
         .sheet(isPresented: $showSigningSheet) {
             if let h = household {

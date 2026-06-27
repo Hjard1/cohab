@@ -31,14 +31,8 @@ struct CalculatorsView: View {
                 .padding(.top, 8)
             }
             .background(Color.cohBg.ignoresSafeArea())
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Text("Calculators")
-                        .font(.system(.title2, design: .rounded).weight(.bold))
-                        .foregroundStyle(Color.cohInk)
-                }
-            }
+            .navigationTitle("Calculators")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
