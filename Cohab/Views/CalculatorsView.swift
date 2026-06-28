@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct CalculatorsView: View {
+    @ObservedObject private var strings = AppStrings.shared
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -8,22 +10,22 @@ struct CalculatorsView: View {
                     calcCard(
                         icon: "person.2.fill",
                         color: Color.cohGreen,
-                        title: "Ownership split",
-                        subtitle: "Calculate equity based on deposits and payments.",
+                        title: strings.calcOwnershipTitle,
+                        subtitle: strings.calcOwnershipSub,
                         destination: { OwnershipCalculatorView() }
                     )
                     calcCard(
                         icon: "dollarsign.circle.fill",
                         color: Color(red: 0.20, green: 0.49, blue: 0.96),
-                        title: "Expense split",
-                        subtitle: "Fairly divide monthly household costs.",
+                        title: strings.calcExpenseTitle,
+                        subtitle: strings.calcExpenseSub,
                         destination: { ExpenseSplitView() }
                     )
                     calcCard(
                         icon: "xmark.circle.fill",
                         color: Color(red: 0.93, green: 0.50, blue: 0.18),
-                        title: "Rebalance",
-                        subtitle: "See what it takes to reach 50/50 ownership.",
+                        title: strings.calcRebalanceTitle,
+                        subtitle: strings.calcRebalanceSub,
                         destination: { RebalanceView() }
                     )
                 }

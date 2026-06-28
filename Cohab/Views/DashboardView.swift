@@ -6,6 +6,7 @@ import SwiftData
 struct DashboardView: View {
     @Query private var households: [Household]
     @Environment(\.modelContext) private var modelContext
+    @ObservedObject private var strings = AppStrings.shared
     @State private var showSetup = false
     @State private var showAddAsset = false
     @State private var editingAsset: Asset?
@@ -108,7 +109,7 @@ struct DashboardView: View {
         return VStack(alignment: .leading, spacing: 0) {
             // Total net equity
             VStack(alignment: .leading, spacing: 4) {
-                Text("Net equity")
+                Text(strings.dashboardNetEquity)
                     .font(.caption.bold()).tracking(0.3)
                     .foregroundStyle(.secondary)
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
@@ -134,7 +135,7 @@ struct DashboardView: View {
             }
 
             if hasContributions {
-                Text("Contributions returned first, surplus split by ownership")
+                Text(strings.dashboardContribFirst)
                     .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
                     .padding(.horizontal, 20).padding(.bottom, 14).padding(.top, 8)
             }
@@ -349,6 +350,7 @@ struct AssetCard: View {
     let onEdit: () -> Void
 
     @State private var showBreakdown = false
+    @ObservedObject private var strings = AppStrings.shared
 
     private var netEquity: Double { asset.currentValue - asset.remainingLoan }
 
@@ -430,13 +432,13 @@ struct AssetCard: View {
                 Text(household.currencySymbol + fmt(asset.currentValue))
                     .font(.subheadline.bold().monospacedDigit())
                 if asset.remainingLoan > 0 {
-                    Text("Loan: −" + fmt(asset.remainingLoan))
+                    Text(strings.dashboardLoan + ": −" + fmt(asset.remainingLoan))
                         .font(.caption2.monospacedDigit()).foregroundStyle(.orange)
                 }
                 Button(action: onEdit) {
                     HStack(spacing: 3) {
                         Image(systemName: "pencil").font(.caption2)
-                        Text("Edit").font(.caption2)
+                        Text(strings.dashboardEdit).font(.caption2)
                     }
                     .foregroundStyle(Color(.tertiaryLabel))
                 }
@@ -459,7 +461,7 @@ struct AssetCard: View {
                              color: Color(red: 0.20, green: 0.49, blue: 0.96))
             }
             if hasContribs {
-                Text("Contributions returned first · surplus split \(Int(asset.ownershipShareA * 100))/\(100 - Int(asset.ownershipShareA * 100))")
+                Text("\(strings.assetContribFirst) \(Int(asset.ownershipShareA * 100))/\(100 - Int(asset.ownershipShareA * 100))")
                     .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -482,10 +484,10 @@ struct AssetCard: View {
                 Image(systemName: "function")
                     .font(.caption2).foregroundStyle(Color.cohGreen)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(showBreakdown ? "Hide settlement estimate" : "Settlement estimate")
+                    Text(showBreakdown ? strings.dashboardHideCalculation : strings.dashboardShowCalculation)
                         .font(.caption.weight(.medium)).foregroundStyle(.secondary)
                     if !showBreakdown {
-                        Text("Incl. sale costs & contribution returns")
+                        Text(strings.dashboardSaleCostsSub)
                             .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
                     }
                 }
@@ -575,13 +577,11 @@ struct AssetCard: View {
                 let surplus = result.netProceeds - totalAccrued
                 let shareA = Int(asset.ownershipShareA * 100)
                 let shareB = 100 - shareA
-                sectionLabel("DISTRIBUTION")
-                // Step 1: contributions + interest returned first
+                sectionLabel(strings.assetDistribution)
                 if totalAccrued > 0 {
-                    calcRow("① Contributions & interest returned", fmt(totalAccrued), dim: true)
+                    calcRow(strings.assetContribInterest, fmt(totalAccrued), dim: true)
                 }
-                // Step 2: remaining surplus split by ownership share
-                calcRow("② Remaining surplus", fmt(surplus))
+                calcRow(strings.assetRemainingSurplus, fmt(surplus))
                 Divider()
                 calcRow("\(household.partnerAName) (\(shareA)%)", fmt(surplus * asset.ownershipShareA))
                 calcRow("\(household.partnerBName) (\(shareB)%)", fmt(surplus * (1 - asset.ownershipShareA)))
@@ -596,19 +596,19 @@ struct AssetCard: View {
         let accruedB = result.accrued[.b] ?? 0
         let hasContribs = accruedA + accruedB > 0
         return VStack(alignment: .leading, spacing: 6) {
-            sectionLabel("TOTAL PAYOUT")
+            sectionLabel(strings.assetTotalPayout)
             calcRow(household.partnerAName, fmt(result.payout[.a] ?? 0), bold: true, tint: .cohGreen)
             if hasContribs && accruedA > 0 {
-                Text("  Contributions & interest: \(household.currencySymbol)\(fmt(accruedA))")
+                Text("  \(strings.assetContribInterestLine) \(household.currencySymbol)\(fmt(accruedA))")
                     .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
             }
             calcRow(household.partnerBName, fmt(result.payout[.b] ?? 0), bold: true,
                     tint: Color(red: 0.20, green: 0.49, blue: 0.96))
             if hasContribs && accruedB > 0 {
-                Text("  Contributions & interest: \(household.currencySymbol)\(fmt(accruedB))")
+                Text("  \(strings.assetContribInterestLine) \(household.currencySymbol)\(fmt(accruedB))")
                     .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
             }
-            Text("Rate: \(String(format: "%.1f%%", household.annualInterestRate * 100)) p.a. · Per agreement between parties")
+            Text("\(strings.assetRateLine) \(String(format: "%.1f%%", household.annualInterestRate * 100)) p.a. · \(strings.assetPerAgreement)")
                 .font(.caption2).foregroundStyle(Color(.tertiaryLabel)).padding(.top, 2)
         }
     }
@@ -972,11 +972,15 @@ struct HouseholdSetupView: View {
     let household: Household?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("onboardingComplete") private var onboardingComplete = false
+    @ObservedObject private var strings = AppStrings.shared
 
     @State private var nameA = ""
     @State private var nameB = ""
     @State private var currency = "GBP"
     @State private var rateText = "5.0"
+    @State private var showDeleteConfirm = false
+    @State private var showSignOutConfirm = false
 
     let currencies = ["GBP", "USD", "EUR", "AUD", "CAD", "NOK", "SEK"]
     private var canSave: Bool {
@@ -990,24 +994,22 @@ struct HouseholdSetupView: View {
                 Section {
                     HStack {
                         Image(systemName: "person.fill")
-                            .foregroundStyle(Color.cohGreen)
-                            .frame(width: 24)
-                        TextField("Partner A name", text: $nameA)
+                            .foregroundStyle(Color.cohGreen).frame(width: 24)
+                        TextField(strings.onboardingYourName, text: $nameA)
                     }
                     HStack {
                         Image(systemName: "person.fill")
-                            .foregroundStyle(Color(red: 0.20, green: 0.49, blue: 0.96))
-                            .frame(width: 24)
-                        TextField("Partner B name", text: $nameB)
+                            .foregroundStyle(Color(red: 0.20, green: 0.49, blue: 0.96)).frame(width: 24)
+                        TextField(strings.onboardingPartnerName, text: $nameB)
                     }
-                } header: { Text("Partners") }
+                } header: { Text(strings.onboardingWhoDoYouShare) }
 
                 Section {
                     Picker("Currency", selection: $currency) {
                         ForEach(currencies, id: \.self) { Text($0) }
                     }
                     HStack {
-                        Text("Interest rate")
+                        Text(s(en: "Interest rate", nb: "Rente"))
                         Spacer()
                         TextField("5.0", text: $rateText)
                             .keyboardType(.decimalPad)
@@ -1015,21 +1017,58 @@ struct HouseholdSetupView: View {
                             .frame(width: 60)
                         Text("%").foregroundStyle(.secondary)
                     }
-                } header: { Text("Settings") }
+                } header: { Text(s(en: "Settings", nb: "Innstillinger")) }
 
                 Section {
-                    Text("The interest rate determines how much each contribution grows over time. 5% is a sensible default — adjust to your central bank's current rate if you prefer precision.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(s(en: "The interest rate determines how much each contribution grows over time. 5% is a sensible default.",
+                           nb: "Renten bestemmer hvor mye hvert bidrag vokser over tid. 5 % er et fornuftig utgangspunkt."))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
+                if household != nil {
+                    Section {
+                        Button(role: .none) { showSignOutConfirm = true } label: {
+                            Label(s(en: "Sign out", nb: "Logg ut"), systemImage: "rectangle.portrait.and.arrow.right")
+                                .foregroundStyle(.primary)
+                        }
+                    }
+
+                    Section {
+                        Button(role: .destructive) { showDeleteConfirm = true } label: {
+                            Label(s(en: "Delete all data", nb: "Slett alle data"),
+                                  systemImage: "trash")
+                        }
+                    } footer: {
+                        Text(s(en: "Permanently deletes all assets, contributions, and your agreement. This cannot be undone.",
+                               nb: "Sletter alle eiendeler, bidrag og avtalen din permanent. Dette kan ikke angres."))
+                    }
                 }
             }
-            .navigationTitle(household == nil ? "Set up household" : "Settings")
+            .navigationTitle(household == nil ? s(en: "Set up household", nb: "Sett opp husholdning") : s(en: "Settings", nb: "Innstillinger"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }.bold().disabled(!canSave)
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(s(en: "Cancel", nb: "Avbryt")) { dismiss() }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(s(en: "Save", nb: "Lagre")) { save() }.bold().disabled(!canSave)
+                }
+            }
+            .confirmationDialog(s(en: "Sign out?", nb: "Logge ut?"),
+                                isPresented: $showSignOutConfirm, titleVisibility: .visible) {
+                Button(s(en: "Sign out", nb: "Logg ut"), role: .destructive) { signOut() }
+                Button(s(en: "Cancel", nb: "Avbryt"), role: .cancel) {}
+            } message: {
+                Text(s(en: "You will be taken back to the start screen. Your data stays on this device.",
+                       nb: "Du blir sendt tilbake til startskjermen. Dataene dine forblir på denne enheten."))
+            }
+            .confirmationDialog(s(en: "Delete all data?", nb: "Slette alle data?"),
+                                isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+                Button(s(en: "Delete everything", nb: "Slett alt"), role: .destructive) { deleteAll() }
+                Button(s(en: "Cancel", nb: "Avbryt"), role: .cancel) {}
+            } message: {
+                Text(s(en: "All assets, contributions, and your agreement will be permanently deleted.",
+                       nb: "Alle eiendeler, bidrag og avtalen din slettes permanent."))
             }
         }
         .onAppear {
@@ -1053,6 +1092,22 @@ struct HouseholdSetupView: View {
             )
         }
         dismiss()
+    }
+
+    private func signOut() {
+        dismiss()
+        onboardingComplete = false
+    }
+
+    private func deleteAll() {
+        if let h = household { modelContext.delete(h) }
+        try? modelContext.save()
+        dismiss()
+        onboardingComplete = false
+    }
+
+    private func s(en: String, nb: String) -> String {
+        strings.language == .nb ? nb : en
     }
 }
 

@@ -12,6 +12,7 @@ struct AgreementTabView: View {
     @State private var draftEmailB = ""
     @State private var isCheckingStatus = false
     @State private var lastChecked: Date? = nil
+    @ObservedObject private var strings = AppStrings.shared
 
     private var household: Household? { households.first }
 
@@ -155,7 +156,7 @@ struct AgreementTabView: View {
                     Image(systemName: "checkmark.seal.fill")
                         .font(.title3).foregroundStyle(.white)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Signed by both parties")
+                        Text(strings.agreementSigned)
                             .font(.subheadline.bold()).foregroundStyle(.white)
                         if let date = h.signedAt {
                             Text(date.formatted(date: .abbreviated, time: .omitted))
@@ -173,13 +174,13 @@ struct AgreementTabView: View {
                         Image(systemName: "envelope.badge.fill")
                             .font(.title3).foregroundStyle(.white)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Sent — waiting for signatures")
+                            Text(strings.agreementSentWaiting)
                                 .font(.subheadline.bold()).foregroundStyle(.white)
                             if let checked = lastChecked {
                                 Text("Checked \(checked.formatted(date: .omitted, time: .shortened))")
                                     .font(.caption).foregroundStyle(.white.opacity(0.75))
                             } else {
-                                Text("Signing links sent to both parties by email")
+                                Text(strings.agreementLinksSentByEmail)
                                     .font(.caption).foregroundStyle(.white.opacity(0.75))
                             }
                         }
@@ -200,7 +201,7 @@ struct AgreementTabView: View {
                                 Image(systemName: "arrow.clockwise")
                                     .font(.caption.bold())
                             }
-                            Text(isCheckingStatus ? "Checking…" : "Check signing status")
+                            Text(isCheckingStatus ? strings.agreementChecking : strings.agreementCheckStatus)
                                 .font(.caption.bold())
                         }
                         .foregroundStyle(Color.orange)
@@ -217,9 +218,9 @@ struct AgreementTabView: View {
                     Image(systemName: "doc.badge.plus")
                         .font(.title3).foregroundStyle(Color.cohGreen)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("No agreement yet")
+                        Text(strings.agreementNoAgreement)
                             .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
-                        Text("Generate and sign your cohabitation agreement")
+                        Text(strings.agreementNoAgreementSub)
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -238,7 +239,7 @@ struct AgreementTabView: View {
 
     private func clausesCard(_ h: Household) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("What's in your agreement")
+            Text(strings.agreementWhatsIn)
                 .font(.subheadline.bold())
                 .foregroundStyle(Color.cohInk)
 
@@ -247,8 +248,8 @@ struct AgreementTabView: View {
                 icon: "house.fill",
                 color: Color.cohGreen,
                 title: h.assets.isEmpty
-                    ? "No assets added yet"
-                    : "\(h.assets.count) shared \(h.assets.count == 1 ? "asset" : "assets")",
+                    ? strings.agreementNoAssetsYet
+                    : "\(h.assets.count) \(h.assets.count == 1 ? strings.agreementSharedAsset : strings.agreementSharedAssets)",
                 detail: h.assets.map { "\($0.label) — \(h.partnerAName) \(Int($0.ownershipShareA * 100))% · \(h.partnerBName) \(Int((1 - $0.ownershipShareA) * 100))%" }.joined(separator: "\n")
             )
 
@@ -262,10 +263,10 @@ struct AgreementTabView: View {
             summaryRow(
                 icon: "banknote",
                 color: Color(red: 0.20, green: 0.49, blue: 0.96),
-                title: "\(totalContribs) contribution\(totalContribs == 1 ? "" : "s") tracked",
+                title: "\(totalContribs) \(totalContribs == 1 ? strings.agreementContribTracked : strings.agreementContribsTracked)",
                 detail: totalContribs > 0
                     ? "\(h.partnerAName): \(h.currencySymbol)\(Int(contribA).formatted())  ·  \(h.partnerBName): \(h.currencySymbol)\(Int(contribB).formatted())"
-                    : "No contributions recorded yet"
+                    : strings.agreementNoContribs
             )
 
             if h.includeDissolutionClause {
@@ -273,8 +274,8 @@ struct AgreementTabView: View {
                 summaryRow(
                     icon: "scale.3d",
                     color: Color(red: 0.54, green: 0.31, blue: 0.96),
-                    title: "Dissolution terms included",
-                    detail: "Contributions returned first; remaining split by ownership share."
+                    title: strings.agreementDissolutionIncluded,
+                    detail: strings.agreementDissolutionSub
                 )
             }
         }
@@ -348,7 +349,7 @@ struct AgreementTabView: View {
                 Button { UIApplication.shared.open(url) } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.up.right.square")
-                        Text("View & download agreement")
+                        Text(strings.agreementViewDownload)
                     }
                     .font(.headline).foregroundStyle(Color.cohInk)
                     .frame(maxWidth: .infinity).padding(.vertical, 16)
@@ -362,18 +363,18 @@ struct AgreementTabView: View {
     }
 
     private func primaryAction(for h: Household) -> (String, Color) {
-        if h.agreementNeedsUpdate  { return ("Update & resend agreement", .orange) }
-        if h.agreementStatus == "pending" { return ("View signing links", Color.cohGreen) }
-        return ("Generate & sign agreement", Color.cohGreen)
+        if h.agreementNeedsUpdate  { return (strings.agreementUpdate, .orange) }
+        if h.agreementStatus == "pending" { return (strings.agreementViewSigning, Color.cohGreen) }
+        return (strings.agreementGenerate, Color.cohGreen)
     }
 
     // MARK: - Update notice
 
     private func updateNotice(_ h: Household) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Need to update?")
+            Text(strings.agreementNeedUpdate)
                 .font(.headline).foregroundStyle(Color.cohInk)
-            Text("Generate a new agreement above — both parties will need to sign again.")
+            Text(strings.agreementNeedUpdateSub)
                 .font(.subheadline).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -407,9 +408,9 @@ struct AgreementTabView: View {
                     .font(.system(size: 38)).foregroundStyle(Color.cohGreen)
             }
             VStack(spacing: 8) {
-                Text("No agreement set up")
+                Text(strings.agreementNoFormal)
                     .font(.title3.bold()).foregroundStyle(Color.cohInk)
-                Text("You chose to track only. You can upgrade to a formal agreement any time from Settings.")
+                Text(strings.agreementNoFormalSub)
                     .font(.subheadline).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center).padding(.horizontal, 32)
             }

@@ -5,6 +5,7 @@ struct AssetsTabView: View {
     @Query private var households: [Household]
     @State private var showAddAsset = false
     @State private var editingAsset: Asset?
+    @ObservedObject private var strings = AppStrings.shared
 
     private var household: Household? { households.first }
 
@@ -61,13 +62,13 @@ struct AssetsTabView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(Color(.tertiaryLabel))
             VStack(spacing: 8) {
-                Text("No assets yet").font(.title3.bold())
-                Text("Add your home, car, savings, or any shared asset to track contributions and equity.")
+                Text(strings.assetsNoAssetsTitle).font(.title3.bold())
+                Text(strings.assetsNoAssetsSub)
                     .font(.subheadline).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center).padding(.horizontal, 32)
             }
             Button(action: action) {
-                Label("Add first asset", systemImage: "plus")
+                Label(strings.assetsAddFirst, systemImage: "plus")
                     .font(.headline).foregroundStyle(.white)
                     .padding(.horizontal, 28).padding(.vertical, 14)
                     .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 12))

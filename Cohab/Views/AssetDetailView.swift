@@ -7,6 +7,7 @@ struct AssetDetailView: View {
     @State private var showAddContribution = false
     @State private var showEdit = false
     @Environment(\.modelContext) private var modelContext
+    @ObservedObject private var strings = AppStrings.shared
 
     private var netEquity: Double { asset.currentValue - asset.remainingLoan }
 
@@ -84,7 +85,7 @@ struct AssetDetailView: View {
 
                 // Centre label
                 VStack(spacing: 4) {
-                    Text("OWNERSHIP")
+                    Text(strings.assetOwnership)
                         .font(.caption2.bold()).tracking(1)
                         .foregroundStyle(.secondary)
                     Text("\(Int(asset.ownershipShareA * 100))%")
@@ -126,7 +127,7 @@ struct AssetDetailView: View {
 
     private var equityCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Net equity")
+            Text(strings.assetNetEquity)
                 .font(.caption.bold()).tracking(0.5)
                 .foregroundStyle(.secondary)
 
@@ -169,11 +170,11 @@ struct AssetDetailView: View {
 
     private var contributionHistory: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Contribution History")
+            Text(strings.assetContribHistory)
                 .font(.headline).foregroundStyle(Color.cohInk)
 
             if asset.contributions.isEmpty {
-                Text("No contributions recorded yet.")
+                Text(strings.assetNoContribs)
                     .font(.subheadline).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 20)
@@ -213,7 +214,7 @@ struct AssetDetailView: View {
     private var bottomButtons: some View {
         HStack(spacing: 14) {
             Button { showEdit = true } label: {
-                Text("Recalculate")
+                Text(strings.assetRecalculate)
                     .font(.headline).foregroundStyle(Color.cohInk)
                     .frame(maxWidth: .infinity).padding(.vertical, 16)
                     .overlay(
@@ -222,7 +223,7 @@ struct AssetDetailView: View {
                     )
             }
             Button { showAddContribution = true } label: {
-                Text("Add Contribution")
+                Text(strings.assetAddContrib)
                     .font(.headline).foregroundStyle(.white)
                     .frame(maxWidth: .infinity).padding(.vertical, 16)
                     .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
