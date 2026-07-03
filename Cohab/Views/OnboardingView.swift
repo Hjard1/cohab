@@ -136,25 +136,26 @@ struct OnboardingView: View {
                     Spacer()
                 }
                 .padding(.horizontal, 28)
-                .padding(.top, 56)
+                .padding(.top, 16) // VStack already starts below status bar — small offset only
 
                 Spacer()
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
                     Text(s.onboardingHero)
-                        .font(.system(size: 36, weight: .bold, design: .serif))
+                        .font(.system(size: 34, weight: .bold, design: .serif))
                         .foregroundStyle(.white)
                         .lineSpacing(2)
                         .shadow(color: .black.opacity(0.30), radius: 6, y: 2)
 
                     Text(s.onboardingHeroSub)
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.80))
+                        .foregroundStyle(.white.opacity(0.82))
+                        .fixedSize(horizontal: false, vertical: true)
                         .shadow(color: .black.opacity(0.40), radius: 4, y: 1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 28)
-                .padding(.bottom, 28)
+                .padding(.bottom, 24)
 
                 // WHITE BOTTOM CARD
                 VStack(spacing: 0) {
