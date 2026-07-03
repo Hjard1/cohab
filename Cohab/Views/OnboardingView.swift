@@ -26,9 +26,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            if step > 0 {
-                Color.cohBg.ignoresSafeArea()
-            }
+            Color.cohBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 if step > 0 && step < 5 {
@@ -94,7 +92,7 @@ struct OnboardingView: View {
     private var welcomeStep: some View {
         ZStack(alignment: .bottom) {
 
-            // HERO PHOTO — full bleed (green gradient fallback if image not yet added)
+            // HERO PHOTO — only the background layers ignore safe area
             ZStack {
                 LinearGradient(
                     colors: [Color(red: 0.06, green: 0.25, blue: 0.18),
@@ -104,29 +102,32 @@ struct OnboardingView: View {
                 Image("onboardingHero")
                     .resizable()
                     .scaledToFill()
+                    .allowsHitTesting(false)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
-            .ignoresSafeArea()
+            .ignoresSafeArea()                              // photo: full bleed under status bar + home indicator
 
-            // TOP gradient — darkens sky for "cohab" readability
+            // TOP gradient — status bar readability
             LinearGradient(
                 colors: [.black.opacity(0.42), .clear],
                 startPoint: .top,
                 endPoint: .init(x: 0.5, y: 0.30)
             )
-            .ignoresSafeArea()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea(edges: .top)
 
-            // BOTTOM gradient — bleeds into white card
+            // BOTTOM gradient — merges into white card
             LinearGradient(
                 colors: [.clear, .black.opacity(0.55)],
                 startPoint: .init(x: 0.5, y: 0.45),
                 endPoint: .bottom
             )
-            .ignoresSafeArea()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea(edges: .bottom)
 
+            // CONTENT — normal layout, respects safe areas
             VStack(spacing: 0) {
-                // "cohab" wordmark at top (below status bar)
                 HStack {
                     Text("cohab")
                         .font(.system(.subheadline, design: .rounded).weight(.bold))
@@ -135,11 +136,10 @@ struct OnboardingView: View {
                     Spacer()
                 }
                 .padding(.horizontal, 28)
-                .padding(.top, 62)
+                .padding(.top, 56)
 
                 Spacer()
 
-                // Hero headline just above the card
                 VStack(alignment: .leading, spacing: 8) {
                     Text(s.onboardingHero)
                         .font(.system(size: 36, weight: .bold, design: .serif))
@@ -150,7 +150,6 @@ struct OnboardingView: View {
                     Text(s.onboardingHeroSub)
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.80))
-                        .lineSpacing(1)
                         .shadow(color: .black.opacity(0.40), radius: 4, y: 1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -197,11 +196,12 @@ struct OnboardingView: View {
                     Color.cohBg
                         .clipShape(.rect(topLeadingRadius: 32, topTrailingRadius: 32))
                         .shadow(color: .black.opacity(0.18), radius: 28, y: -8)
-                        .ignoresSafeArea(edges: .bottom)
+                        .ignoresSafeArea(edges: .bottom)     // card extends under home indicator
                 )
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .ignoresSafeArea()
+        // No .ignoresSafeArea() here — parent layout stays stable
     }
 
     // MARK: - Step 1: Country
