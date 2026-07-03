@@ -1,9 +1,11 @@
 import SwiftUI
 import SwiftData
+import GoogleSignIn
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("onboardingComplete") private var onboardingComplete = false
+    @EnvironmentObject private var auth: AuthManager
 
     // 0=welcome, 1=country, 2=partners, 3=cohab-option, 4=add-asset, 5=ready
     @State private var step = 0
@@ -14,7 +16,7 @@ struct OnboardingView: View {
     @State private var emailB = ""
     @State private var relationshipType = "couple"
     @State private var selectedCountry = CohabCountry.defaults.first(where: { $0.code == "GB" }) ?? CohabCountry.defaults[0]
-    @State private var selectedAssetType: AssetType? = nil
+    @State private var selectedAssetTypes: Set<AssetType> = [.home]
     @State private var disclaimerAccepted = false
     @State private var showDisclaimerSheet = false
     @State private var showSignIn = false
@@ -24,14 +26,26 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Color.cohBg.ignoresSafeArea()
+            if step > 0 {
+                Color.cohBg.ignoresSafeArea()
+            }
 
             VStack(spacing: 0) {
                 if step > 0 && step < 5 {
-                    progressBar
-                        .padding(.horizontal, 28)
-                        .padding(.top, 56)
-                        .padding(.bottom, 4)
+                    HStack(spacing: 12) {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.32)) { step -= 1 }
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(Color.cohInk)
+                                .frame(width: 32, height: 32)
+                        }
+                        progressBar
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 56)
+                    .padding(.bottom, 4)
                 }
 
                 ZStack {
@@ -78,65 +92,123 @@ struct OnboardingView: View {
     // MARK: - Step 0: Welcome
 
     private var welcomeStep: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            VStack(spacing: 32) {
-                Text("cohab")
-                    .font(.system(.subheadline, design: .rounded).weight(.bold))
-                    .tracking(5)
-                    .foregroundStyle(Color.cohGreen)
+        ZStack(alignment: .bottom) {
 
-                VStack(spacing: 14) {
+            // HERO PHOTO — full bleed (green gradient fallback if image not yet added)
+            ZStack {
+                LinearGradient(
+                    colors: [Color(red: 0.06, green: 0.25, blue: 0.18),
+                             Color(red: 0.03, green: 0.15, blue: 0.10)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+                Image("onboardingHero")
+                    .resizable()
+                    .scaledToFill()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+            .ignoresSafeArea()
+
+            // TOP gradient — darkens sky for "cohab" readability
+            LinearGradient(
+                colors: [.black.opacity(0.42), .clear],
+                startPoint: .top,
+                endPoint: .init(x: 0.5, y: 0.30)
+            )
+            .ignoresSafeArea()
+
+            // BOTTOM gradient — bleeds into white card
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.55)],
+                startPoint: .init(x: 0.5, y: 0.45),
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // "cohab" wordmark at top (below status bar)
+                HStack {
+                    Text("cohab")
+                        .font(.system(.subheadline, design: .rounded).weight(.bold))
+                        .tracking(6)
+                        .foregroundStyle(.white.opacity(0.90))
+                    Spacer()
+                }
+                .padding(.horizontal, 28)
+                .padding(.top, 62)
+
+                Spacer()
+
+                // Hero headline just above the card
+                VStack(alignment: .leading, spacing: 8) {
                     Text(s.onboardingHero)
-                        .font(.system(size: 40, weight: .bold, design: .serif))
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(Color.cohInk)
-                        .lineSpacing(-2)
+                        .font(.system(size: 36, weight: .bold, design: .serif))
+                        .foregroundStyle(.white)
+                        .lineSpacing(2)
+                        .shadow(color: .black.opacity(0.30), radius: 6, y: 2)
 
                     Text(s.onboardingHeroSub)
                         .font(.subheadline)
-                        .foregroundStyle(Color.cohMuted)
-                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.white.opacity(0.80))
+                        .lineSpacing(1)
+                        .shadow(color: .black.opacity(0.40), radius: 4, y: 1)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 28)
+
+                // WHITE BOTTOM CARD
+                VStack(spacing: 0) {
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.35))
+                        .frame(width: 40, height: 5)
+                        .padding(.top, 14)
+
+                    VStack(spacing: 12) {
+                        ctaButton(s.onboardingGetStarted, enabled: true) { advance() }
+
+                        GoogleSignInButton(label: s.onboardingContinueWithGoogle) { user in
+                            if nameA.isEmpty { nameA = user.givenName }
+                            if emailA.isEmpty { emailA = user.email }
+                            advance()
+                        } onError: { err in
+                            googleSignInError = err.localizedDescription
+                        }
+
+                        Button { showSignIn = true } label: {
+                            Text(s.onboardingAlreadyHaveAccount)
+                                .font(.subheadline)
+                                .foregroundStyle(Color.cohMuted)
+                                .padding(.vertical, 6)
+                                .frame(maxWidth: .infinity)
+                        }
+
+                        if let err = googleSignInError {
+                            Text(err).font(.caption).foregroundStyle(.red)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.top, 22)
+                    .padding(.bottom, 52)
+                }
+                .frame(maxWidth: .infinity)
+                .background(
+                    Color.cohBg
+                        .clipShape(.rect(topLeadingRadius: 32, topTrailingRadius: 32))
+                        .shadow(color: .black.opacity(0.18), radius: 28, y: -8)
+                        .ignoresSafeArea(edges: .bottom)
+                )
             }
-            Spacer()
-            VStack(spacing: 12) {
-                ctaButton(s.onboardingGetStarted, enabled: true) { advance() }
-
-                GoogleSignInButton(label: "Continue with Google") { user in
-                    if nameA.isEmpty { nameA = user.givenName }
-                    if emailA.isEmpty { emailA = user.email }
-                    advance()
-                } onError: { err in
-                    googleSignInError = err.localizedDescription
-                }
-
-                Button {
-                    showSignIn = true
-                } label: {
-                    Text(s.onboardingAlreadyHaveAccount)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.cohMuted)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                }
-
-                if let err = googleSignInError {
-                    Text(err)
-                        .font(.caption).foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                }
-            }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 52)
         }
+        .ignoresSafeArea()
     }
 
     // MARK: - Step 1: Country
 
     private var countryStep: some View {
         VStack(alignment: .leading, spacing: 0) {
-            stepHeader(s.onboardingWhereDoYouLive, subtitle: s.onboardingCountrySub)
+            stepHeader(s.onboardingCountryTitle, subtitle: s.onboardingCountrySub)
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 10) {
@@ -189,18 +261,18 @@ struct OnboardingView: View {
 
                 VStack(spacing: 14) {
                     inputField(label: s.onboardingYourName,
-                               placeholder: "Enter your full name",
+                               placeholder: s.onboardingYourNamePlaceholder,
                                text: $nameA, contentType: .name)
                     inputField(label: s.onboardingPartnerName,
-                               placeholder: "Enter partner's full name",
+                               placeholder: s.onboardingPartnerNamePlaceholder,
                                text: $nameB, contentType: .name)
 
                     if setupMode == "formal" {
                         inputField(label: s.onboardingYourEmail,
-                                   placeholder: "For agreement signing",
+                                   placeholder: s.onboardingEmailPlaceholder,
                                    text: $emailA, contentType: .emailAddress, keyboard: .emailAddress)
                         inputField(label: s.onboardingPartnerEmail,
-                                   placeholder: "For agreement signing",
+                                   placeholder: s.onboardingEmailPlaceholder,
                                    text: $emailB, contentType: .emailAddress, keyboard: .emailAddress)
                     }
 
@@ -337,8 +409,14 @@ struct OnboardingView: View {
                 spacing: 14
             ) {
                 ForEach(AssetType.allCases, id: \.self) { type in
-                    let selected = selectedAssetType == type
-                    Button { selectedAssetType = selected ? nil : type } label: {
+                    let selected = selectedAssetTypes.contains(type)
+                    Button {
+                        if selected {
+                            selectedAssetTypes.remove(type)
+                        } else {
+                            selectedAssetTypes.insert(type)
+                        }
+                    } label: {
                         VStack(spacing: 12) {
                             Image(systemName: type.icon)
                                 .font(.title2)
@@ -360,9 +438,17 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 28)
 
+            Text(s.onboardingAssetsHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 28)
+                .padding(.top, 16)
+
             Spacer()
 
-            ctaButton(selectedAssetType == nil ? s.onboardingSkipForNow : s.onboardingContinue, enabled: true) {
+            ctaButton(s.onboardingContinue, enabled: true) {
                 advance()
             }
             .padding(.horizontal, 28)
@@ -375,91 +461,151 @@ struct OnboardingView: View {
     private var readyStep: some View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 32) {
-                    ZStack {
-                        Circle().fill(Color.cohGreen.opacity(0.10)).frame(width: 88, height: 88)
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 34, weight: .semibold))
-                            .foregroundStyle(Color.cohGreen)
-                    }
-                    VStack(spacing: 10) {
+                VStack(spacing: 28) {
+                    // Header
+                    VStack(spacing: 12) {
+                        ZStack {
+                            Circle().fill(Color.cohGreen.opacity(0.10)).frame(width: 80, height: 80)
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 30, weight: .bold))
+                                .foregroundStyle(Color.cohGreen)
+                        }
                         Text(s.onboardingAllSet)
-                            .font(.system(size: 34, weight: .bold, design: .serif))
+                            .font(.system(size: 30, weight: .bold, design: .serif))
                             .foregroundStyle(Color.cohInk)
-                        Text(setupMode == "formal"
-                             ? "Your agreement can be generated and signed from the Agreement tab."
-                             : "Start adding assets to track your ownership and contributions.")
-                            .font(.subheadline).foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center).padding(.horizontal, 28)
+                            .multilineTextAlignment(.center)
                     }
-                    summaryCard.padding(.horizontal, 28)
+
+                    // Setup summary — clear items, no confusing box
+                    VStack(spacing: 10) {
+                        // Partners
+                        readySummaryRow(
+                            icon: "person.2.fill",
+                            color: Color.cohGreen,
+                            title: "\(nameA.trimmingCharacters(in: .whitespaces)) & \(nameB.trimmingCharacters(in: .whitespaces))",
+                            detail: selectedCountry.flag + " " + selectedCountry.name
+                        )
+
+                        // Agreement mode
+                        readySummaryRow(
+                            icon: setupMode == "formal" ? "doc.text.fill" : "scope",
+                            color: setupMode == "formal" ? Color.cohGreen : Color(.secondaryLabel),
+                            title: setupMode == "formal" ? s.onboardingSummaryFormal : s.onboardingSummaryMemory,
+                            detail: nil
+                        )
+
+                        // Assets (if any selected)
+                        if !selectedAssetTypes.isEmpty {
+                            readySummaryRow(
+                                icon: "house.fill",
+                                color: Color.cohBlue,
+                                title: selectedAssetTypes.map { $0.displayName }.sorted().joined(separator: ", "),
+                                detail: nil
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 28)
                 }
-                .padding(.top, 40)
+                .padding(.top, 32)
                 .padding(.bottom, 24)
             }
 
-            // Disclaimer + CTA always visible at bottom
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    Button { disclaimerAccepted.toggle() } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: disclaimerAccepted ? "checkmark.square.fill" : "square")
-                                .font(.title3)
-                                .foregroundStyle(disclaimerAccepted ? Color.cohGreen : Color(.tertiaryLabel))
+            // Disclaimer — the "agree" section, prominent at the bottom
+            VStack(spacing: 16) {
+                // Disclaimer checkbox — large and clear
+                Button { disclaimerAccepted.toggle() } label: {
+                    HStack(alignment: .top, spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(
+                                    disclaimerAccepted ? Color.cohGreen : Color(.systemGray4),
+                                    lineWidth: 2
+                                )
+                                .frame(width: 24, height: 24)
+                            if disclaimerAccepted {
+                                Image(systemName: "checkmark")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(Color.cohGreen)
+                            }
+                        }
+                        .padding(.top, 1)
+
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(s.onboardingDisclaimerAck)
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(Color.cohInk)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
+                            Button { showDisclaimerSheet = true } label: {
+                                Text(s.language == .nb ? "Les mer →" : "Read more →")
+                                    .font(.caption)
+                                    .foregroundStyle(Color.cohGreen)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .buttonStyle(.plain)
-
-                    Button { showDisclaimerSheet = true } label: {
-                        Image(systemName: "info.circle")
-                            .font(.caption).foregroundStyle(Color(.tertiaryLabel))
-                    }
-                    .buttonStyle(.plain)
+                    .padding(16)
+                    .background(
+                        disclaimerAccepted
+                            ? Color.cohGreen.opacity(0.06)
+                            : Color(.systemGray6),
+                        in: RoundedRectangle(cornerRadius: 14)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(
+                                disclaimerAccepted ? Color.cohGreen.opacity(0.3) : Color.clear,
+                                lineWidth: 1
+                            )
+                    )
                 }
+                .buttonStyle(.plain)
+                .animation(.spring(duration: 0.2), value: disclaimerAccepted)
+
+                if !auth.isSignedIn {
+                    GoogleSignInButton(label: s.onboardingGoogleSignInSync) { user in
+                        if nameA.isEmpty { nameA = user.givenName }
+                        if emailA.isEmpty { emailA = user.email }
+                    } onError: { err in
+                        googleSignInError = err.localizedDescription
+                    }
+                    Text(s.onboardingSignInSyncNote)
+                        .font(.caption).foregroundStyle(Color.cohMuted)
+                        .multilineTextAlignment(.center)
+                    if let err = googleSignInError {
+                        Text(err).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
+                    }
+                }
+
                 ctaButton(s.onboardingStartTracking, enabled: disclaimerAccepted) { finish() }
             }
             .padding(.horizontal, 28)
-            .padding(.top, 12)
+            .padding(.top, 16)
             .padding(.bottom, 52)
             .background(Color.cohBg)
         }
     }
 
-    private var summaryCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                partnerChip(nameA.trimmingCharacters(in: .whitespaces), color: .cohGreen)
-                Image(systemName: "arrow.left.arrow.right").font(.caption2).foregroundStyle(.secondary)
-                partnerChip(nameB.trimmingCharacters(in: .whitespaces),
-                            color: Color(red: 0.20, green: 0.49, blue: 0.96))
-                Spacer()
-                Text(selectedCountry.flag + " " + selectedCountry.currency)
-                    .font(.caption.bold()).foregroundStyle(.secondary)
+    private func readySummaryRow(icon: String, color: Color, title: String, detail: String?) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle().fill(color.opacity(0.12)).frame(width: 40, height: 40)
+                Image(systemName: icon).font(.subheadline).foregroundStyle(color)
             }
-            HStack(spacing: 6) {
-                Image(systemName: setupMode == "formal" ? "checkmark.shield.fill" : "clock")
-                    .font(.caption)
-                    .foregroundStyle(setupMode == "formal" ? Color.cohGreen : .secondary)
-                Text(setupMode == "formal"
-                     ? "Formal agreement — legally binding"
-                     : "Track only — no formal agreement")
-                    .font(.caption.weight(.medium)).foregroundStyle(.secondary)
-            }
-            if let type = selectedAssetType {
-                HStack(spacing: 6) {
-                    Image(systemName: type.icon).font(.caption).foregroundStyle(type.color)
-                    Text("Starting with: \(type.displayName)")
-                        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.cohInk)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let detail {
+                    Text(detail).font(.caption).foregroundStyle(Color.cohSecondary)
                 }
             }
+            Spacer()
         }
-        .padding(18)
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 12, y: 3)
+        .padding(14)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
     }
 
     // MARK: - Shared components
@@ -555,7 +701,7 @@ struct OnboardingView: View {
                         disclaimerAccepted = true
                         showDisclaimerSheet = false
                     } label: {
-                        Text("I understand")
+                        Text(s.disclaimerIUnderstand)
                             .font(.headline).foregroundStyle(.white)
                             .frame(maxWidth: .infinity).padding(.vertical, 14)
                             .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 12))
@@ -567,7 +713,7 @@ struct OnboardingView: View {
             .navigationTitle("").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Close") { showDisclaimerSheet = false }
+                    Button(s.disclaimerClose) { showDisclaimerSheet = false }
                 }
             }
         }
@@ -596,7 +742,8 @@ struct OnboardingView: View {
             relationshipType: relationshipType
         )
         modelContext.insert(h)
-        if let type = selectedAssetType {
+        var blankAssets: [(asset: Asset, type: AssetType)] = []
+        for type in AssetType.allCases where selectedAssetTypes.contains(type) {
             let asset = Asset(
                 assetType: type.rawValue,
                 label: type.displayName,
@@ -604,7 +751,51 @@ struct OnboardingView: View {
                 salesCostFraction: type.defaultSalesCostFraction
             )
             h.assets.append(asset)
+            blankAssets.append((asset, type))
         }
+
+        // Sync to Supabase if the user is signed in
+        if auth.isSignedIn {
+            Task {
+                do {
+                    let householdId = try await SupabaseService.createHousehold(
+                        partnerALabel: h.partnerAName,
+                        partnerBLabel: h.partnerBName,
+                        currency: h.currency,
+                        country: h.country,
+                        annualInterestRate: 0,
+                        setupMode: h.setupMode,
+                        relationshipType: h.relationshipType,
+                        emailA: h.emailA,
+                        emailB: h.emailB
+                    )
+                    h.id = householdId
+
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "yyyy-MM-dd"
+                    let today = dateFormatter.string(from: Date())
+
+                    for pair in blankAssets {
+                        let dbAsset = try await SupabaseService.insertAsset(
+                            householdId: householdId,
+                            assetType: pair.type.rawValue,
+                            label: pair.type.displayName,
+                            address: "",
+                            currentValue: 0,
+                            remainingLoan: 0,
+                            salesCostFraction: pair.type.defaultSalesCostFraction,
+                            ownershipShareA: 0.5,
+                            purchaseDate: today
+                        )
+                        pair.asset.id = dbAsset.id
+                    }
+                } catch {
+                    // Local data is already saved; Supabase sync can be retried later
+                    print("[OnboardingView] Supabase sync failed: \(error)")
+                }
+            }
+        }
+
         withAnimation { onboardingComplete = true }
     }
 }
