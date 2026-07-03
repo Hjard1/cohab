@@ -23,45 +23,48 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
-                Color.cohBg.ignoresSafeArea()
+                DS.Color.background.ignoresSafeArea()
 
                 if let h = household {
                     ScrollView {
-                        VStack(spacing: 0) {
-                            // Serif screen header — consistent with Agreement, Assets, Calculators
-                            VStack(alignment: .leading, spacing: 4) {
+                        VStack(spacing: DS.Space.s16) {
+                            // Screen title
+                            VStack(alignment: .leading, spacing: DS.Space.s4) {
                                 Text(strings.tabHome)
-                                    .font(.system(size: 28, weight: .bold, design: .serif))
-                                    .foregroundStyle(Color.cohInk)
+                                    .font(DS.Text.display)
+                                    .foregroundStyle(DS.Color.text1)
                                 Text("\(h.partnerAName) & \(h.partnerBName)")
-                                    .font(.caption).foregroundStyle(.secondary)
+                                    .font(DS.Text.caption)
+                                    .foregroundStyle(DS.Color.text3)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 20)
-                            .padding(.top, 20)
-                            .padding(.bottom, 16)
+                            .padding(.top, DS.Space.s16)
 
-                            equityHeader(h)
+                            summaryHeader(h)
                                 .padding(.horizontal, 20)
+
                             if let rate = availableRate,
                                abs(rate.rate - h.annualInterestRate) > 0.001 {
                                 rateUpdateBanner(household: h, rate: rate)
                                     .padding(.horizontal, 20)
-                                    .padding(.top, 12)
                             }
                             if h.hasBudget {
                                 budgetCard(h)
                                     .padding(.horizontal, 20)
-                                    .padding(.top, 12)
                             }
-                            assetsList(h)
-                                .padding(.top, 24)
+
+                            assetsSection(h)
+
                             if h.isFormalMode {
                                 agreementStatusRow(h)
                                     .padding(.horizontal, 20)
-                                    .padding(.top, 12)
                             }
-                            Spacer(minLength: 100)
+
+                            nextActionCard(for: h)
+                                .padding(.horizontal, 20)
+
+                            Spacer(minLength: DS.Space.s48)
                         }
                     }
                     .task {
@@ -79,7 +82,7 @@ struct DashboardView: View {
                             addButton
                         }
                         .padding(.trailing, 20)
-                        .padding(.bottom, 8)
+                        .padding(.bottom, DS.Space.s8)
                     }
 
                 } else {
@@ -121,94 +124,75 @@ struct DashboardView: View {
         ToolbarItem(placement: .topBarTrailing) {
             Button { showSetup = true } label: {
                 Image(systemName: "gearshape.fill")
-                    .foregroundStyle(Color.cohTertiary)
+                    .foregroundStyle(DS.Color.text3)
                     .font(.body)
             }
         }
     }
 
-    // MARK: Ownership header
+    // MARK: Summary header
 
-    private func equityHeader(_ h: Household) -> some View {
-        let sorted = sortedAssets(h.assets)
-        return VStack(spacing: 14) {
-            // Partner figures with first asset centred between them
-            HStack(alignment: .bottom) {
-                partnerFigure(name: h.partnerAName, avatar: h.avatarA, color: .cohGreen, align: .leading)
+    private func summaryHeader(_ h: Household) -> some View {
+        let (totalA, totalB) = totalNetEquity(h)
+        let total = totalA + totalB
+        let shareA: Double = total > 0 ? totalA / total : 0.5
+        let sym = h.currencySymbol
+
+        return VStack(spacing: DS.Space.s16) {
+            // Partner chips + currency pill
+            HStack {
+                PartnerChip(name: h.partnerAName, color: DS.Color.partnerA)
                 Spacer()
-                if let first = sorted.first {
-                    assetFigure(first, onTap: {
-                        if first.currentValue == 0 { setupAsset = first }
-                        else { editingAsset = first }
-                    })
-                }
+                Text(h.currency)
+                    .font(DS.Text.captionEmphasis)
+                    .foregroundStyle(DS.Color.text2)
+                    .padding(.horizontal, DS.Space.s12)
+                    .padding(.vertical, DS.Space.s4)
+                    .background(DS.Color.iconSurface, in: Capsule())
                 Spacer()
-                partnerFigure(name: h.partnerBName, avatar: h.avatarB, color: .cohBlue, align: .trailing)
+                PartnerChip(name: h.partnerBName, color: DS.Color.partnerB)
             }
 
-            if h.assets.isEmpty {
-                Text(strings.dashboardNoAssets)
-                    .font(.caption).foregroundStyle(Color.cohTertiary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 4)
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(Array(sorted.enumerated()), id: \.element.id) { idx, asset in
-                        if idx > 0 {
-                            Color.cohIconBg.frame(height: 1).opacity(0.7)
-                        }
-                        Button {
-                            if asset.currentValue == 0 { setupAsset = asset }
-                            else { editingAsset = asset }
-                        } label: {
-                            assetBalanceRow(asset: asset, symbol: h.currencySymbol,
-                                            nameA: h.partnerAName, nameB: h.partnerBName,
-                                            showHeader: idx > 0)
-                        }
-                        .buttonStyle(.plain)
-                    }
+            // Hero equity number
+            VStack(spacing: DS.Space.s4) {
+                Text("Shared equity")
+                    .font(DS.Text.caption)
+                    .foregroundStyle(DS.Color.text3)
+                if h.assets.isEmpty {
+                    Text("Add your first asset to see the split")
+                        .font(DS.Text.caption)
+                        .foregroundStyle(DS.Color.text3)
+                        .multilineTextAlignment(.center)
+                } else {
+                    Text(sym + Int(total).formatted())
+                        .font(DS.Text.displayMono)
+                        .foregroundStyle(DS.Color.text1)
                 }
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+
+            // Split bar
+            if !h.assets.isEmpty {
+                SplitBar(shareA: shareA)
             }
         }
-        .padding(16)
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
+        .padding(DS.Space.s24)
+        .dsCard()
     }
 
-    private func assetFigure(_ asset: Asset, onTap: @escaping () -> Void) -> some View {
-        Button(action: onTap) {
-            VStack(spacing: 6) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.cohIconBg)
-                        .frame(width: 56, height: 56)
-                    Image(systemName: asset.type.icon)
-                        .font(.system(size: 22, weight: .medium))
-                        .foregroundStyle(Color.cohIconFg)
-                }
-                Text(asset.label.isEmpty ? asset.type.displayName : asset.label)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.cohInk)
-                    .lineLimit(1)
-                    .frame(width: 72)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func partnerFigure(name: String, avatar: String, color: Color, align: HorizontalAlignment) -> some View {
-        VStack(spacing: 6) {
+    private func partnerFigure(name: String, avatar: String, color: SwiftUI.Color, align: HorizontalAlignment) -> some View {
+        VStack(spacing: DS.Space.s8) {
             ZStack {
                 Circle()
-                    .fill(color.opacity(0.10))
-                    .frame(width: 64, height: 64)
+                    .fill(color.opacity(0.12))
+                    .frame(width: 56, height: 56)
                 Image(systemName: avatar)
-                    .font(.system(size: 32, weight: .regular))
+                    .font(.system(size: 26, weight: .regular))
                     .foregroundStyle(color)
             }
             Text(name)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Color.cohInk)
+                .font(DS.Text.captionEmphasis)
+                .foregroundStyle(DS.Color.text1)
                 .lineLimit(1)
         }
         .frame(maxWidth: 80, alignment: align == .leading ? .leading : .trailing)
@@ -218,78 +202,6 @@ struct DashboardView: View {
         let order: [AssetType] = [.home, .cabin, .car, .other, .savings, .investment]
         return assets.sorted {
             (order.firstIndex(of: $0.type) ?? 99) < (order.firstIndex(of: $1.type) ?? 99)
-        }
-    }
-
-    /// Unified asset balance row — same layout for all asset types.
-    /// Shows: centred icon+name (secondary assets), split bar with %, per-partner amounts.
-    private func assetBalanceRow(asset: Asset, symbol: String,
-                                  nameA: String, nameB: String,
-                                  showHeader: Bool = true) -> some View {
-        let shareA = asset.ownershipShareA
-        let shareB = 1 - shareA
-        let hasValue = asset.currentValue > 0
-
-        return VStack(spacing: 6) {
-            // Icon + name — secondary assets only (first asset is the centred figure)
-            if showHeader {
-                VStack(spacing: 3) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.cohIconBg)
-                            .frame(width: 38, height: 38)
-                        Image(systemName: asset.type.icon)
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(Color.cohIconFg)
-                    }
-                    Text(asset.label.isEmpty ? asset.type.displayName : asset.label)
-                        .font(.caption2).foregroundStyle(Color.cohTertiary)
-                        .lineLimit(1).frame(width: 68)
-                }
-            }
-
-            // Split bar: A% ——bar—— B%
-            HStack(spacing: 0) {
-                Text("\(Int((shareA * 100).rounded()))%")
-                    .font(.caption.bold().monospacedDigit())
-                    .foregroundStyle(shareA > 0.005 ? Color.cohGreen : Color.cohTertiary)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.trailing, 8)
-
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.cohBlue.opacity(0.18))
-                        Capsule().fill(Color.cohGreen)
-                            .frame(width: geo.size.width * CGFloat(shareA))
-                    }
-                }
-                .frame(width: 72, height: 5)
-
-                Text("\(Int((shareB * 100).rounded()))%")
-                    .font(.caption.bold().monospacedDigit())
-                    .foregroundStyle(shareB > 0.005 ? Color.cohBlue : Color.cohTertiary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 8)
-            }
-
-            // Per-partner amounts — shown for all types when value > 0
-            if hasValue {
-                HStack {
-                    HStack(spacing: 4) {
-                        Circle().fill(Color.cohGreen).frame(width: 5, height: 5)
-                        Text(symbol + Int(asset.currentValue * shareA).formatted())
-                            .font(.caption2.monospacedDigit())
-                            .foregroundStyle(shareA > 0.005 ? Color.cohSecondary : Color.cohTertiary)
-                    }
-                    Spacer()
-                    HStack(spacing: 4) {
-                        Text(symbol + Int(asset.currentValue * shareB).formatted())
-                            .font(.caption2.monospacedDigit())
-                            .foregroundStyle(shareB > 0.005 ? Color.cohSecondary : Color.cohTertiary)
-                        Circle().fill(Color.cohBlue).frame(width: 5, height: 5)
-                    }
-                }
-            }
         }
     }
 
@@ -308,38 +220,38 @@ struct DashboardView: View {
             }
         }()
 
-        return VStack(spacing: 12) {
+        return VStack(spacing: DS.Space.s12) {
             HStack {
                 Label(strings.monthlyExpenses,
                       systemImage: "dollarsign.circle.fill")
-                    .font(.caption.bold()).foregroundStyle(Color.cohGreen)
+                    .font(DS.Text.captionEmphasis).foregroundStyle(DS.Color.partnerA)
                 Spacer()
                 if !modeLabel.isEmpty {
                     Text(modeLabel)
-                        .font(.caption2).foregroundStyle(.secondary)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Color(.systemGray6), in: Capsule())
+                        .font(DS.Text.caption).foregroundStyle(DS.Color.text3)
+                        .padding(.horizontal, DS.Space.s8).padding(.vertical, DS.Space.s4)
+                        .background(DS.Color.iconSurface, in: Capsule())
                 }
             }
-            HStack(spacing: 8) {
-                budgetPill(h.partnerAName, pays: paysA, sym: sym, color: .cohGreen)
-                budgetPill(h.partnerBName, pays: paysB, sym: sym, color: Color.cohBlue)
+            HStack(spacing: DS.Space.s8) {
+                budgetPill(h.partnerAName, pays: paysA, sym: sym, color: DS.Color.partnerA)
+                budgetPill(h.partnerBName, pays: paysB, sym: sym, color: DS.Color.partnerB)
             }
         }
-        .padding(16)
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+        .padding(DS.Space.s16)
+        .dsCard(radius: DS.Radius.lg)
     }
 
-    private func budgetPill(_ name: String, pays: Double, sym: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(name).font(.caption2.weight(.semibold)).foregroundStyle(color)
+    private func budgetPill(_ name: String, pays: Double, sym: String, color: SwiftUI.Color) -> some View {
+        VStack(alignment: .leading, spacing: DS.Space.s4) {
+            Text(name).font(DS.Text.caption).foregroundStyle(color)
             Text(sym + Int(pays).formatted() + strings.perMonthSuffix)
-                .font(.subheadline.bold().monospacedDigit())
+                .font(DS.Text.mono)
+                .foregroundStyle(DS.Color.text1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+        .padding(DS.Space.s12)
+        .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: DS.Radius.sm, style: .continuous))
     }
 
     private func totalNetEquity(_ h: Household) -> (Double, Double) {
@@ -366,14 +278,14 @@ struct DashboardView: View {
             switch h.agreementStatus {
             case "signed" where !h.agreementNeedsUpdate:
                 Label("Agreement signed ✓", systemImage: "checkmark.seal.fill")
-                    .font(.subheadline.bold()).foregroundStyle(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 14)
-                    .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 12))
+                    .font(DS.Text.bodyEmphasis).foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, DS.Space.s16)
+                    .background(DS.Color.success, in: RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous))
             case "pending":
                 Label("Waiting for signatures…", systemImage: "clock.fill")
-                    .font(.subheadline.bold()).foregroundStyle(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 14)
-                    .background(Color.orange, in: RoundedRectangle(cornerRadius: 12))
+                    .font(DS.Text.bodyEmphasis).foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, DS.Space.s16)
+                    .background(DS.Color.warning, in: RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous))
             default:
                 EmptyView()
             }
@@ -383,108 +295,66 @@ struct DashboardView: View {
     // MARK: Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: DS.Space.s24) {
             ZStack {
                 Circle()
-                    .fill(Color.cohGreen.opacity(0.08))
+                    .fill(DS.Color.iconSurface)
                     .frame(width: 100, height: 100)
                 Image(systemName: "house.and.flag.fill")
                     .font(.system(size: 44))
-                    .foregroundStyle(Color.cohGreen)
+                    .foregroundStyle(DS.Color.iconContent)
             }
 
-            VStack(spacing: 8) {
+            VStack(spacing: DS.Space.s8) {
                 Text(strings.dashboardSetupTitle)
-                    .font(.title2.bold())
+                    .font(DS.Text.headline)
+                    .foregroundStyle(DS.Color.text1)
                 Text(strings.dashboardSetupSub)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(DS.Text.body)
+                    .foregroundStyle(DS.Color.text2)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
 
-            Button { showSetup = true } label: {
-                Text(strings.onboardingGetStarted)
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
-                    .padding(.horizontal, 48)
-            }
+            DSPrimaryButton(label: strings.onboardingGetStarted) { showSetup = true }
+                .padding(.horizontal, 48)
         }
-        .padding(.bottom, 40)
+        .padding(.bottom, DS.Space.s48)
     }
 
-    // MARK: Household header
+    // MARK: Assets section
 
-    private func householdHeader(_ h: Household) -> some View {
-        HStack(spacing: 0) {
-            partnerPill(h.partnerAName, color: .cohGreen)
-            Spacer()
-
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.left.arrow.right")
-                    .font(.caption2.bold())
-                    .foregroundStyle(Color.cohTertiary)
-                Text(h.currency)
-                    .font(.caption.bold())
-                    .foregroundStyle(Color.cohSecondary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color(.systemGray6), in: Capsule())
-
-            Spacer()
-            partnerPill(h.partnerBName, color: Color.cohBlue)
-        }
-        .padding(.horizontal, 24)
-    }
-
-    private func partnerPill(_ name: String, color: Color) -> some View {
-        HStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.12))
-                    .frame(width: 32, height: 32)
-                Text(String(name.prefix(1)).uppercased())
-                    .font(.subheadline.bold())
-                    .foregroundStyle(color)
-            }
-            Text(name)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-        }
-    }
-
-    // MARK: Assets list
-
-    private func assetsList(_ h: Household) -> some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(strings.dashboardAssets)
-                    .font(.system(.subheadline, design: .default).weight(.semibold))
-                    .foregroundStyle(Color.cohInk)
-                Spacer()
-                Text("\(h.assets.count) \(h.assets.count == 1 ? strings.dashboardItem : strings.dashboardItems)")
-                    .font(.caption)
-                    .foregroundStyle(Color.cohTertiary)
-            }
-            .padding(.horizontal, 20)
+    private func assetsSection(_ h: Household) -> some View {
+        VStack(spacing: DS.Space.s12) {
+            SectionHeader(title: strings.dashboardAssets,
+                          detail: "\(h.assets.count) \(h.assets.count == 1 ? strings.dashboardItem : strings.dashboardItems)")
+                .padding(.horizontal, 20)
 
             if h.assets.isEmpty {
                 noAssetsPrompt { showAddAsset = true }
-                    .padding(.top, 16)
+                    .padding(.top, DS.Space.s8)
             } else {
-                LazyVStack(spacing: 16) {
-                    ForEach(sortedAssets(h.assets)) { asset in
-                        AssetCard(asset: asset, household: h,
-                                  onEdit: { editingAsset = asset },
-                                  onSetup: { setupAsset = asset })
+                VStack(spacing: 0) {
+                    ForEach(Array(sortedAssets(h.assets).enumerated()), id: \.element.id) { idx, asset in
+                        Button {
+                            if asset.currentValue == 0 { setupAsset = asset }
+                            else { editingAsset = asset }
+                        } label: {
+                            AssetOverviewRow(asset: asset, household: h)
+                                .padding(.horizontal, DS.Space.s16)
+                                .padding(.vertical, DS.Space.s12)
+                        }
+                        .buttonStyle(DSPressButtonStyle())
+
+                        if idx < h.assets.count - 1 {
+                            Divider()
+                                .overlay(DS.Color.border)
+                                .padding(.leading, DS.Space.s16 + 40 + DS.Space.s12)
+                        }
                     }
-                    nextActionCard(for: h)
                 }
-                .padding(.top, 16)
+                .dsCard(radius: DS.Radius.lg)
+                .padding(.horizontal, 20)
             }
         }
     }
@@ -494,88 +364,71 @@ struct DashboardView: View {
         let hasAnyContribs = h.assets.contains { !$0.contributions.isEmpty }
         let needsAgreement = h.isFormalMode && h.agreementStatus == "none"
 
-        if !hasAnyContribs {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.cohGreen.opacity(0.10))
-                        .frame(width: 38, height: 38)
-                    Image(systemName: "plus.circle.fill")
-                        .font(.subheadline).foregroundStyle(Color.cohGreen)
-                }
-                VStack(alignment: .leading, spacing: 3) {
+        if !hasAnyContribs && !h.assets.isEmpty {
+            HStack(spacing: DS.Space.s16) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(DS.Color.iconContent)
+                    .dsIcon(size: 40, radius: DS.Radius.sm)
+                VStack(alignment: .leading, spacing: DS.Space.s4) {
                     Text(strings.dashboardLogFirstContrib)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.cohInk)
+                        .font(DS.Text.bodyEmphasis)
+                        .foregroundStyle(DS.Color.text1)
                     Text(strings.dashboardLogFirstContribSub)
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(DS.Text.caption).foregroundStyle(DS.Color.text2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.caption).foregroundStyle(Color.cohTertiary)
+                    .font(DS.Text.caption).foregroundStyle(DS.Color.text3)
             }
-            .padding(16)
-            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
-            .padding(.horizontal, 20)
+            .padding(DS.Space.s16)
+            .dsCard(radius: DS.Radius.lg)
             .onTapGesture { editingAsset = sortedAssets(h.assets).first }
         } else if needsAgreement {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(red: 0.54, green: 0.31, blue: 0.96).opacity(0.10))
-                        .frame(width: 38, height: 38)
-                    Image(systemName: "doc.text.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(Color(red: 0.54, green: 0.31, blue: 0.96))
-                }
-                VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: DS.Space.s16) {
+                Image(systemName: "doc.text.fill")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(DS.Color.iconContent)
+                    .dsIcon(size: 40, radius: DS.Radius.sm)
+                VStack(alignment: .leading, spacing: DS.Space.s4) {
                     Text(strings.dashboardMakeOfficial)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.cohInk)
+                        .font(DS.Text.bodyEmphasis)
+                        .foregroundStyle(DS.Color.text1)
                     Text(strings.dashboardMakeOfficialSub)
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(DS.Text.caption).foregroundStyle(DS.Color.text2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(16)
-            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
-            .padding(.horizontal, 20)
+            .padding(DS.Space.s16)
+            .dsCard(radius: DS.Radius.lg)
         }
     }
 
     private func noAssetsPrompt(action: @escaping () -> Void) -> some View {
-        VStack(spacing: 14) {
+        VStack(spacing: DS.Space.s16) {
             Image(systemName: "plus.square.dashed")
-                .font(.system(size: 36))
-                .foregroundStyle(Color.cohTertiary)
-            Text(strings.dashboardNoAssets)
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Text(strings.dashboardNoAssetsSub)
-                .font(.subheadline)
-                .foregroundStyle(Color.cohTertiary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                .font(.system(size: 32, weight: .light))
+                .foregroundStyle(DS.Color.text3)
+            VStack(spacing: DS.Space.s4) {
+                Text(strings.dashboardNoAssets)
+                    .font(DS.Text.bodyEmphasis)
+                    .foregroundStyle(DS.Color.text2)
+                Text(strings.dashboardNoAssetsSub)
+                    .font(DS.Text.caption)
+                    .foregroundStyle(DS.Color.text3)
+                    .multilineTextAlignment(.center)
+            }
+            DSPrimaryButton(label: strings.dashboardAddAsset, icon: "plus") { action() }
         }
+        .padding(DS.Space.s24)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
     }
 
     // MARK: Floating add button
 
     private var addButton: some View {
-        Button { showAddAsset = true } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 54, height: 54)
-                .background(Color.cohInk, in: Circle())
-                .shadow(color: .black.opacity(0.22), radius: 12, y: 4)
-        }
-        .buttonStyle(.plain)
+        DSFABButton { showAddAsset = true }
     }
 }
 
@@ -617,7 +470,7 @@ struct AssetCard: View {
         } label: {
             VStack(alignment: .leading, spacing: 0) {
                 assetHeader
-                Color(.separator).frame(height: 0.5).padding(.vertical, 14)
+                DS.Color.border.frame(height: 0.5).padding(.vertical, DS.Space.s16)
                 if isBlank {
                     setupPrompt
                 } else if asset.type == .furniture {
@@ -626,12 +479,11 @@ struct AssetCard: View {
                     equityRow
                 }
             }
-            .padding(20)
-            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
+            .padding(DS.Space.s16)
+            .dsCard(radius: DS.Radius.lg)
             .padding(.horizontal, 20)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DSPressButtonStyle())
         .sheet(isPresented: $showFurnitureList) {
             FurnitureListView(asset: asset, household: household)
         }
@@ -640,75 +492,63 @@ struct AssetCard: View {
     // MARK: Furniture row
 
     private var furnitureRow: some View {
-        Button { showFurnitureList = true } label: {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
-                    let count = asset.furnitureItems.count
-                    Text(count == 0
-                         ? strings.noItemsYet
-                         : "\(count) \(count == 1 ? strings.furnItemSingular : strings.furnItemPlural)")
-                        .font(.subheadline.weight(.semibold)).foregroundStyle(Color.cohInk)
-                    if count > 0 {
-                        let total = asset.furnitureItems.reduce(0.0) { $0 + $1.currentValue }
-                        if total > 0 {
-                            Text(sym + Int(total).formatted())
-                                .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                        }
+        HStack(spacing: DS.Space.s12) {
+            VStack(alignment: .leading, spacing: DS.Space.s4) {
+                let count = asset.furnitureItems.count
+                Text(count == 0
+                     ? strings.noItemsYet
+                     : "\(count) \(count == 1 ? strings.furnItemSingular : strings.furnItemPlural)")
+                    .font(DS.Text.bodyEmphasis).foregroundStyle(DS.Color.text1)
+                if count > 0 {
+                    let total = asset.furnitureItems.reduce(0.0) { $0 + $1.currentValue }
+                    if total > 0 {
+                        Text(sym + Int(total).formatted())
+                            .font(DS.Text.monoCaption).foregroundStyle(DS.Color.text2)
                     }
                 }
-                Spacer()
-                Text(strings.viewAllArrow)
-                    .font(.caption.weight(.semibold)).foregroundStyle(Color.cohGreen)
             }
+            Spacer()
+            Text(strings.viewAllArrow)
+                .font(DS.Text.captionEmphasis).foregroundStyle(DS.Color.accent)
         }
-        .buttonStyle(.plain)
     }
 
     private var setupPrompt: some View {
-        Button(action: onSetup) {
-            HStack(spacing: 10) {
-                Image(systemName: "arrow.right.circle.fill").foregroundStyle(Color.cohGreen)
-                Text(strings.completeSetup)
-                    .font(.subheadline.weight(.semibold)).foregroundStyle(Color.cohGreen)
-                Spacer()
-                Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(Color.cohTertiary)
-            }
+        HStack(spacing: DS.Space.s12) {
+            Image(systemName: "arrow.right.circle.fill").foregroundStyle(DS.Color.accent)
+            Text(strings.completeSetup)
+                .font(DS.Text.bodyEmphasis).foregroundStyle(DS.Color.accent)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(DS.Text.caption).foregroundStyle(DS.Color.text3)
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: Header
 
     private var assetHeader: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color.cohIconBg)
-                    .frame(width: 50, height: 50)
-                Image(systemName: asset.type.icon)
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(Color.cohIconFg)
-            }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(asset.label).font(.headline)
+        HStack(spacing: DS.Space.s16) {
+            Image(systemName: asset.type.icon)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(DS.Color.iconContent)
+                .dsIcon(size: 50, radius: DS.Radius.md)
+            VStack(alignment: .leading, spacing: DS.Space.s4) {
+                Text(asset.label).font(DS.Text.headline).foregroundStyle(DS.Color.text1)
                 if !asset.address.isEmpty {
-                    Text(asset.address).font(.caption).foregroundStyle(.secondary)
+                    Text(asset.address).font(DS.Text.caption).foregroundStyle(DS.Color.text2)
                 }
             }
             Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: .trailing, spacing: DS.Space.s4) {
                 Text(household.currencySymbol + fmt(asset.currentValue))
-                    .font(.subheadline.bold().monospacedDigit())
+                    .font(DS.Text.mono).foregroundStyle(DS.Color.text1)
                 if asset.remainingLoan > 0 {
                     Text(strings.dashboardLoan + ": −" + fmt(asset.remainingLoan))
-                        .font(.caption2.monospacedDigit()).foregroundStyle(.orange)
+                        .font(DS.Text.monoSm).foregroundStyle(DS.Color.warning)
                 }
-                Button(action: isBlank ? onSetup : onEdit) {
-                    Image(systemName: isBlank ? "arrow.right.circle.fill" : "pencil.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(isBlank ? Color.cohGreen : Color.cohTertiary)
-                }
-                .buttonStyle(.plain)
+                Image(systemName: isBlank ? "arrow.right.circle.fill" : "pencil.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(isBlank ? DS.Color.accent : DS.Color.text3)
             }
         }
     }
@@ -718,26 +558,73 @@ struct AssetCard: View {
     private var equityRow: some View {
         let payoutA = equityResult.payout[.a] ?? 0
         let payoutB = equityResult.payout[.b] ?? 0
-        return VStack(spacing: 8) {
+        return VStack(spacing: DS.Space.s8) {
             HStack(alignment: .top) {
-                equityColumn(household.partnerAName, equity: payoutA, color: .cohGreen)
+                equityColumn(household.partnerAName, equity: payoutA, color: DS.Color.partnerA)
                 Spacer()
-                equityColumn(household.partnerBName, equity: payoutB, color: Color.cohBlue)
+                equityColumn(household.partnerBName, equity: payoutB, color: DS.Color.partnerB)
             }
         }
     }
 
-    private func equityColumn(_ name: String, equity: Double, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(name).font(.caption.weight(.medium)).foregroundStyle(color)
+    private func equityColumn(_ name: String, equity: Double, color: SwiftUI.Color) -> some View {
+        VStack(alignment: .leading, spacing: DS.Space.s4) {
+            Text(name).font(DS.Text.caption).foregroundStyle(color)
             Text(household.currencySymbol + fmt(equity))
-                .font(.title3.bold().monospacedDigit())
+                .font(DS.Text.mono).foregroundStyle(DS.Color.text1)
         }
     }
 
     private func fmt(_ v: Double) -> String {
         let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
         return f.string(from: NSNumber(value: v)) ?? "0"
+    }
+}
+
+// MARK: - Asset overview row (compact, used inside grouped card)
+
+struct AssetOverviewRow: View {
+    let asset: Asset
+    let household: Household
+
+    var body: some View {
+        HStack(spacing: DS.Space.s12) {
+            // Icon
+            Image(systemName: asset.type.icon)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(DS.Color.iconContent)
+                .dsIcon(size: 40, radius: DS.Radius.sm)
+
+            // Name + split bar
+            VStack(alignment: .leading, spacing: DS.Space.s4) {
+                Text(asset.label.isEmpty ? asset.type.displayName : asset.label)
+                    .font(DS.Text.bodyEmphasis)
+                    .foregroundStyle(DS.Color.text1)
+                    .lineLimit(1)
+                SplitBar(shareA: asset.ownershipShareA, height: 4, showLabels: false)
+            }
+
+            Spacer()
+
+            // Value
+            VStack(alignment: .trailing, spacing: DS.Space.s4) {
+                if asset.currentValue > 0 {
+                    Text(household.currencySymbol + Int(asset.currentValue).formatted())
+                        .font(DS.Text.mono)
+                        .foregroundStyle(DS.Color.text1)
+                } else {
+                    Text("Set up")
+                        .font(DS.Text.caption)
+                        .foregroundStyle(DS.Color.accent)
+                }
+                if asset.remainingLoan > 0 {
+                    Text("−" + household.currencySymbol + Int(asset.remainingLoan).formatted())
+                        .font(DS.Text.monoSm)
+                        .foregroundStyle(DS.Color.warning)
+                }
+            }
+        }
+        .frame(minHeight: 52)
     }
 }
 
