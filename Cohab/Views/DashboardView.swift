@@ -1476,6 +1476,24 @@ struct AddAssetView: View {
         .padding(.top, 8).padding(.bottom, 48)
         .background(Color.cohBg)
     }
+
+    private func save() {
+        let value = Double(valueText.replacingOccurrences(of: ",", with: ".")) ?? 0
+        let loan  = selectedType.showLoan
+            ? (Double(loanText.replacingOccurrences(of: ",", with: ".")) ?? 0)
+            : 0
+        let asset = Asset(
+            assetType: selectedType.rawValue,
+            label: label.trimmingCharacters(in: .whitespaces),
+            address: address.trimmingCharacters(in: .whitespaces),
+            currentValue: value,
+            remainingLoan: loan,
+            salesCostFraction: selectedType.defaultSalesCostFraction,
+            ownershipShareA: shareA
+        )
+        household.assets.append(asset)
+        dismiss()
+    }
 }
 
 // MARK: - Edit asset sheet
