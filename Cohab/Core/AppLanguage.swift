@@ -270,7 +270,7 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
     // MARK: Onboarding — new screens
 
     var onboardingHero: String { s(
-        en: "Security and full control\nas a cohabiting couple.",
+        en: "Security and full control\nwhen living together.",
         nb: "Trygghet og full kontroll\ni samboerskapet.",
         sv: "Trygghet och full kontroll\ni samboförhållandet.",
         da: "Tryghed og fuld kontrol\ni samlivet.",
