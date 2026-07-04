@@ -7,10 +7,7 @@ struct DashboardView: View {
     @Query private var households: [Household]
     @Environment(\.modelContext) private var modelContext
     @ObservedObject private var strings = AppStrings.shared
-    @EnvironmentObject private var auth: AuthManager
-    @AppStorage("onboardingComplete") private var onboardingComplete = false
     @State private var showSetup = false
-    @State private var showSignOutConfirm = false
     @State private var showAddAsset = false
     @State private var editingAsset: Asset?
     @State private var showAgreementSheet = false
@@ -100,19 +97,10 @@ struct DashboardView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Button { showSignOutConfirm = true } label: {
-                Image(systemName: "rectangle.portrait.and.arrow.right")
+            Button { showSetup = true } label: {
+                Image(systemName: "gearshape.fill")
                     .foregroundStyle(Color(.tertiaryLabel))
                     .font(.body)
-            }
-            .confirmationDialog("Log out?", isPresented: $showSignOutConfirm, titleVisibility: .visible) {
-                Button("Log out", role: .destructive) {
-                    Task {
-                        await auth.signOut()
-                        onboardingComplete = false
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
             }
         }
     }
