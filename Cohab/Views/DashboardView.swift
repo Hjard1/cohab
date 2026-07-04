@@ -7,6 +7,8 @@ struct DashboardView: View {
     @Query private var households: [Household]
     @Environment(\.modelContext) private var modelContext
     @ObservedObject private var strings = AppStrings.shared
+    @EnvironmentObject private var auth: AuthManager
+    @AppStorage("onboardingComplete") private var onboardingComplete = false
     @State private var showSetup = false
     @State private var showSignOutConfirm = false
     @State private var showAddAsset = false
@@ -105,7 +107,10 @@ struct DashboardView: View {
             }
             .confirmationDialog("Log out?", isPresented: $showSignOutConfirm, titleVisibility: .visible) {
                 Button("Log out", role: .destructive) {
-                    Task { await AuthManager.shared.signOut() }
+                    Task {
+                        await auth.signOut()
+                        onboardingComplete = false
+                    }
                 }
                 Button("Cancel", role: .cancel) {}
             }
