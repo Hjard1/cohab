@@ -78,7 +78,7 @@ struct ContentView: View {
             CalculatorsView()
                 .tabItem { Label(s.tabCalculators, systemImage: "function") }
         }
-        .tint(DS.Color.accent)   // terracotta — not partner green
+        .tint(.cohGreen)
         .preferredColorScheme(.light)
     }
 
