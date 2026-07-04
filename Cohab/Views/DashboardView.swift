@@ -21,29 +21,38 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                Color.cohBg.ignoresSafeArea()
+            ZStack {
+                // Green fills everything — shows in header area
+                Color.cohGreen.ignoresSafeArea()
 
                 if let h = household {
-                    ScrollView {
+                    ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
-                            equityHeader(h)
-                                .padding(.horizontal, 20)
-                                .padding(.top, 16)
-                            if let rate = availableRate,
-                               abs(rate.rate - h.annualInterestRate) > 0.001 {
-                                rateUpdateBanner(household: h, rate: rate)
-                                    .padding(.horizontal, 20)
-                                    .padding(.top, 12)
+                            // GREEN HEADER
+                            headerSection(h)
+                                .padding(.horizontal, 24)
+                                .padding(.top, 8)
+                                .padding(.bottom, 36)
+
+                            // CREAM CONTENT — rounded top overlaps header
+                            VStack(spacing: 0) {
+                                if let rate = availableRate,
+                                   abs(rate.rate - h.annualInterestRate) > 0.001 {
+                                    rateUpdateBanner(household: h, rate: rate)
+                                        .padding(.horizontal, 20)
+                                        .padding(.top, 20)
+                                }
+                                assetsList(h).padding(.top, 20)
+                                if h.isFormalMode {
+                                    agreementStatusRow(h)
+                                        .padding(.horizontal, 20)
+                                        .padding(.top, 12)
+                                }
+                                Spacer(minLength: 100)
                             }
-                            assetsList(h)
-                                .padding(.top, 24)
-                            if h.isFormalMode {
-                                agreementStatusRow(h)
-                                    .padding(.horizontal, 20)
-                                    .padding(.top, 12)
-                            }
-                            Spacer(minLength: 100)
+                            .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height * 0.65)
+                            .background(Color.cohBg)
+                            .clipShape(.rect(topLeadingRadius: 28, topTrailingRadius: 28))
                         }
                     }
                     .task {
@@ -55,20 +64,20 @@ struct DashboardView: View {
                         }
                     }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        HStack {
-                            Spacer()
-                            addButton
-                        }
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 8)
+                        HStack { Spacer(); addButton }
+                            .padding(.trailing, 20)
+                            .padding(.bottom, 8)
                     }
 
                 } else {
+                    Color.cohBg.ignoresSafeArea()
                     emptyState
                 }
             }
-            .navigationTitle("cohab")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.clear, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar { toolbarContent }
         }
         .sheet(isPresented: $showSetup) {
@@ -99,57 +108,101 @@ struct DashboardView: View {
         ToolbarItem(placement: .topBarTrailing) {
             Button { showSetup = true } label: {
                 Image(systemName: "gearshape.fill")
-                    .foregroundStyle(Color(.tertiaryLabel))
+                    .foregroundStyle(.white.opacity(0.85))
                     .font(.body)
             }
         }
     }
 
-    // MARK: Equity header
+    // MARK: Header section (Revolut-style green hero)
 
-    private func equityHeader(_ h: Household) -> some View {
+    private func headerSection(_ h: Household) -> some View {
         let (equityA, equityB) = totalNetEquity(h)
         let total = equityA + equityB
-        let hasContributions = h.assets.contains { !$0.contributions.isEmpty }
+        let shareA: Double = total > 0 ? equityA / total : 0.5
+        let pctA = Int((shareA * 100).rounded())
+        let pctB = 100 - pctA
+        let sym = h.currencySymbol
 
-        return VStack(alignment: .leading, spacing: 0) {
-            // Total net equity
-            VStack(alignment: .leading, spacing: 4) {
-                Text(strings.dashboardNetEquity)
-                    .font(.caption.bold()).tracking(0.3)
-                    .foregroundStyle(.secondary)
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text(h.currencySymbol)
-                        .font(.title3.bold()).foregroundStyle(Color(.secondaryLabel))
-                    Text(Int(total).formatted())
-                        .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(Color.cohInk)
+        return VStack(alignment: .leading, spacing: 20) {
+            // Partner names
+            HStack {
+                HStack(spacing: 6) {
+                    Circle().fill(.white).frame(width: 8, height: 8)
+                    Text(h.partnerAName)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                }
+                Spacer()
+                HStack(spacing: 6) {
+                    Text(h.partnerBName)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.70))
+                        .lineLimit(1)
+                    Circle().fill(.white.opacity(0.55)).frame(width: 8, height: 8)
                 }
             }
-            .padding(20)
 
-            Divider().padding(.horizontal, 20)
-
-            // Per-partner rows (contribution-adjusted)
-            VStack(spacing: 0) {
-                equityPartnerRow(name: h.partnerAName, amount: equityA,
-                                 symbol: h.currencySymbol, color: Color.cohGreen)
-                Divider().padding(.leading, 56)
-                equityPartnerRow(name: h.partnerBName, amount: equityB,
-                                 symbol: h.currencySymbol,
-                                 color: Color(red: 0.20, green: 0.49, blue: 0.96))
+            // Hero equity number
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(sym)
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.75))
+                    Text(Int(total).formatted())
+                        .font(.system(size: 42, weight: .bold, design: .serif).monospacedDigit())
+                        .foregroundStyle(.white)
+                }
+                Text(strings.dashboardNetEquity.lowercased())
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.55))
             }
 
-            if hasContributions {
-                Text(strings.dashboardContribFirst)
-                    .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
-                    .padding(.horizontal, 20).padding(.bottom, 14).padding(.top, 8)
+            // Split bar + percentages
+            if !h.assets.isEmpty {
+                VStack(spacing: 8) {
+                    HStack(spacing: 10) {
+                        Text("\(pctA)%")
+                            .font(.caption.bold().monospacedDigit())
+                            .foregroundStyle(.white)
+                            .frame(width: 32, alignment: .trailing)
+
+                        Capsule()
+                            .fill(.white.opacity(0.22))
+                            .overlay(alignment: .leading) {
+                                GeometryReader { geo in
+                                    Capsule()
+                                        .fill(.white)
+                                        .frame(width: geo.size.width * CGFloat(shareA),
+                                               height: geo.size.height)
+                                }
+                            }
+                            .frame(height: 6)
+
+                        Text("\(pctB)%")
+                            .font(.caption.bold().monospacedDigit())
+                            .foregroundStyle(.white.opacity(0.65))
+                            .frame(width: 32, alignment: .leading)
+                    }
+
+                    // Per-partner amounts
+                    HStack {
+                        Text(sym + Int(equityA).formatted())
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.white.opacity(0.80))
+                        Spacer()
+                        Text(sym + Int(equityB).formatted())
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.white.opacity(0.60))
+                    }
+                    .padding(.horizontal, 42) // align under bar labels
+                }
             }
         }
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 12, y: 3)
     }
 
+    // Kept for use in other parts
     private func equityPartnerRow(name: String, amount: Double,
                                   symbol: String, color: Color) -> some View {
         HStack(spacing: 14) {
