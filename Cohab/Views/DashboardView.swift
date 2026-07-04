@@ -972,6 +972,7 @@ struct HouseholdSetupView: View {
     let household: Household?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var auth: AuthManager
     @AppStorage("onboardingComplete") private var onboardingComplete = false
     @ObservedObject private var strings = AppStrings.shared
 
@@ -1027,9 +1028,8 @@ struct HouseholdSetupView: View {
 
                 if household != nil {
                     Section {
-                        Button(role: .none) { showSignOutConfirm = true } label: {
+                        Button(role: .destructive) { signOut() } label: {
                             Label(s(en: "Sign out", nb: "Logg ut"), systemImage: "rectangle.portrait.and.arrow.right")
-                                .foregroundStyle(.primary)
                         }
                     }
 
@@ -1053,14 +1053,6 @@ struct HouseholdSetupView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(s(en: "Save", nb: "Lagre")) { save() }.bold().disabled(!canSave)
                 }
-            }
-            .confirmationDialog(s(en: "Sign out?", nb: "Logge ut?"),
-                                isPresented: $showSignOutConfirm, titleVisibility: .visible) {
-                Button(s(en: "Sign out", nb: "Logg ut"), role: .destructive) { signOut() }
-                Button(s(en: "Cancel", nb: "Avbryt"), role: .cancel) {}
-            } message: {
-                Text(s(en: "You will be taken back to the start screen. Your data stays on this device.",
-                       nb: "Du blir sendt tilbake til startskjermen. Dataene dine forblir på denne enheten."))
             }
             .confirmationDialog(s(en: "Delete all data?", nb: "Slette alle data?"),
                                 isPresented: $showDeleteConfirm, titleVisibility: .visible) {
@@ -1096,7 +1088,10 @@ struct HouseholdSetupView: View {
 
     private func signOut() {
         dismiss()
-        onboardingComplete = false
+        Task {
+            await auth.signOut()
+            onboardingComplete = false
+        }
     }
 
     private func deleteAll() {
