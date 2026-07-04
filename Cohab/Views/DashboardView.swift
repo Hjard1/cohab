@@ -1087,11 +1087,9 @@ struct HouseholdSetupView: View {
     }
 
     private func signOut() {
+        onboardingComplete = false   // triggers ContentView immediately
+        Task { await auth.signOut() } // fire-and-forget Supabase cleanup
         dismiss()
-        Task {
-            await auth.signOut()
-            onboardingComplete = false
-        }
     }
 
     private func deleteAll() {
