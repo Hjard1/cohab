@@ -90,9 +90,81 @@ struct OnboardingView: View {
     // MARK: - Step 0: Welcome
 
     private var welcomeStep: some View {
-        ZStack(alignment: .bottom) {
+        // Layout anchor is a plain VStack — no ignoresSafeArea on it.
+        // The background modifier draws the photo BEHIND without touching layout.
+        VStack(alignment: .leading, spacing: 0) {
 
-            // HERO PHOTO — only the background layers ignore safe area
+            // "cohab" wordmark — sits just below status bar
+            Text("cohab")
+                .font(.system(.subheadline, design: .rounded).weight(.bold))
+                .tracking(5)
+                .foregroundStyle(.white.opacity(0.90))
+                .padding(.horizontal, 28)
+                .padding(.top, 16)
+
+            Spacer()
+
+            // Hero text above card
+            VStack(alignment: .leading, spacing: 10) {
+                Text(s.onboardingHero)
+                    .font(.system(size: 32, weight: .bold, design: .serif))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
+
+                Text(s.onboardingHeroSub)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .shadow(color: .black.opacity(0.40), radius: 4, y: 1)
+            }
+            .padding(.horizontal, 28)
+            .padding(.bottom, 24)
+
+            // White bottom card
+            VStack(spacing: 0) {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.35))
+                    .frame(width: 40, height: 5)
+                    .padding(.top, 14)
+
+                VStack(spacing: 12) {
+                    ctaButton(s.onboardingGetStarted, enabled: true) { advance() }
+
+                    GoogleSignInButton(label: s.onboardingContinueWithGoogle) { user in
+                        if nameA.isEmpty { nameA = user.givenName }
+                        if emailA.isEmpty { emailA = user.email }
+                        advance()
+                    } onError: { err in
+                        googleSignInError = err.localizedDescription
+                    }
+
+                    Button { showSignIn = true } label: {
+                        Text(s.onboardingAlreadyHaveAccount)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.cohMuted)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity)
+                    }
+
+                    if let err = googleSignInError {
+                        Text(err).font(.caption).foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(.horizontal, 28)
+                .padding(.top, 22)
+                .padding(.bottom, 52)
+            }
+            .frame(maxWidth: .infinity)
+            .background(
+                Color.cohBg
+                    .clipShape(.rect(topLeadingRadius: 32, topTrailingRadius: 32))
+                    .shadow(color: .black.opacity(0.18), radius: 28, y: -8)
+                    .ignoresSafeArea(edges: .bottom)
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background {
+            // Background lives here — never touches layout of content above
             ZStack {
                 LinearGradient(
                     colors: [Color(red: 0.06, green: 0.25, blue: 0.18),
@@ -102,107 +174,20 @@ struct OnboardingView: View {
                 Image("onboardingHero")
                     .resizable()
                     .scaledToFill()
-                    .allowsHitTesting(false)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-            .ignoresSafeArea()                              // photo: full bleed under status bar + home indicator
-
-            // TOP gradient — status bar readability
-            LinearGradient(
-                colors: [.black.opacity(0.42), .clear],
-                startPoint: .top,
-                endPoint: .init(x: 0.5, y: 0.30)
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .ignoresSafeArea(edges: .top)
-
-            // BOTTOM gradient — merges into white card
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.55)],
-                startPoint: .init(x: 0.5, y: 0.45),
-                endPoint: .bottom
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .ignoresSafeArea(edges: .bottom)
-
-            // CONTENT — normal layout, respects safe areas
-            VStack(spacing: 0) {
-                HStack {
-                    Text("cohab")
-                        .font(.system(.subheadline, design: .rounded).weight(.bold))
-                        .tracking(6)
-                        .foregroundStyle(.white.opacity(0.90))
-                    Spacer()
-                }
-                .padding(.horizontal, 28)
-                .padding(.top, 16) // VStack already starts below status bar — small offset only
-
-                Spacer()
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(s.onboardingHero)
-                        .font(.system(size: 34, weight: .bold, design: .serif))
-                        .foregroundStyle(.white)
-                        .lineSpacing(2)
-                        .shadow(color: .black.opacity(0.30), radius: 6, y: 2)
-
-                    Text(s.onboardingHeroSub)
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.82))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .shadow(color: .black.opacity(0.40), radius: 4, y: 1)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 28)
-                .padding(.bottom, 24)
-
-                // WHITE BOTTOM CARD
-                VStack(spacing: 0) {
-                    Capsule()
-                        .fill(Color.secondary.opacity(0.35))
-                        .frame(width: 40, height: 5)
-                        .padding(.top, 14)
-
-                    VStack(spacing: 12) {
-                        ctaButton(s.onboardingGetStarted, enabled: true) { advance() }
-
-                        GoogleSignInButton(label: s.onboardingContinueWithGoogle) { user in
-                            if nameA.isEmpty { nameA = user.givenName }
-                            if emailA.isEmpty { emailA = user.email }
-                            advance()
-                        } onError: { err in
-                            googleSignInError = err.localizedDescription
-                        }
-
-                        Button { showSignIn = true } label: {
-                            Text(s.onboardingAlreadyHaveAccount)
-                                .font(.subheadline)
-                                .foregroundStyle(Color.cohMuted)
-                                .padding(.vertical, 6)
-                                .frame(maxWidth: .infinity)
-                        }
-
-                        if let err = googleSignInError {
-                            Text(err).font(.caption).foregroundStyle(.red)
-                                .multilineTextAlignment(.center)
-                        }
-                    }
-                    .padding(.horizontal, 28)
-                    .padding(.top, 22)
-                    .padding(.bottom, 52)
-                }
-                .frame(maxWidth: .infinity)
-                .background(
-                    Color.cohBg
-                        .clipShape(.rect(topLeadingRadius: 32, topTrailingRadius: 32))
-                        .shadow(color: .black.opacity(0.18), radius: 28, y: -8)
-                        .ignoresSafeArea(edges: .bottom)     // card extends under home indicator
+                    .clipped()
+                // Top gradient
+                LinearGradient(
+                    colors: [.black.opacity(0.45), .clear],
+                    startPoint: .top, endPoint: .init(x: 0.5, y: 0.28)
+                )
+                // Bottom gradient
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.60)],
+                    startPoint: .init(x: 0.5, y: 0.42), endPoint: .bottom
                 )
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea()  // background extends full bleed, layout unaffected
         }
-        // No .ignoresSafeArea() here — parent layout stays stable
     }
 
     // MARK: - Step 1: Country
