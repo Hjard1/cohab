@@ -272,12 +272,12 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
     var onboardingHero: String { s(
         en: "Security and full control\nwhen living together.",
         nb: "Trygghet og full kontroll\ni samboerskapet.",
-        sv: "Trygghet och full kontroll\ni samboförhållandet.",
+        sv: "Trygghet och full kontroll\nnär ni bor tillsammans.",
         da: "Tryghed og fuld kontrol\ni samlivet.",
         fi: "Turvallisuus ja täysi hallinta\navoliitossa.",
-        de: "Sicherheit und volle Kontrolle\nals unverheiratetes Paar.",
-        fr: "Sécurité et plein contrôle\ndans votre vie commune.",
-        es: "Seguridad y pleno control\nen vuestra convivencia.") }
+        de: "Sicherheit und volle Kontrolle\nim Zusammenleben.",
+        fr: "Sécurité et plein contrôle\nen vivant ensemble.",
+        es: "Seguridad y pleno control\nal vivir juntos.") }
 
     var onboardingHeroSub: String { s(
         en: "Remove the uncertainty. Get in control of what you own — alone and together.",
