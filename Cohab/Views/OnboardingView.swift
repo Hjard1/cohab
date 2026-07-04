@@ -88,87 +88,98 @@ struct OnboardingView: View {
     }
 
     // MARK: - Step 0: Welcome
-    // Split-screen: top half = clean hero photo, bottom half = text + CTAs.
-    // No text overlaid on the image — all content lives in the white section.
+    // GeometryReader gives exact dimensions — avoids the layout offset bug
+    // that ignoresSafeArea(edges:) causes when mixed with maxHeight:.infinity.
 
     private var welcomeStep: some View {
-        VStack(spacing: 0) {
+        GeometryReader { geo in
+            let imageHeight = geo.size.height * 0.52 + geo.safeAreaInsets.top
 
-            // TOP: hero photo — clean, minimal vignette only at edges
-            ZStack {
-                LinearGradient(
-                    colors: [Color(red: 0.06, green: 0.25, blue: 0.18),
-                             Color(red: 0.03, green: 0.15, blue: 0.10)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                )
-                Image("onboardingHero")
-                    .resizable()
-                    .scaledToFill()
-                    .clipped()
-                // Subtle vignette — keeps edges clean, no text needs it
-                LinearGradient(
-                    colors: [.black.opacity(0.18), .clear],
-                    startPoint: .top, endPoint: .init(x: 0.5, y: 0.5)
-                )
-            }
-            .frame(maxWidth: .infinity)
-            .frame(maxHeight: .infinity)   // takes top half via VStack flex
+            ZStack(alignment: .top) {
+                Color.cohBg.ignoresSafeArea()
 
-            // BOTTOM: white section with all text + CTAs
-            VStack(alignment: .leading, spacing: 0) {
-                // Brand + headline
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("cohab")
-                        .font(.system(.caption, design: .rounded).weight(.bold))
-                        .tracking(5)
-                        .foregroundStyle(Color.cohGreen)
+                // PHOTO — explicit size, bleeds under status bar
+                ZStack(alignment: .bottom) {
+                    LinearGradient(
+                        colors: [Color(red: 0.06, green: 0.25, blue: 0.18),
+                                 Color(red: 0.03, green: 0.15, blue: 0.10)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                    Image("onboardingHero")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geo.size.width, height: imageHeight)
+                        .clipped()
 
-                    Text(s.onboardingHero)
-                        .font(.system(size: 28, weight: .bold, design: .serif))
-                        .foregroundStyle(Color.cohInk)
-
-                    Text(s.onboardingHeroSub)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.cohMuted)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // Gradient fade into cream — no hard cut
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0),
+                            .init(color: .clear, location: 0.45),
+                            .init(color: Color.cohBg.opacity(0.7), location: 0.78),
+                            .init(color: Color.cohBg, location: 1.0)
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
                 }
-                .padding(.horizontal, 28)
-                .padding(.top, 28)
+                .frame(width: geo.size.width, height: imageHeight)
+                .ignoresSafeArea(edges: .top)
 
-                Spacer()
+                // TEXT + CTAs — positioned below the photo fade zone
+                VStack(alignment: .leading, spacing: 0) {
+                    Spacer().frame(height: imageHeight - geo.safeAreaInsets.top - 60)
 
-                // CTAs
-                VStack(spacing: 12) {
-                    ctaButton(s.onboardingGetStarted, enabled: true) { advance() }
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("cohab")
+                            .font(.system(.caption, design: .rounded).weight(.bold))
+                            .tracking(5)
+                            .foregroundStyle(Color.cohGreen)
 
-                    GoogleSignInButton(label: s.onboardingContinueWithGoogle) { user in
-                        if nameA.isEmpty { nameA = user.givenName }
-                        if emailA.isEmpty { emailA = user.email }
-                        advance()
-                    } onError: { err in
-                        googleSignInError = err.localizedDescription
-                    }
+                        Text(s.onboardingHero)
+                            .font(.system(size: 28, weight: .bold, design: .serif))
+                            .foregroundStyle(Color.cohInk)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                    Button { showSignIn = true } label: {
-                        Text(s.onboardingAlreadyHaveAccount)
+                        Text(s.onboardingHeroSub)
                             .font(.subheadline)
                             .foregroundStyle(Color.cohMuted)
-                            .padding(.vertical, 6)
-                            .frame(maxWidth: .infinity)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    .padding(.horizontal, 28)
 
-                    if let err = googleSignInError {
-                        Text(err).font(.caption).foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
+                    Spacer()
+
+                    VStack(spacing: 12) {
+                        ctaButton(s.onboardingGetStarted, enabled: true) { advance() }
+
+                        GoogleSignInButton(label: s.onboardingContinueWithGoogle) { user in
+                            if nameA.isEmpty { nameA = user.givenName }
+                            if emailA.isEmpty { emailA = user.email }
+                            advance()
+                        } onError: { err in
+                            googleSignInError = err.localizedDescription
+                        }
+
+                        Button { showSignIn = true } label: {
+                            Text(s.onboardingAlreadyHaveAccount)
+                                .font(.subheadline)
+                                .foregroundStyle(Color.cohMuted)
+                                .padding(.vertical, 6)
+                                .frame(maxWidth: .infinity)
+                        }
+
+                        if let err = googleSignInError {
+                            Text(err).font(.caption).foregroundStyle(.red)
+                                .multilineTextAlignment(.center)
+                        }
                     }
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, geo.safeAreaInsets.bottom + 28)
                 }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 48)
+                .frame(width: geo.size.width, height: geo.size.height + geo.safeAreaInsets.top)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .background(Color.cohBg.ignoresSafeArea(edges: .bottom))
         }
-        .ignoresSafeArea(edges: .top)  // photo bleeds under status bar
+        .ignoresSafeArea(edges: .top)
     }
 
     // MARK: - Step 1: Country
