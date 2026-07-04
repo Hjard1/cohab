@@ -42,6 +42,11 @@ struct DashboardView: View {
                                         .padding(.horizontal, 20)
                                         .padding(.top, 20)
                                 }
+                                if h.partnerBName.trimmingCharacters(in: .whitespaces).isEmpty {
+                                    invitePartnerBanner
+                                        .padding(.horizontal, 20)
+                                        .padding(.top, 20)
+                                }
                                 assetsList(h).padding(.top, 20)
                                 if h.isFormalMode {
                                     agreementStatusRow(h)
@@ -387,6 +392,40 @@ struct DashboardView: View {
     }
 
     // MARK: Floating add button
+
+    // MARK: Invite partner banner (shown when partner skipped during onboarding)
+
+    private var invitePartnerBanner: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.cohGreen.opacity(0.10))
+                    .frame(width: 40, height: 40)
+                Image(systemName: "person.badge.plus")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.cohGreen)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(strings.inviteTitle)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.cohInk)
+                Text("Add your partner's name and email in Settings")
+                    .font(.caption)
+                    .foregroundStyle(Color.cohMuted)
+            }
+            Spacer()
+            Button { showSetup = true } label: {
+                Text("Add")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14).padding(.vertical, 7)
+                    .background(Color.cohGreen, in: Capsule())
+            }
+        }
+        .padding(14)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+    }
 
     private var addButton: some View {
         Button { showAddAsset = true } label: {
