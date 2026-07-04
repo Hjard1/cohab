@@ -595,7 +595,7 @@ struct AssetOverviewRow: View {
                 .foregroundStyle(DS.Color.iconContent)
                 .dsIcon(size: 40, radius: DS.Radius.sm)
 
-            // Name + split bar
+            // Name + split bar — maxWidth: .infinity so it fills HStack, not collapses
             VStack(alignment: .leading, spacing: DS.Space.s4) {
                 Text(asset.label.isEmpty ? asset.type.displayName : asset.label)
                     .font(DS.Text.bodyEmphasis)
@@ -603,8 +603,7 @@ struct AssetOverviewRow: View {
                     .lineLimit(1)
                 SplitBar(shareA: asset.ownershipShareA, height: 4, showLabels: false)
             }
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // Value
             VStack(alignment: .trailing, spacing: DS.Space.s4) {

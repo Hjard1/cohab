@@ -177,7 +177,8 @@ struct SplitBar: View {
     var showLabels: Bool = true
     var animated: Bool = true
 
-    private var pctA: Int { Int((shareA * 100).rounded()) }
+    private var clampedA: Double { max(0, min(1, shareA)) }
+    private var pctA: Int { Int((clampedA * 100).rounded()) }
     private var pctB: Int { 100 - pctA }
 
     var body: some View {
@@ -185,30 +186,34 @@ struct SplitBar: View {
             if showLabels {
                 Text("\(pctA)%")
                     .font(DS.Text.monoCaption)
-                    .foregroundStyle(shareA > 0.005 ? DS.Color.partnerA : DS.Color.text3)
+                    .foregroundStyle(clampedA > 0.005 ? DS.Color.partnerA : DS.Color.text3)
                     .frame(width: 32, alignment: .trailing)
             }
 
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(DS.Color.partnerB.opacity(0.20))
-                    Capsule().fill(DS.Color.partnerA)
-                        .frame(width: max(0, geo.size.width * CGFloat(shareA)))
-                        .animation(animated ? .spring(response: 0.45, dampingFraction: 0.8) : nil,
-                                   value: shareA)
+            // Bar — outer capsule sizes itself from parent, inner uses overlay.
+            // Avoids GeometryReader-in-HStack layout instability.
+            Capsule()
+                .fill(DS.Color.partnerB.opacity(0.20))
+                .overlay(alignment: .leading) {
+                    GeometryReader { geo in
+                        Capsule()
+                            .fill(DS.Color.partnerA)
+                            .frame(width: geo.size.width * CGFloat(clampedA),
+                                   height: geo.size.height)
+                    }
                 }
-            }
-            .frame(height: height)
+                .frame(height: height)
+                .animation(animated ? .spring(response: 0.45, dampingFraction: 0.8) : nil,
+                           value: clampedA)
 
             if showLabels {
                 Text("\(pctB)%")
                     .font(DS.Text.monoCaption)
-                    .foregroundStyle(shareB > 0.005 ? DS.Color.partnerB : DS.Color.text3)
+                    .foregroundStyle(clampedA < 0.995 ? DS.Color.partnerB : DS.Color.text3)
                     .frame(width: 32, alignment: .leading)
             }
         }
     }
-    private var shareB: Double { 1 - shareA }
 }
 
 // MARK: SectionHeader
