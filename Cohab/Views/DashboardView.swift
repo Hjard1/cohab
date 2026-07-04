@@ -8,6 +8,7 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @ObservedObject private var strings = AppStrings.shared
     @State private var showSetup = false
+    @State private var showSignOutConfirm = false
     @State private var showAddAsset = false
     @State private var editingAsset: Asset?
     @State private var showAgreementSheet = false
@@ -97,10 +98,16 @@ struct DashboardView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Button { showSetup = true } label: {
-                Image(systemName: "gearshape.fill")
+            Button { showSignOutConfirm = true } label: {
+                Image(systemName: "rectangle.portrait.and.arrow.right")
                     .foregroundStyle(Color(.tertiaryLabel))
                     .font(.body)
+            }
+            .confirmationDialog("Log out?", isPresented: $showSignOutConfirm, titleVisibility: .visible) {
+                Button("Log out", role: .destructive) {
+                    Task { await AuthManager.shared.signOut() }
+                }
+                Button("Cancel", role: .cancel) {}
             }
         }
     }
@@ -406,17 +413,11 @@ struct AssetCard: View {
             assetHeader
             Color(.separator).frame(height: 0.5).padding(.vertical, 16)
             equityRow
-            Color(.separator).frame(height: 0.5).padding(.top, 14)
-            breakdownToggle
-            if showBreakdown {
-                breakdownContent.padding(.top, 14)
-            }
         }
         .padding(20)
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.06), radius: 16, y: 4)
         .padding(.horizontal, 20)
-        .animation(.easeInOut(duration: 0.22), value: showBreakdown)
     }
 
     // MARK: Header
