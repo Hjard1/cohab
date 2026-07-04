@@ -1476,7 +1476,7 @@ struct AddAssetView: View {
         .padding(.top, 8).padding(.bottom, 48)
         .background(Color.cohBg)
     }
-
+}
 
 // MARK: - Edit asset sheet
 
