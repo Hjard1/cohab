@@ -270,14 +270,14 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
     // MARK: Onboarding — new screens
 
     var onboardingHero: String { s(
-        en: "Own it together.\nKnow where you stand.",
-        nb: "Eie det sammen.\nVit hvor dere står.",
-        sv: "Äg det tillsammans.\nVet var ni står.",
-        da: "Ej det sammen.\nVid hvor I står.",
-        fi: "Omistakaa yhdessä.\nTietäkää missä seisotte.",
-        de: "Besitzen Sie es gemeinsam.\nWissen Sie, wo Sie stehen.",
-        fr: "Possédez-le ensemble.\nSachez où vous en êtes.",
-        es: "Poseedlo juntos.\nSabed dónde estáis.") }
+        en: "Security and full control\nas a cohabiting couple.",
+        nb: "Trygghet og full kontroll\ni samboerskapet.",
+        sv: "Trygghet och full kontroll\ni samboförhållandet.",
+        da: "Tryghed og fuld kontrol\ni samlivet.",
+        fi: "Turvallisuus ja täysi hallinta\navoliitossa.",
+        de: "Sicherheit und volle Kontrolle\nals unverheiratetes Paar.",
+        fr: "Sécurité et plein contrôle\ndans votre vie commune.",
+        es: "Seguridad y pleno control\nen vuestra convivencia.") }
 
     var onboardingHeroSub: String { s(
         en: "Remove the uncertainty. Get in control of what you own — alone and together.",
