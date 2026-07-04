@@ -92,7 +92,14 @@ struct DashboardView: View {
             if let h = household { AddAssetView(household: h) }
         }
         .sheet(item: $editingAsset) { asset in
-            if let h = household { EditAssetView(asset: asset, household: h) }
+            if let h = household {
+                // Unconfigured asset (no value set) → wizard, otherwise normal edit
+                if asset.currentValue == 0 && asset.contributions.isEmpty {
+                    AddAssetView(household: h, existingAsset: asset)
+                } else {
+                    EditAssetView(asset: asset, household: h)
+                }
+            }
         }
         .sheet(isPresented: $showAgreementSheet) {
             if let h = household {
@@ -1073,7 +1080,9 @@ struct HouseholdSetupView: View {
     @State private var currency = "GBP"
     @State private var rateText = "5.0"
     @State private var showDeleteConfirm = false
+    @State private var showDeleteAccountConfirm = false
     @State private var showSignOutConfirm = false
+    @State private var deleteAccountError: String?
 
     let currencies = ["GBP", "USD", "EUR", "AUD", "CAD", "NOK", "SEK"]
     private var canSave: Bool {
@@ -1121,18 +1130,23 @@ struct HouseholdSetupView: View {
                 if household != nil {
                     Section {
                         Button(role: .destructive) { signOut() } label: {
-                            Label(s(en: "Sign out", nb: "Logg ut"), systemImage: "rectangle.portrait.and.arrow.right")
+                            Label(s(en: "Sign out", nb: "Logg ut"),
+                                  systemImage: "rectangle.portrait.and.arrow.right")
                         }
                     }
 
                     Section {
                         Button(role: .destructive) { showDeleteConfirm = true } label: {
-                            Label(s(en: "Delete all data", nb: "Slett alle data"),
+                            Label(s(en: "Delete all local data", nb: "Slett alle lokale data"),
                                   systemImage: "trash")
                         }
+                        Button(role: .destructive) { showDeleteAccountConfirm = true } label: {
+                            Label(s(en: "Delete account", nb: "Slett konto"),
+                                  systemImage: "person.crop.circle.badge.minus")
+                        }
                     } footer: {
-                        Text(s(en: "Permanently deletes all assets, contributions, and your agreement. This cannot be undone.",
-                               nb: "Sletter alle eiendeler, bidrag og avtalen din permanent. Dette kan ikke angres."))
+                        Text(s(en: "\"Delete account\" permanently removes your account and all data from our servers. This cannot be undone.",
+                               nb: "\"Slett konto\" sletter kontoen din og alle data fra serverne våre permanent. Dette kan ikke angres."))
                     }
                 }
             }
@@ -1146,13 +1160,30 @@ struct HouseholdSetupView: View {
                     Button(s(en: "Save", nb: "Lagre")) { save() }.bold().disabled(!canSave)
                 }
             }
-            .confirmationDialog(s(en: "Delete all data?", nb: "Slette alle data?"),
+            .confirmationDialog(s(en: "Delete all local data?", nb: "Slette alle lokale data?"),
                                 isPresented: $showDeleteConfirm, titleVisibility: .visible) {
                 Button(s(en: "Delete everything", nb: "Slett alt"), role: .destructive) { deleteAll() }
                 Button(s(en: "Cancel", nb: "Avbryt"), role: .cancel) {}
             } message: {
-                Text(s(en: "All assets, contributions, and your agreement will be permanently deleted.",
-                       nb: "Alle eiendeler, bidrag og avtalen din slettes permanent."))
+                Text(s(en: "Assets, contributions, and your agreement will be removed from this device.",
+                       nb: "Eiendeler, bidrag og avtalen din fjernes fra denne enheten."))
+            }
+            .confirmationDialog(s(en: "Delete account?", nb: "Slette konto?"),
+                                isPresented: $showDeleteAccountConfirm, titleVisibility: .visible) {
+                Button(s(en: "Delete my account", nb: "Slett kontoen min"), role: .destructive) {
+                    deleteAccount()
+                }
+                Button(s(en: "Cancel", nb: "Avbryt"), role: .cancel) {}
+            } message: {
+                Text(s(en: "Your account and all data will be permanently deleted from our servers. This cannot be undone.",
+                       nb: "Kontoen din og alle data slettes permanent fra serverne våre. Dette kan ikke angres."))
+            }
+            .alert(s(en: "Could not delete account", nb: "Kunne ikke slette konto"),
+                   isPresented: Binding(get: { deleteAccountError != nil },
+                                        set: { if !$0 { deleteAccountError = nil } })) {
+                Button(s(en: "OK", nb: "OK"), role: .cancel) {}
+            } message: {
+                Text(deleteAccountError ?? "")
             }
         }
         .onAppear {
@@ -1179,16 +1210,29 @@ struct HouseholdSetupView: View {
     }
 
     private func signOut() {
-        onboardingComplete = false   // triggers ContentView immediately
-        Task { await auth.signOut() } // fire-and-forget Supabase cleanup
-        dismiss()
+        // Set onboardingComplete first — ContentView transitions away, sheet closes naturally
+        onboardingComplete = false
+        Task { await auth.signOut() }
     }
 
     private func deleteAll() {
         if let h = household { modelContext.delete(h) }
         try? modelContext.save()
-        dismiss()
         onboardingComplete = false
+    }
+
+    private func deleteAccount() {
+        if let h = household { modelContext.delete(h) }
+        try? modelContext.save()
+        onboardingComplete = false
+        Task {
+            do {
+                try await auth.deleteAccount()
+            } catch {
+                // Account deletion failed — user is still signed out locally
+                deleteAccountError = error.localizedDescription
+            }
+        }
     }
 
     private func s(en: String, nb: String) -> String {
@@ -1200,6 +1244,7 @@ struct HouseholdSetupView: View {
 
 struct AddAssetView: View {
     let household: Household
+    var existingAsset: Asset? = nil          // nil = new asset, non-nil = configure blank
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var strings = AppStrings.shared
@@ -1253,8 +1298,17 @@ struct AddAssetView: View {
                     .animation(.easeInOut(duration: 0.28), value: step)
                 }
             }
-            .navigationTitle(s.addAssetNavTitle)
+            .navigationTitle(existingAsset == nil ? s.addAssetNavTitle : s.completeSetup)
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                if let a = existingAsset {
+                    selectedType = a.type
+                    label = a.label
+                    address = a.address
+                    shareA = a.ownershipShareA
+                    step = 1   // skip type step — type already known
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     if step == 0 {
@@ -1482,16 +1536,28 @@ struct AddAssetView: View {
         let loan  = selectedType.showLoan
             ? (Double(loanText.replacingOccurrences(of: ",", with: ".")) ?? 0)
             : 0
-        let asset = Asset(
-            assetType: selectedType.rawValue,
-            label: label.trimmingCharacters(in: .whitespaces),
-            address: address.trimmingCharacters(in: .whitespaces),
-            currentValue: value,
-            remainingLoan: loan,
-            salesCostFraction: selectedType.defaultSalesCostFraction,
-            ownershipShareA: shareA
-        )
-        household.assets.append(asset)
+
+        if let existing = existingAsset {
+            // Update blank asset in-place
+            existing.assetType      = selectedType.rawValue
+            existing.label          = label.trimmingCharacters(in: .whitespaces)
+            existing.address        = address.trimmingCharacters(in: .whitespaces)
+            existing.currentValue   = value
+            existing.remainingLoan  = loan
+            existing.salesCostFraction = selectedType.defaultSalesCostFraction
+            existing.ownershipShareA   = shareA
+        } else {
+            let asset = Asset(
+                assetType: selectedType.rawValue,
+                label: label.trimmingCharacters(in: .whitespaces),
+                address: address.trimmingCharacters(in: .whitespaces),
+                currentValue: value,
+                remainingLoan: loan,
+                salesCostFraction: selectedType.defaultSalesCostFraction,
+                ownershipShareA: shareA
+            )
+            household.assets.append(asset)
+        }
         dismiss()
     }
 }
