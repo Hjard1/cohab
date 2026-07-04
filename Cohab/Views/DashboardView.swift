@@ -42,11 +42,10 @@ struct DashboardView: View {
                                         .padding(.horizontal, 20)
                                         .padding(.top, 20)
                                 }
-                                if h.partnerBName.trimmingCharacters(in: .whitespaces).isEmpty {
-                                    invitePartnerBanner
-                                        .padding(.horizontal, 20)
-                                        .padding(.top, 20)
-                                }
+
+                                quickActions(h)
+                                    .padding(.top, 20)
+
                                 assetsList(h).padding(.top, 20)
                                 if h.isFormalMode {
                                     agreementStatusRow(h)
@@ -400,38 +399,134 @@ struct DashboardView: View {
 
     // MARK: Floating add button
 
-    // MARK: Invite partner banner (shown when partner skipped during onboarding)
+    // MARK: Helpers
 
-    private var invitePartnerBanner: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.cohGreen.opacity(0.10))
-                    .frame(width: 40, height: 40)
-                Image(systemName: "person.badge.plus")
-                    .font(.subheadline)
-                    .foregroundStyle(Color.cohGreen)
+    private func sortedAssets(_ assets: [Asset]) -> [Asset] {
+        let order: [AssetType] = [.home, .cabin, .car, .savings, .investment, .furniture, .pet, .other]
+        return assets.sorted { (order.firstIndex(of: $0.type) ?? 99) < (order.firstIndex(of: $1.type) ?? 99) }
+    }
+
+    // MARK: Quick actions
+
+    private func quickActions(_ h: Household) -> some View {
+        let noPartner = h.partnerBName.trimmingCharacters(in: .whitespaces).isEmpty
+        let noAssets  = h.assets.isEmpty
+        let noContribs = !h.assets.contains { !$0.contributions.isEmpty }
+
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                // Add partner — shown when partner not set up
+                if noPartner {
+                    quickActionChip(
+                        icon: "person.badge.plus",
+                        label: strings.inviteTitle,
+                        accent: Color.cohGreen
+                    ) { showSetup = true }
+                }
+
+                // Add first asset
+                if noAssets {
+                    quickActionChip(
+                        icon: "plus.circle.fill",
+                        label: strings.dashboardAddAsset,
+                        accent: Color.cohGreen
+                    ) { showAddAsset = true }
+                }
+
+                // Expense split — always available
+                quickActionNavChip(
+                    icon: "dollarsign.circle.fill",
+                    label: strings.calcExpenseTitle,
+                    accent: Color(red: 0.20, green: 0.49, blue: 0.96),
+                    destination: ExpenseSplitView(
+                        nameA: h.partnerAName,
+                        nameB: h.partnerBName.isEmpty ? "Partner" : h.partnerBName,
+                        symbol: h.currencySymbol
+                    )
+                )
+
+                // Log contribution — shown when assets exist but no contributions
+                if !noAssets && noContribs {
+                    quickActionChip(
+                        icon: "arrow.up.circle.fill",
+                        label: strings.addContribTitle,
+                        accent: Color(red: 0.54, green: 0.31, blue: 0.96)
+                    ) { editingAsset = sortedAssets(h.assets).first }
+                }
+
+                // Agreement — formal mode
+                if h.isFormalMode && h.agreementStatus == "none" {
+                    quickActionChip(
+                        icon: "doc.text.fill",
+                        label: strings.tabAgreement,
+                        accent: Color(red: 0.04, green: 0.65, blue: 0.75)
+                    ) {
+                        agreementSubmission = nil
+                        agreementError = nil
+                        showAgreementSheet = true
+                    }
+                }
             }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(strings.inviteTitle)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.cohInk)
-                Text("Add your partner's name and email in Settings")
-                    .font(.caption)
-                    .foregroundStyle(Color.cohMuted)
-            }
-            Spacer()
-            Button { showSetup = true } label: {
-                Text("Add")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14).padding(.vertical, 7)
-                    .background(Color.cohGreen, in: Capsule())
-            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 2)
         }
-        .padding(14)
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+    }
+
+    private func quickActionChip(
+        icon: String,
+        label: String,
+        accent: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle().fill(accent.opacity(0.12)).frame(width: 44, height: 44)
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(accent)
+                }
+                Text(label)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color.cohInk)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 72)
+            }
+            .padding(.vertical, 12).padding(.horizontal, 4)
+            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
+            .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func quickActionNavChip<D: View>(
+        icon: String,
+        label: String,
+        accent: Color,
+        destination: D
+    ) -> some View {
+        NavigationLink(destination: destination) {
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle().fill(accent.opacity(0.12)).frame(width: 44, height: 44)
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(accent)
+                }
+                Text(label)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color.cohInk)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 72)
+            }
+            .padding(.vertical, 12).padding(.horizontal, 4)
+            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
+            .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
+        }
+        .buttonStyle(.plain)
     }
 
     private var addButton: some View {
