@@ -1196,46 +1196,285 @@ struct HouseholdSetupView: View {
     }
 }
 
-// MARK: - Add asset sheet
+// MARK: - Add asset sheet (4-step wizard)
 
 struct AddAssetView: View {
     let household: Household
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var strings = AppStrings.shared
 
+    @State private var step = 0
     @State private var selectedType: AssetType = .home
     @State private var label = ""
     @State private var address = ""
     @State private var valueText = ""
     @State private var loanText = ""
-    @State private var shareAText = "50"
+    @State private var shareA: Double = 0.5
 
-    private var canSave: Bool {
-        !label.trimmingCharacters(in: .whitespaces).isEmpty && Double(valueText) != nil
-    }
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    private var s: AppStrings { strings }
+    private var sym: String { household.currencySymbol }
+    private let bluePartner = Color(red: 0.20, green: 0.49, blue: 0.96)
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    typePicker
-                    detailsSection
-                    valueSection
-                    ownershipSection
+            ZStack {
+                Color.cohBg.ignoresSafeArea()
+                VStack(spacing: 0) {
+                    // Progress bar (steps 1-3)
+                    if step > 0 {
+                        GeometryReader { g in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Color.cohGreen.opacity(0.12)).frame(height: 3)
+                                Capsule().fill(Color.cohGreen)
+                                    .frame(width: g.size.width * CGFloat(step) / 3.0, height: 3)
+                                    .animation(.easeInOut(duration: 0.3), value: step)
+                            }
+                        }
+                        .frame(height: 3)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
+                    }
+
+                    ZStack {
+                        switch step {
+                        case 0: typeStep
+                        case 1: nameStep
+                        case 2: valueStep
+                        default: ownershipStep
+                        }
+                    }
+                    .id(step)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
+                    .animation(.easeInOut(duration: 0.28), value: step)
                 }
-                .padding(24)
             }
-            .background(Color.cohBg.ignoresSafeArea())
-            .navigationTitle("Add asset")
+            .navigationTitle(s.addAssetNavTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Add") { save() }.bold().disabled(!canSave)
+                ToolbarItem(placement: .topBarLeading) {
+                    if step == 0 {
+                        Button(s.cancel) { dismiss() }
+                    } else {
+                        Button { withAnimation(.easeInOut(duration: 0.28)) { step -= 1 } } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(Color.cohInk)
+                        }
+                    }
                 }
             }
         }
+    }
+
+    // MARK: Step 0 — Type
+
+    private var typeStep: some View {
+        VStack(spacing: 0) {
+            wizardHeader(s.stepWhatType)
+            ScrollView(showsIndicators: false) {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
+                    spacing: 12
+                ) {
+                    ForEach(AssetType.allCases, id: \.self) { type in
+                        Button {
+                            selectedType = type
+                            label = ""; address = ""
+                            withAnimation(.easeInOut(duration: 0.28)) { step = 1 }
+                        } label: {
+                            VStack(spacing: 8) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(type == selectedType
+                                              ? type.color
+                                              : Color.cohCard)
+                                        .frame(height: 60)
+                                        .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+                                    Image(systemName: type.icon)
+                                        .font(.title2.weight(.medium))
+                                        .foregroundStyle(type == selectedType ? .white : type.color)
+                                }
+                                Text(type.displayName)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(type == selectedType ? type.color : Color.cohInk)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
+            }
+        }
+    }
+
+    // MARK: Step 1 — Name
+
+    private var nameStep: some View {
+        VStack(spacing: 0) {
+            wizardHeader(s.stepNameIt, subtitle: s.stepNameSub)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 12) {
+                    wizardField(label: s.fieldName,
+                                placeholder: selectedType.displayName,
+                                text: $label, keyboard: .default)
+                    wizardField(label: selectedType.secondaryLabel + " (\(s.optional))",
+                                placeholder: selectedType.secondaryPlaceholder,
+                                text: $address, keyboard: .default)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+            wizardCTA(s.onboardingContinue,
+                      enabled: !label.trimmingCharacters(in: .whitespaces).isEmpty) {
+                withAnimation(.easeInOut(duration: 0.28)) { step = 2 }
+            }
+        }
+    }
+
+    // MARK: Step 2 — Value
+
+    private var valueStep: some View {
+        VStack(spacing: 0) {
+            wizardHeader(s.stepWhatWorth)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 12) {
+                    wizardField(label: selectedType.valueLabel,
+                                placeholder: selectedType.valuePlaceholder,
+                                prefix: sym, text: $valueText, keyboard: .decimalPad)
+                    if selectedType.showLoan {
+                        wizardField(label: selectedType.loanLabel + " (\(s.optional))",
+                                    placeholder: "0",
+                                    prefix: sym, text: $loanText, keyboard: .decimalPad)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+            wizardCTA(s.onboardingContinue, enabled: true) {
+                withAnimation(.easeInOut(duration: 0.28)) { step = 3 }
+            }
+        }
+    }
+
+    // MARK: Step 3 — Ownership
+
+    private var ownershipStep: some View {
+        VStack(spacing: 0) {
+            wizardHeader(s.stepWhoOwns, subtitle: selectedType.ownershipHint)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    // Partner percentages
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(household.partnerAName)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.cohGreen)
+                            Text("\(Int((shareA * 100).rounded()))%")
+                                .font(.system(size: 32, weight: .bold, design: .rounded).monospacedDigit())
+                                .foregroundStyle(Color.cohInk)
+                                .contentTransition(.numericText())
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(household.partnerBName.isEmpty ? "Partner" : household.partnerBName)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(bluePartner)
+                            Text("\(Int(((1 - shareA) * 100).rounded()))%")
+                                .font(.system(size: 32, weight: .bold, design: .rounded).monospacedDigit())
+                                .foregroundStyle(Color.cohInk)
+                                .contentTransition(.numericText())
+                        }
+                    }
+
+                    // Split bar
+                    Capsule()
+                        .fill(bluePartner.opacity(0.18))
+                        .frame(height: 8)
+                        .overlay(alignment: .leading) {
+                            GeometryReader { geo in
+                                Capsule()
+                                    .fill(Color.cohGreen)
+                                    .frame(width: geo.size.width * CGFloat(shareA),
+                                           height: geo.size.height)
+                                    .animation(.easeOut(duration: 0.1), value: shareA)
+                            }
+                        }
+
+                    Slider(value: $shareA, in: 0...1, step: 0.01)
+                        .tint(Color.cohGreen)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+            wizardCTA(s.add, enabled: true) { save() }
+        }
+    }
+
+    // MARK: Shared helpers
+
+    private func wizardHeader(_ title: String, subtitle: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 26, weight: .bold, design: .serif))
+                .foregroundStyle(Color.cohInk)
+            if let sub = subtitle {
+                Text(sub)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.cohMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+        .padding(.bottom, 20)
+    }
+
+    private func wizardField(label: String, placeholder: String,
+                             prefix: String? = nil,
+                             text: Binding<String>,
+                             keyboard: UIKeyboardType) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label.uppercased())
+                .font(.caption.bold()).tracking(0.5)
+                .foregroundStyle(Color(.secondaryLabel))
+            HStack {
+                if let p = prefix {
+                    Text(p).foregroundStyle(Color.cohMuted).font(.body)
+                }
+                TextField(placeholder, text: text)
+                    .keyboardType(keyboard)
+                    .autocorrectionDisabled()
+                    .font(.body)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 13)
+            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color(.separator).opacity(0.4), lineWidth: 1))
+        }
+    }
+
+    private func wizardCTA(_ label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.headline).foregroundStyle(.white)
+                .frame(maxWidth: .infinity).padding(.vertical, 16)
+                .background(
+                    enabled ? Color.cohGreen : Color.cohGreen.opacity(0.35),
+                    in: RoundedRectangle(cornerRadius: 14)
+                )
+        }
+        .disabled(!enabled)
+        .padding(.horizontal, 24)
+        .padding(.top, 8).padding(.bottom, 48)
+        .background(Color.cohBg)
     }
 
     // MARK: Type picker
