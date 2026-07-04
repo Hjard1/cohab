@@ -321,6 +321,77 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
         fr: "Nous utilisons ceci pour personnaliser votre aperçu.",
         es: "Usaremos esto para personalizar tu resumen.") }
 
+    // Partner invite step
+    var onboardingAboutYou: String { s(
+        en: "About you",
+        nb: "Om deg",
+        sv: "Om dig",
+        da: "Om dig",
+        fi: "Sinusta",
+        de: "Über dich",
+        fr: "À propos de toi",
+        es: "Sobre ti") }
+
+    var onboardingAddPartnerQuestion: String { s(
+        en: "Add your partner?",
+        nb: "Legg til samboeren din?",
+        sv: "Lägg till din sambo?",
+        da: "Tilføj din samboer?",
+        fi: "Lisää kumppanis?",
+        de: "Partner hinzufügen?",
+        fr: "Ajouter ton/ta partenaire ?",
+        es: "¿Añadir a tu pareja?") }
+
+    var onboardingAddPartnerYes: String { s(
+        en: "Yes, add partner",
+        nb: "Ja, legg til samboer",
+        sv: "Ja, lägg till sambo",
+        da: "Ja, tilføj samboer",
+        fi: "Kyllä, lisää kumppani",
+        de: "Ja, Partner hinzufügen",
+        fr: "Oui, ajouter",
+        es: "Sí, añadir pareja") }
+
+    var onboardingAddPartnerLater: String { s(
+        en: "Later",
+        nb: "Senere",
+        sv: "Senare",
+        da: "Senere",
+        fi: "Myöhemmin",
+        de: "Später",
+        fr: "Plus tard",
+        es: "Más tarde") }
+
+    var onboardingAddingPartner: String { s(
+        en: "Adding partner",
+        nb: "Legger til samboer",
+        sv: "Lägger till sambo",
+        da: "Tilføjer samboer",
+        fi: "Lisätään kumppani",
+        de: "Partner wird hinzugefügt",
+        fr: "Ajout du partenaire",
+        es: "Añadiendo pareja") }
+
+    var onboardingAddingLater: String { s(
+        en: "Adding later",
+        nb: "Legger til senere",
+        sv: "Lägger till senare",
+        da: "Tilføjer senere",
+        fi: "Lisätään myöhemmin",
+        de: "Wird später hinzugefügt",
+        fr: "Ajout ultérieur",
+        es: "Añadiendo más tarde") }
+
+    var onboardingChange: String { s(
+        en: "Change",
+        nb: "Endre",
+        sv: "Ändra",
+        da: "Ændr",
+        fi: "Muuta",
+        de: "Ändern",
+        fr: "Modifier",
+        es: "Cambiar") }
+
     var onboardingYourName: String  { s(en: "YOUR NAME",     nb: "DITT NAVN",      sv: "DITT NAMN",    da: "DIT NAVN",    fi: "NIMESI",              de: "IHR NAME",           fr: "VOTRE NOM",            es: "SU NOMBRE") }
     var onboardingPartnerName: String { s(en: "PARTNER'S NAME", nb: "PARTNERS NAVN", sv: "PARTNERNS NAMN", da: "PARTNERS NAVN", fi: "KUMPPANIN NIMI",   de: "NAME DES PARTNERS",  fr: "NOM DU PARTENAIRE",    es: "NOMBRE DEL SOCIO") }
     var onboardingYourEmail: String { s(en: "YOUR EMAIL",    nb: "DIN E-POST",     sv: "DIN E-POST",   da: "DIN E-MAIL",  fi: "SÄHKÖPOSTISI",        de: "IHRE E-MAIL",        fr: "VOTRE E-MAIL",         es: "SU CORREO") }

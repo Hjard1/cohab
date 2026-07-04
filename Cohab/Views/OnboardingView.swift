@@ -242,7 +242,7 @@ struct OnboardingView: View {
     private var partnersStep: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                stepHeader(s.onboardingWhoDoYouShare, subtitle: s.onboardingPartnerSub)
+                stepHeader(s.onboardingAboutYou, subtitle: s.onboardingPartnerSub)
 
                 VStack(alignment: .leading, spacing: 16) {
 
@@ -263,7 +263,7 @@ struct OnboardingView: View {
                     if showInviteQuestion {
                         if inviteAnswer == nil {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("Add your samboer?")
+                                Text(s.onboardingAddPartnerQuestion)
                                     .font(.headline)
                                     .foregroundStyle(Color.cohInk)
 
@@ -276,7 +276,7 @@ struct OnboardingView: View {
                                     HStack(spacing: 12) {
                                         Image(systemName: "person.badge.plus")
                                             .font(.subheadline)
-                                        Text("Yes, add partner")
+                                        Text(s.onboardingAddPartnerYes)
                                             .font(.subheadline.weight(.semibold))
                                         Spacer()
                                         Image(systemName: "chevron.right")
@@ -304,7 +304,7 @@ struct OnboardingView: View {
                                     HStack(spacing: 12) {
                                         Image(systemName: "clock")
                                             .font(.subheadline)
-                                        Text("Later")
+                                        Text(s.onboardingAddPartnerLater)
                                             .font(.subheadline.weight(.medium))
                                         Spacer()
                                     }
@@ -321,7 +321,7 @@ struct OnboardingView: View {
                                 Image(systemName: inviteAnswer == "yes" ? "person.badge.plus" : "clock")
                                     .font(.caption)
                                     .foregroundStyle(Color.cohGreen)
-                                Text(inviteAnswer == "yes" ? "Adding partner" : "Adding later")
+                                Text(inviteAnswer == "yes" ? s.onboardingAddingPartner : s.onboardingAddingLater)
                                     .font(.subheadline)
                                     .foregroundStyle(Color.cohInk)
                                 Spacer()
@@ -334,7 +334,7 @@ struct OnboardingView: View {
                                         showYourEmail = false
                                     }
                                 } label: {
-                                    Text("Change")
+                                    Text(s.onboardingChange)
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(Color.cohGreen)
                                 }
