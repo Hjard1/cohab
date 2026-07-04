@@ -270,24 +270,24 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
     // MARK: Onboarding — new screens
 
     var onboardingHero: String { s(
-        en: "Security and full control\nwhen living together.",
-        nb: "Trygghet og full kontroll\ni samboerskapet.",
-        sv: "Trygghet och full kontroll\nnär ni bor tillsammans.",
-        da: "Tryghed og fuld kontrol\ni samlivet.",
-        fi: "Turvallisuus ja täysi hallinta\navoliitossa.",
-        de: "Sicherheit und volle Kontrolle\nim Zusammenleben.",
-        fr: "Sécurité et plein contrôle\nen vivant ensemble.",
-        es: "Seguridad y pleno control\nal vivir juntos.") }
+        en: "Protect what matters.",
+        nb: "Beskytt det som betyr noe.",
+        sv: "Skydda det som är viktigt.",
+        da: "Beskyt det, der betyder noget.",
+        fi: "Suojaa se, mikä on tärkeää.",
+        de: "Schützt, was euch wichtig ist.",
+        fr: "Protégez ce qui compte.",
+        es: "Protege lo que importa.") }
 
     var onboardingHeroSub: String { s(
-        en: "Remove the uncertainty. Get in control of what you own — alone and together.",
-        nb: "Fjern usikkerheten. Ta kontroll over hva dere eier — alene og sammen.",
-        sv: "Ta bort osäkerheten. Ta kontroll över vad ni äger — ensamma och tillsammans.",
-        da: "Fjern usikkerheden. Tag kontrol over hvad I ejer — alene og sammen.",
-        fi: "Poista epävarmuus. Ota hallinta siitä, mitä omistatte — yksin ja yhdessä.",
-        de: "Beseitigen Sie die Unsicherheit. Behalten Sie die Kontrolle über das, was Sie besitzen — allein und gemeinsam.",
-        fr: "Supprimez l'incertitude. Prenez le contrôle de ce que vous possédez — seul et ensemble.",
-        es: "Elimina la incertidumbre. Toma el control de lo que posees — solo y juntos.") }
+        en: "Know who owns what, track every contribution, and avoid costly misunderstandings.",
+        nb: "Vit hvem som eier hva, spor hvert bidrag og unngå kostbare misforståelser.",
+        sv: "Veta vem som äger vad, spåra varje bidrag och undvik kostsamma missförståenden.",
+        da: "Vid hvem der ejer hvad, spor hvert bidrag og undgå dyre misforståelser.",
+        fi: "Tiedä kuka omistaa mitä, seuraa jokaista panosta ja vältä kalliit väärinkäsitykset.",
+        de: "Wisst, wer was besitzt, verfolgt jeden Beitrag und vermeidet kostspielige Missverständnisse.",
+        fr: "Sachez qui possède quoi, suivez chaque apport et évitez les malentendus coûteux.",
+        es: "Sabed quién posee qué, registrad cada aportación y evitad malentendidos costosos.") }
 
     var onboardingAlreadyHaveAccount: String { s(
         en: "I already have an account",
