@@ -511,6 +511,38 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
         de: "Ich verstehe — cohab ist ein Werkzeug, keine Rechtsberatung",
         fr: "Je comprends — cohab est un outil, pas un conseil juridique",
         es: "Entiendo — cohab es una herramienta, no asesoramiento legal") }
+    // MARK: Onboarding — ready screen
+
+    var onboardingReadyTitle: String { s(
+        en: "Everything you build\ntogether, protected.",
+        nb: "Alt dere bygger\nsammen, trygt.",
+        sv: "Allt ni bygger\ntillsammans, skyddat.",
+        da: "Alt I bygger\nsammen, beskyttet.",
+        fi: "Kaikki mitä rakennatte\nyhdessä, suojattuna.",
+        de: "Alles, was ihr gemeinsam\naufbaut, geschützt.",
+        fr: "Tout ce que vous\nconstruisez ensemble, protégé.",
+        es: "Todo lo que construís\njuntos, protegido.") }
+
+    var onboardingFeatureTrack: String { s(
+        en: "Track contributions & ownership",
+        nb: "Spor bidrag og eierskap",
+        sv: "Spåra bidrag och ägarandel",
+        da: "Spor bidrag og ejerskab",
+        fi: "Seuraa panoksia ja omistusta",
+        de: "Beiträge & Eigentum verfolgen",
+        fr: "Suivre apports & propriété",
+        es: "Registra aportaciones y propiedad") }
+
+    var onboardingFeatureAgreement: String { s(
+        en: "Cohabitation agreement ready when you need it",
+        nb: "Samboerkontrakt klar når dere trenger den",
+        sv: "Samboavtal klart när ni behöver det",
+        da: "Samlivskontrakt klar når I har brug for den",
+        fi: "Avoliittosopimus valmiina tarvittaessa",
+        de: "Partnerschaftsvertrag bereit, wenn ihr ihn braucht",
+        fr: "Convention de vie commune prête quand vous en avez besoin",
+        es: "Acuerdo de convivencia listo cuando lo necesitéis") }
+
     // MARK: Onboarding — country step
 
     var onboardingCountryTitle: String { s(

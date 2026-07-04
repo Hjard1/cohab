@@ -546,51 +546,31 @@ struct OnboardingView: View {
     private var readyStep: some View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 28) {
-                    // Header
-                    VStack(spacing: 12) {
-                        ZStack {
-                            Circle().fill(Color.cohGreen.opacity(0.10)).frame(width: 80, height: 80)
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 30, weight: .bold))
-                                .foregroundStyle(Color.cohGreen)
-                        }
-                        Text(s.onboardingAllSet)
-                            .font(.system(size: 30, weight: .bold, design: .serif))
-                            .foregroundStyle(Color.cohInk)
-                            .multilineTextAlignment(.center)
+                VStack(alignment: .leading, spacing: 32) {
+
+                    // Wordmark
+                    Text("cohab")
+                        .font(.system(.caption, design: .rounded).weight(.bold))
+                        .tracking(5)
+                        .foregroundStyle(Color.cohGreen)
+
+                    // Hero headline
+                    Text(s.onboardingReadyTitle)
+                        .font(.system(size: 32, weight: .bold, design: .serif))
+                        .foregroundStyle(Color.cohInk)
+                        .lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    // Two feature points
+                    VStack(alignment: .leading, spacing: 16) {
+                        featureRow(icon: "arrow.up.right.circle.fill",
+                                   text: s.onboardingFeatureTrack)
+                        featureRow(icon: "doc.text.fill",
+                                   text: s.onboardingFeatureAgreement)
                     }
-
-                    // Setup summary — clear items, no confusing box
-                    VStack(spacing: 10) {
-                        // Partners
-                        readySummaryRow(
-                            icon: "person.2.fill",
-                            color: Color.cohGreen,
-                            title: "\(nameA.trimmingCharacters(in: .whitespaces)) & \(nameB.trimmingCharacters(in: .whitespaces))",
-                            detail: selectedCountry.flag + " " + selectedCountry.name
-                        )
-
-                        // Agreement mode
-                        readySummaryRow(
-                            icon: setupMode == "formal" ? "doc.text.fill" : "scope",
-                            color: setupMode == "formal" ? Color.cohGreen : Color(.secondaryLabel),
-                            title: setupMode == "formal" ? s.onboardingSummaryFormal : s.onboardingSummaryMemory,
-                            detail: nil
-                        )
-
-                        // Assets (if any selected)
-                        if !selectedAssetTypes.isEmpty {
-                            readySummaryRow(
-                                icon: "house.fill",
-                                color: Color.cohBlue,
-                                title: selectedAssetTypes.map { $0.displayName }.sorted().joined(separator: ", "),
-                                detail: nil
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 28)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 28)
                 .padding(.top, 32)
                 .padding(.bottom, 24)
             }
@@ -671,29 +651,20 @@ struct OnboardingView: View {
         }
     }
 
-    private func readySummaryRow(icon: String, color: Color, title: String, detail: String?) -> some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle().fill(color.opacity(0.12)).frame(width: 40, height: 40)
-                Image(systemName: icon).font(.subheadline).foregroundStyle(color)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color.cohInk)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let detail {
-                    Text(detail).font(.caption).foregroundStyle(Color.cohSecondary)
-                }
-            }
-            Spacer()
-        }
-        .padding(14)
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
-        .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
-    }
-
     // MARK: - Shared components
+
+    private func featureRow(icon: String, text: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(Color.cohGreen)
+                .frame(width: 28)
+            Text(text)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color.cohInk)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 
     private func stepHeader(_ title: String, subtitle: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 10) {
