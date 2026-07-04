@@ -88,44 +88,56 @@ struct OnboardingView: View {
     }
 
     // MARK: - Step 0: Welcome
+    // Split-screen: top half = clean hero photo, bottom half = text + CTAs.
+    // No text overlaid on the image — all content lives in the white section.
 
     private var welcomeStep: some View {
-        // Layout anchor is a plain VStack — no ignoresSafeArea on it.
-        // The background modifier draws the photo BEHIND without touching layout.
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(spacing: 0) {
 
-            // "cohab" wordmark — sits just below status bar
-            Text("cohab")
-                .font(.system(.subheadline, design: .rounded).weight(.bold))
-                .tracking(5)
-                .foregroundStyle(.white.opacity(0.90))
-                .padding(.horizontal, 28)
-                .padding(.top, 16)
-
-            Spacer()
-
-            // Hero text above card
-            VStack(alignment: .leading, spacing: 10) {
-                Text(s.onboardingHero)
-                    .font(.system(size: 32, weight: .bold, design: .serif))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
-
-                Text(s.onboardingHeroSub)
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.85))
-                    .shadow(color: .black.opacity(0.40), radius: 4, y: 1)
+            // TOP: hero photo — clean, minimal vignette only at edges
+            ZStack {
+                LinearGradient(
+                    colors: [Color(red: 0.06, green: 0.25, blue: 0.18),
+                             Color(red: 0.03, green: 0.15, blue: 0.10)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+                Image("onboardingHero")
+                    .resizable()
+                    .scaledToFill()
+                    .clipped()
+                // Subtle vignette — keeps edges clean, no text needs it
+                LinearGradient(
+                    colors: [.black.opacity(0.18), .clear],
+                    startPoint: .top, endPoint: .init(x: 0.5, y: 0.5)
+                )
             }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 24)
+            .frame(maxWidth: .infinity)
+            .frame(maxHeight: .infinity)   // takes top half via VStack flex
 
-            // White bottom card
-            VStack(spacing: 0) {
-                Capsule()
-                    .fill(Color.secondary.opacity(0.35))
-                    .frame(width: 40, height: 5)
-                    .padding(.top, 14)
+            // BOTTOM: white section with all text + CTAs
+            VStack(alignment: .leading, spacing: 0) {
+                // Brand + headline
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("cohab")
+                        .font(.system(.caption, design: .rounded).weight(.bold))
+                        .tracking(5)
+                        .foregroundStyle(Color.cohGreen)
 
+                    Text(s.onboardingHero)
+                        .font(.system(size: 28, weight: .bold, design: .serif))
+                        .foregroundStyle(Color.cohInk)
+
+                    Text(s.onboardingHeroSub)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.cohMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 28)
+                .padding(.top, 28)
+
+                Spacer()
+
+                // CTAs
                 VStack(spacing: 12) {
                     ctaButton(s.onboardingGetStarted, enabled: true) { advance() }
 
@@ -151,43 +163,12 @@ struct OnboardingView: View {
                     }
                 }
                 .padding(.horizontal, 28)
-                .padding(.top, 22)
-                .padding(.bottom, 52)
+                .padding(.bottom, 48)
             }
-            .frame(maxWidth: .infinity)
-            .background(
-                Color.cohBg
-                    .clipShape(.rect(topLeadingRadius: 32, topTrailingRadius: 32))
-                    .shadow(color: .black.opacity(0.18), radius: 28, y: -8)
-                    .ignoresSafeArea(edges: .bottom)
-            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .background(Color.cohBg.ignoresSafeArea(edges: .bottom))
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background {
-            // Background lives here — never touches layout of content above
-            ZStack {
-                LinearGradient(
-                    colors: [Color(red: 0.06, green: 0.25, blue: 0.18),
-                             Color(red: 0.03, green: 0.15, blue: 0.10)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                )
-                Image("onboardingHero")
-                    .resizable()
-                    .scaledToFill()
-                    .clipped()
-                // Top gradient
-                LinearGradient(
-                    colors: [.black.opacity(0.45), .clear],
-                    startPoint: .top, endPoint: .init(x: 0.5, y: 0.28)
-                )
-                // Bottom gradient
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.60)],
-                    startPoint: .init(x: 0.5, y: 0.42), endPoint: .bottom
-                )
-            }
-            .ignoresSafeArea()  // background extends full bleed, layout unaffected
-        }
+        .ignoresSafeArea(edges: .top)  // photo bleeds under status bar
     }
 
     // MARK: - Step 1: Country
