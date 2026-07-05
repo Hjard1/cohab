@@ -92,6 +92,8 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.clear, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarBackground(Color.cohBg, for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
             .toolbar { toolbarContent }
         }
         .sheet(isPresented: $showSetup) {
