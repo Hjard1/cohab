@@ -322,36 +322,10 @@ struct OnboardingView: View {
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
 
-                    // ── PARTNER'S EMAIL ───────────────────────────────────
-                    if showPartnerEmail && inviteAnswer != "later" {
-                        inputField(label: s.onboardingPartnerEmail,
-                                   placeholder: s.onboardingEmailPlaceholder,
-                                   text: $emailB, contentType: .emailAddress,
-                                   keyboard: .emailAddress)
-                            .onChange(of: emailB) { _, val in
-                                if !val.trimmingCharacters(in: .whitespaces).isEmpty,
-                                   !showYourEmail {
-                                    withAnimation(.spring(duration: 0.4).delay(0.1)) {
-                                        showYourEmail = true
-                                    }
-                                }
-                            }
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    }
-
-                    // ── YOUR EMAIL ────────────────────────────────────────
-                    if showYourEmail && inviteAnswer != "later" {
-                        inputField(label: s.onboardingYourEmail,
-                                   placeholder: s.onboardingEmailPlaceholder,
-                                   text: $emailA, contentType: .emailAddress,
-                                   keyboard: .emailAddress)
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    }
+                    // Emails collected later at agreement creation — less friction here
                 }
                 .padding(.horizontal, 28)
                 .animation(.spring(duration: 0.4), value: showPartnerName)
-                .animation(.spring(duration: 0.4), value: showPartnerEmail)
-                .animation(.spring(duration: 0.4), value: showYourEmail)
                 .animation(.spring(duration: 0.4), value: inviteAnswer)
 
                 ctaButton(s.onboardingContinue, enabled: canAdvancePartners) { advance() }
