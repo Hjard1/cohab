@@ -1560,20 +1560,6 @@ struct AddAssetView: View {
                         }
                     }
 
-                    // Split bar
-                    Capsule()
-                        .fill(bluePartner.opacity(0.18))
-                        .frame(height: 8)
-                        .overlay(alignment: .leading) {
-                            GeometryReader { geo in
-                                Capsule()
-                                    .fill(Color.cohGreen)
-                                    .frame(width: geo.size.width * CGFloat(shareA),
-                                           height: geo.size.height)
-                                    .animation(.easeOut(duration: 0.1), value: shareA)
-                            }
-                        }
-
                     Slider(value: $shareA, in: 0...1, step: 0.01)
                         .tint(Color.cohGreen)
                 }
