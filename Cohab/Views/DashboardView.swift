@@ -1429,7 +1429,7 @@ struct HouseholdSetupView: View {
                 "\(pA)%",
                 "\(100 - pA)%",
                 exp.isRecurring ? "Yes" : "No",
-                exp.date
+                df.string(from: exp.date)
             ].joined(separator: ","))
         }
 

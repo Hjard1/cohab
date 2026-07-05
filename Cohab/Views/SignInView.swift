@@ -1,12 +1,20 @@
 import SwiftUI
+import SwiftData
 import AuthenticationServices
 
 struct SignInView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @AppStorage("onboardingComplete") private var onboardingComplete = false
+    @EnvironmentObject private var auth: AuthManager
+    @Query private var households: [Household]
 
-    @State private var isLoadingGoogle = false
     @State private var errorMessage: String?
+    @State private var showResetConfirm = false
+
+    // When used as root (after logout), dismiss() is a no-op.
+    // ContentView reacts to auth.isSignedIn changing to true.
+    private var isRoot: Bool { !households.isEmpty && !onboardingComplete }
 
     var body: some View {
         NavigationStack {
@@ -28,7 +36,7 @@ struct SignInView: View {
                                 .font(.system(size: 32, weight: .bold, design: .serif))
                                 .foregroundStyle(Color.cohInk)
 
-                            Text("Sign in to access your household data.")
+                            Text("Sign in to access your household.")
                                 .font(.subheadline)
                                 .foregroundStyle(Color.cohMuted)
                                 .multilineTextAlignment(.center)
@@ -36,24 +44,23 @@ struct SignInView: View {
 
                         // Sign-in buttons
                         VStack(spacing: 12) {
-                            // Google
                             GoogleSignInButton(label: "Continue with Google") { user in
-                                handleSignIn(email: user.email, name: user.givenName)
+                                // Auth state listener in ContentView will switch to mainApp
+                                // once auth.isSignedIn = true. No dismiss() needed.
+                                onboardingComplete = true
+                                dismiss()   // no-op as root, works fine as sheet
                             } onError: { err in
                                 errorMessage = err.localizedDescription
                             }
 
-                            // Apple
                             SignInWithAppleButton(.signIn) { request in
                                 request.requestedScopes = [.fullName, .email]
                             } onCompletion: { result in
                                 switch result {
-                                case .success(let auth):
-                                    if let credential = auth.credential as? ASAuthorizationAppleIDCredential {
-                                        let email = credential.email ?? ""
-                                        let name = credential.fullName?.givenName ?? ""
-                                        handleSignIn(email: email, name: name)
-                                    }
+                                case .success(_):
+                                    // Apple auth — ContentView reacts when auth.isSignedIn flips
+                                    onboardingComplete = true
+                                    dismiss()
                                 case .failure(let err):
                                     errorMessage = err.localizedDescription
                                 }
@@ -69,48 +76,61 @@ struct SignInView: View {
                                 .foregroundStyle(.red)
                                 .multilineTextAlignment(.center)
                         }
-
-                        // Coming soon note
-                        Text("Cloud sync is coming soon. Signing in now establishes your identity for when sync launches.")
-                            .font(.caption)
-                            .foregroundStyle(Color.cohMuted)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 8)
                     }
                     .padding(.horizontal, 28)
 
                     Spacer()
 
-                    Button { dismiss() } label: {
-                        Text("Back to sign up")
-                            .font(.subheadline)
-                            .foregroundStyle(Color.cohMuted)
-                            .padding(.vertical, 8)
-                            .frame(maxWidth: .infinity)
+                    // "New user / start fresh" — only meaningful when shown as root
+                    if households.isEmpty {
+                        // Shown as sheet from onboarding — simple dismiss
+                        Button { dismiss() } label: {
+                            Text("Back to sign up")
+                                .font(.subheadline)
+                                .foregroundStyle(Color.cohMuted)
+                                .padding(.vertical, 8)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .padding(.bottom, 40)
+                    } else {
+                        // Shown as root after logout — offer to clear data and start fresh
+                        Button { showResetConfirm = true } label: {
+                            Text("Start fresh — delete local data")
+                                .font(.caption)
+                                .foregroundStyle(Color.cohTertiary)
+                                .padding(.vertical, 8)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .padding(.bottom, 40)
+                        .confirmationDialog("Delete local data?",
+                                            isPresented: $showResetConfirm,
+                                            titleVisibility: .visible) {
+                            Button("Delete and start over", role: .destructive) {
+                                for h in households { modelContext.delete(h) }
+                                try? modelContext.save()
+                                onboardingComplete = false
+                            }
+                            Button("Cancel", role: .cancel) {}
+                        } message: {
+                            Text("Your local assets and contributions will be removed. You can sign in later to restore cloud data.")
+                        }
                     }
-                    .padding(.bottom, 40)
                 }
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(Color.cohMuted)
+                if !isRoot {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { dismiss() } label: {
+                            Image(systemName: "xmark")
+                                .font(.body.weight(.medium))
+                                .foregroundStyle(Color.cohMuted)
+                        }
                     }
                 }
             }
         }
-    }
-
-    private func handleSignIn(email: String, name: String) {
-        // TODO: check Supabase for existing household data and restore it.
-        // For now, mark onboarding complete so they land on the (empty) dashboard.
-        // When cloud sync ships, this is where we fetch and restore their data.
-        withAnimation { onboardingComplete = true }
-        dismiss()
     }
 }
 
