@@ -38,6 +38,17 @@ final class AuthManager: ObservableObject {
         isSignedIn = true
     }
 
+    /// Sign in with Apple ID token (exchanged from ASAuthorizationAppleIDCredential).
+    /// The raw nonce must match the SHA-256 nonce sent in the original Apple request.
+    func signInWithApple(idToken: String, rawNonce: String) async throws {
+        try await supabase.auth.signInWithIdToken(
+            credentials: .init(provider: .apple, idToken: idToken, nonce: rawNonce)
+        )
+        let session = try await supabase.auth.session
+        currentUserId = session.user.id
+        isSignedIn = true
+    }
+
     func signOut() async {
         try? await supabase.auth.signOut()
         isSignedIn = false

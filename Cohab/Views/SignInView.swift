@@ -1,20 +1,18 @@
 import SwiftUI
 import SwiftData
 import AuthenticationServices
+import CryptoKit
 
 struct SignInView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @AppStorage("onboardingComplete") private var onboardingComplete = false
-    @EnvironmentObject private var auth: AuthManager
+    @EnvironmentObject private var authManager: AuthManager
     @Query private var households: [Household]
 
     @State private var errorMessage: String?
     @State private var showResetConfirm = false
-
-    // When used as root (after logout), dismiss() is a no-op.
-    // ContentView reacts to auth.isSignedIn changing to true.
-    private var isRoot: Bool { !households.isEmpty && !onboardingComplete }
+    @State private var currentNonce = ""    // raw nonce, kept for Supabase verification
 
     var body: some View {
         NavigationStack {
@@ -44,26 +42,22 @@ struct SignInView: View {
 
                         // Sign-in buttons
                         VStack(spacing: 12) {
+                            // Google
                             GoogleSignInButton(label: "Continue with Google") { user in
-                                // Auth state listener in ContentView will switch to mainApp
-                                // once auth.isSignedIn = true. No dismiss() needed.
                                 onboardingComplete = true
-                                dismiss()   // no-op as root, works fine as sheet
+                                dismiss()
                             } onError: { err in
                                 errorMessage = err.localizedDescription
                             }
 
+                            // Apple — full Supabase integration with nonce
                             SignInWithAppleButton(.signIn) { request in
+                                let nonce = randomNonceString()
+                                currentNonce = nonce
                                 request.requestedScopes = [.fullName, .email]
+                                request.nonce = sha256(nonce)
                             } onCompletion: { result in
-                                switch result {
-                                case .success(_):
-                                    // Apple auth — ContentView reacts when auth.isSignedIn flips
-                                    onboardingComplete = true
-                                    dismiss()
-                                case .failure(let err):
-                                    errorMessage = err.localizedDescription
-                                }
+                                handleAppleResult(result)
                             }
                             .signInWithAppleButtonStyle(.black)
                             .frame(height: 52)
@@ -81,9 +75,8 @@ struct SignInView: View {
 
                     Spacer()
 
-                    // "New user / start fresh" — only meaningful when shown as root
+                    // Bottom action
                     if households.isEmpty {
-                        // Shown as sheet from onboarding — simple dismiss
                         Button { dismiss() } label: {
                             Text("Back to sign up")
                                 .font(.subheadline)
@@ -93,7 +86,7 @@ struct SignInView: View {
                         }
                         .padding(.bottom, 40)
                     } else {
-                        // Shown as root after logout — offer to clear data and start fresh
+                        // Shown as root after logout — offer clean slate
                         Button { showResetConfirm = true } label: {
                             Text("Start fresh — delete local data")
                                 .font(.caption)
@@ -112,7 +105,7 @@ struct SignInView: View {
                             }
                             Button("Cancel", role: .cancel) {}
                         } message: {
-                            Text("Your local assets and contributions will be removed. You can sign in later to restore cloud data.")
+                            Text("Your local assets and contributions will be removed. Sign in later to restore cloud data.")
                         }
                     }
                 }
@@ -120,7 +113,7 @@ struct SignInView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if !isRoot {
+                if households.isEmpty {
                     ToolbarItem(placement: .topBarLeading) {
                         Button { dismiss() } label: {
                             Image(systemName: "xmark")
@@ -132,8 +125,57 @@ struct SignInView: View {
             }
         }
     }
+
+    // MARK: - Apple Sign-In handler
+
+    private func handleAppleResult(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .success(let authorization):
+            guard
+                let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                let tokenData   = credential.identityToken,
+                let idToken     = String(data: tokenData, encoding: .utf8)
+            else {
+                errorMessage = "Could not extract Apple identity token."
+                return
+            }
+
+            let nonce = currentNonce   // capture before Task
+
+            Task { @MainActor in
+                do {
+                    try await authManager.signInWithApple(idToken: idToken, rawNonce: nonce)
+                    onboardingComplete = true
+                    dismiss()
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+            }
+
+        case .failure(let error):
+            // ASAuthorizationError.canceled (code 1001) — user cancelled, no message needed
+            if (error as? ASAuthorizationError)?.code != .canceled {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    // MARK: - Nonce helpers (Apple requires SHA-256 of the nonce)
+
+    private func randomNonceString(length: Int = 32) -> String {
+        var randomBytes = [UInt8](repeating: 0, count: length)
+        guard SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes) == errSecSuccess
+        else { return UUID().uuidString }
+        return randomBytes.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func sha256(_ input: String) -> String {
+        let digest = SHA256.hash(data: Data(input.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
 }
 
 #Preview {
     SignInView()
+        .environmentObject(AuthManager())
 }
