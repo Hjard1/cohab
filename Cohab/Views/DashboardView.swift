@@ -554,16 +554,18 @@ struct DashboardView: View {
         .buttonStyle(.plain)
     }
 
+    // Deep forest green — same hue as brand, but dark enough to read
+    // clearly on cream. Distinct from partner-A green (#1a9960).
+    private static let fabColor = Color(red: 0.06, green: 0.32, blue: 0.20)
+
     private var addButton: some View {
         Button { showAddAsset = true } label: {
             Image(systemName: "plus")
-                .font(.system(size: 20, weight: .bold))
+                .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 56, height: 56)
-                .background(Color.cohInk, in: Circle())
-                // White ring separates FAB from any background color
-                .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 2))
-                .shadow(color: .black.opacity(0.28), radius: 14, y: 5)
+                .background(Self.fabColor, in: Circle())
+                .shadow(color: Self.fabColor.opacity(0.45), radius: 16, y: 6)
         }
         .buttonStyle(.plain)
     }
