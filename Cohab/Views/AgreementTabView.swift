@@ -3,7 +3,10 @@ import SwiftData
 
 struct AgreementTabView: View {
     @Query private var households: [Household]
+    @EnvironmentObject private var pm: PurchaseManager
+    @AppStorage("agreementIntroSeen") private var introSeen = false
     @State private var showSigningSheet = false
+    @State private var showContractPreview = false
     @State private var submission: DocuSealSubmission?
     @State private var isGenerating = false
     @State private var agreementError: String?
@@ -12,6 +15,7 @@ struct AgreementTabView: View {
     @State private var draftEmailB = ""
     @State private var isCheckingStatus = false
     @State private var lastChecked: Date? = nil
+    @State private var showResetConfirm = false
     @ObservedObject private var strings = AppStrings.shared
 
     private var household: Household? { households.first }
@@ -22,17 +26,32 @@ struct AgreementTabView: View {
     }
 
     var body: some View {
+        if !pm.hasFormalAccess {
+            PaywallView()
+        } else {
+            agreementContent
+        }
+    }
+
+    private var agreementContent: some View {
         NavigationStack {
             ZStack {
                 Color.cohBg.ignoresSafeArea()
 
                 if let h = household, h.isFormalMode {
-                    formalContent(h)
+                    // Show wizard on first visit when no agreement created yet
+                    if !introSeen && h.agreementStatus == "none" {
+                        AgreementIntroView(household: h) {
+                            introSeen = true
+                        }
+                    } else {
+                        formalContent(h)
+                    }
                 } else {
                     noAgreementState
                 }
             }
-            .navigationTitle("Agreement")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
         }
         .sheet(isPresented: $showSigningSheet) {
@@ -48,20 +67,23 @@ struct AgreementTabView: View {
         .sheet(isPresented: $showEmailPrompt) {
             emailSheet
         }
+        .sheet(isPresented: $showContractPreview) {
+            if let h = household { ContractPreviewView(household: h) }
+        }
     }
 
     private var emailSheet: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Add signing emails")
+                Text(strings.agreementAddSigningEmails)
                     .font(.title3.bold()).foregroundStyle(Color.cohInk)
-                Text("Both partners need an email address to receive and sign the agreement via DocuSeal.")
+                Text(strings.agreementEmailBothNeed)
                     .font(.subheadline).foregroundStyle(.secondary)
 
                 if let h = household {
                     VStack(spacing: 14) {
-                        emailField(label: "\(h.partnerAName)'s email", text: $draftEmailA)
-                        emailField(label: "\(h.partnerBName)'s email", text: $draftEmailB)
+                        emailField(label: "\(h.partnerAName)\(strings.agreementPartnerEmailSuffix)", text: $draftEmailA)
+                        emailField(label: "\(h.partnerBName)\(strings.agreementPartnerEmailSuffix)", text: $draftEmailB)
                     }
                 }
 
@@ -79,7 +101,7 @@ struct AgreementTabView: View {
                         showSigningSheet = true
                     }
                 } label: {
-                    Text("Save & continue")
+                    Text(strings.agreementSaveAndContinue)
                         .font(.headline).foregroundStyle(.white)
                         .frame(maxWidth: .infinity).padding(.vertical, 16)
                         .background(
@@ -94,7 +116,7 @@ struct AgreementTabView: View {
             .navigationTitle("").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Cancel") { showEmailPrompt = false }
+                    Button(strings.cancel) { showEmailPrompt = false }
                 }
             }
         }
@@ -107,7 +129,7 @@ struct AgreementTabView: View {
     private func emailField(label: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label.uppercased())
-                .font(.caption.bold()).tracking(1).foregroundStyle(Color(.secondaryLabel))
+                .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
             TextField("email@example.com", text: text)
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
@@ -126,11 +148,32 @@ struct AgreementTabView: View {
     private func formalContent(_ h: Household) -> some View {
         ScrollView {
             VStack(spacing: 20) {
+                // Screen header
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(strings.agreementYourAgreement)
+                        .font(.system(size: 28, weight: .bold, design: .serif))
+                        .foregroundStyle(Color.cohInk)
+                    if h.agreementStatus == "signed", let date = h.signedAt {
+                        Text(strings.agreementSignedPrefix + date.formatted(date: .abbreviated, time: .omitted))
+                            .font(.caption).foregroundStyle(Color.cohGreen)
+                    } else {
+                        Text("\(strings.agreementBetweenPartners) \(h.partnerAName)\(strings.agreementAndConnector)\(h.partnerBName)")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
                 // Status banner
                 statusBanner(h)
 
+                // How it works — waterfall principle
+                howItWorksCard
+
                 // Clauses card
                 clausesCard(h)
+
+                // Advanced optional clauses
+                advancedClausesCard(h)
 
                 // Actions
                 actionsCard(h)
@@ -177,7 +220,7 @@ struct AgreementTabView: View {
                             Text(strings.agreementSentWaiting)
                                 .font(.subheadline.bold()).foregroundStyle(.white)
                             if let checked = lastChecked {
-                                Text("Checked \(checked.formatted(date: .omitted, time: .shortened))")
+                                Text(strings.agreementCheckedAt + checked.formatted(date: .omitted, time: .shortened))
                                     .font(.caption).foregroundStyle(.white.opacity(0.75))
                             } else {
                                 Text(strings.agreementLinksSentByEmail)
@@ -262,7 +305,7 @@ struct AgreementTabView: View {
 
             summaryRow(
                 icon: "banknote",
-                color: Color(red: 0.20, green: 0.49, blue: 0.96),
+                color: Color.cohBlue,
                 title: "\(totalContribs) \(totalContribs == 1 ? strings.agreementContribTracked : strings.agreementContribsTracked)",
                 detail: totalContribs > 0
                     ? "\(h.partnerAName): \(h.currencySymbol)\(Int(contribA).formatted())  ·  \(h.partnerBName): \(h.currencySymbol)\(Int(contribB).formatted())"
@@ -278,6 +321,22 @@ struct AgreementTabView: View {
                     detail: strings.agreementDissolutionSub
                 )
             }
+
+            Divider()
+
+            // Preview full contract text
+            Button { showContractPreview = true } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.subheadline).foregroundStyle(Color.cohGreen)
+                    Text(strings.agreementPreviewFullContract)
+                        .font(.subheadline.weight(.medium)).foregroundStyle(Color.cohGreen)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold()).foregroundStyle(Color.cohTertiary)
+                }
+            }
+            .buttonStyle(.plain)
         }
         .padding(18)
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
@@ -359,7 +418,38 @@ struct AgreementTabView: View {
                     )
                 }
             }
+
+            // Reset option when pending — lets user cancel and generate a fresh PDF
+            if h.agreementStatus == "pending" {
+                Button { showResetConfirm = true } label: {
+                    Text(strings.agreementGenerateFresh)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.cohSecondary)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                .confirmationDialog(
+                    strings.agreementCancelSigningTitle,
+                    isPresented: $showResetConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button(strings.agreementYesGenerateNew, role: .destructive) {
+                        resetAgreement(h)
+                    }
+                } message: {
+                    Text(strings.agreementCancelSigningMessage)
+                }
+            }
         }
+    }
+
+    private func resetAgreement(_ h: Household) {
+        h.agreementStatus   = "none"
+        h.docusealSlug      = ""
+        h.docusealViewUrl   = ""
+        submission          = nil
+        agreementError      = nil
+        lastChecked         = nil
     }
 
     private func primaryAction(for h: Household) -> (String, Color) {
@@ -387,9 +477,9 @@ struct AgreementTabView: View {
 
     private func emailPromptCard(_ h: Household) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Email addresses needed for signing", systemImage: "envelope.badge")
+            Label(strings.agreementEmailsNeeded, systemImage: "envelope.badge")
                 .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
-            Text("Both partners need an email to receive their signing link.")
+            Text(strings.agreementEmailsNeededSub)
                 .font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -398,23 +488,219 @@ struct AgreementTabView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.orange.opacity(0.3), lineWidth: 1))
     }
 
+    // MARK: - Advanced clauses card
+
+    private func advancedClausesCard(_ h: Household) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                h.includeAdvancedClauses.toggle()
+                if !h.includeAdvancedClauses {
+                    h.includeSeparatePropertyClause = false
+                    h.includeBuyoutRightsClause = false
+                    h.includeDisposalConsentClause = false
+                    h.includeDisputeResolutionClause = false
+                    h.includeDebtClause = false
+                }
+            } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(strings.agreementAdvancedTitle)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.cohInk)
+                        Text(strings.agreementAdvancedSub)
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: h.includeAdvancedClauses ? "chevron.up" : "chevron.down")
+                        .font(.caption.bold()).foregroundStyle(.secondary)
+                }
+                .padding(18)
+            }
+            .buttonStyle(.plain)
+
+            if h.includeAdvancedClauses {
+                Divider().padding(.horizontal, 18)
+                VStack(spacing: 0) {
+                    advancedToggle(
+                        title: strings.agreementClauseSeparate,
+                        subtitle: strings.agreementClauseSeparateSub,
+                        isOn: Binding(get: { h.includeSeparatePropertyClause },
+                                      set: { h.includeSeparatePropertyClause = $0 })
+                    )
+                    Divider().padding(.leading, 18)
+                    advancedToggle(
+                        title: strings.agreementClauseBuyout,
+                        subtitle: strings.agreementClauseBuyoutSub,
+                        isOn: Binding(get: { h.includeBuyoutRightsClause },
+                                      set: { h.includeBuyoutRightsClause = $0 })
+                    )
+                    Divider().padding(.leading, 18)
+                    advancedToggle(
+                        title: strings.agreementClauseDisposal,
+                        subtitle: strings.agreementClauseDisposalSub,
+                        isOn: Binding(get: { h.includeDisposalConsentClause },
+                                      set: { h.includeDisposalConsentClause = $0 })
+                    )
+                    Divider().padding(.leading, 18)
+                    advancedToggle(
+                        title: strings.agreementClauseDispute,
+                        subtitle: strings.agreementClauseDisputeSub,
+                        isOn: Binding(get: { h.includeDisputeResolutionClause },
+                                      set: { h.includeDisputeResolutionClause = $0 })
+                    )
+                    Divider().padding(.leading, 18)
+                    advancedToggle(
+                        title: strings.agreementClauseDebt,
+                        subtitle: strings.agreementClauseDebtSub,
+                        isOn: Binding(get: { h.includeDebtClause },
+                                      set: { h.includeDebtClause = $0 })
+                    )
+                }
+            }
+        }
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    private func advancedToggle(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.cohInk)
+                Text(subtitle)
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Toggle("", isOn: isOn)
+                .toggleStyle(SwitchToggleStyle(tint: Color.cohGreen))
+                .labelsHidden()
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - How it works card
+
+    private var howItWorksCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack(spacing: 10) {
+                Image(systemName: "shield.checkered")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.cohGreen)
+                Text(strings.agreementHowItWorksTitle)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(Color.cohInk)
+            }
+            .padding(.horizontal, 18).padding(.top, 18).padding(.bottom, 20)
+
+            // Flow steps with connecting line
+            VStack(spacing: 0) {
+                flowStep(
+                    step: 1, total: 3,
+                    color: Color.cohGreen,
+                    icon: "arrow.up.circle.fill",
+                    title: strings.agreementWaterfallStep1Title,
+                    body: strings.agreementWaterfallStep1Body
+                )
+                flowStep(
+                    step: 2, total: 3,
+                    color: Color.cohBlue,
+                    icon: "chart.pie.fill",
+                    title: strings.agreementWaterfallStep2Title,
+                    body: strings.agreementWaterfallStep2Body
+                )
+                flowStep(
+                    step: 3, total: 3,
+                    color: .orange,
+                    icon: "exclamationmark.triangle.fill",
+                    title: strings.agreementWaterfallStep3Title,
+                    body: strings.agreementWaterfallStep3Body
+                )
+            }
+            .padding(.bottom, 4)
+        }
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    private func flowStep(step: Int, total: Int, color: Color,
+                           icon: String, title: String, body: String) -> some View {
+        let isLast = step == total
+        return HStack(alignment: .top, spacing: 0) {
+            // Left: circle + line
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(color.opacity(0.12))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: icon)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(color)
+                }
+                if !isLast {
+                    Rectangle()
+                        .fill(LinearGradient(
+                            colors: [color.opacity(0.3), color.opacity(0.05)],
+                            startPoint: .top, endPoint: .bottom
+                        ))
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                        .padding(.vertical, 4)
+                }
+            }
+            .frame(width: 44)
+            .padding(.leading, 18)
+
+            // Right: content
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Text("\(step)")
+                        .font(.caption2.bold())
+                        .foregroundStyle(color)
+                        .frame(width: 18, height: 18)
+                        .background(color.opacity(0.12), in: Circle())
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.cohInk)
+                }
+                Text(body)
+                    .font(.caption)
+                    .foregroundStyle(Color.cohSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(2)
+            }
+            .padding(.leading, 14)
+            .padding(.trailing, 18)
+            .padding(.top, 10)
+            .padding(.bottom, isLast ? 18 : 20)
+        }
+    }
+
     // MARK: - No agreement state
 
     private var noAgreementState: some View {
-        VStack(spacing: 20) {
-            ZStack {
-                Circle().fill(Color.cohGreen.opacity(0.08)).frame(width: 88, height: 88)
-                Image(systemName: "doc.text")
-                    .font(.system(size: 38)).foregroundStyle(Color.cohGreen)
+        ScrollView {
+            VStack(spacing: 20) {
+                // Serif header
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(strings.agreementTitle)
+                        .font(.system(size: 28, weight: .bold, design: .serif))
+                        .foregroundStyle(Color.cohInk)
+                    Text(strings.agreementNoFormal)
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // What this agreement protects — always visible
+                howItWorksCard
+
+                Spacer(minLength: 20)
             }
-            VStack(spacing: 8) {
-                Text(strings.agreementNoFormal)
-                    .font(.title3.bold()).foregroundStyle(Color.cohInk)
-                Text(strings.agreementNoFormalSub)
-                    .font(.subheadline).foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center).padding(.horizontal, 32)
-            }
+            .padding(20)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
