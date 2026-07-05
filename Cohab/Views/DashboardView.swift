@@ -60,7 +60,7 @@ struct DashboardView: View {
                                 }
                                 Spacer(minLength: 100)
                             }
-                            .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height * 0.65)
+                            .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height)
                             .background(Color.cohBg)
                             .clipShape(.rect(topLeadingRadius: 28, topTrailingRadius: 28))
                         }
