@@ -625,15 +625,18 @@ struct AssetCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            assetHeader
-            Color(.separator).frame(height: 0.5).padding(.vertical, 16)
-            equityRow
+        Button(action: onEdit) {
+            VStack(alignment: .leading, spacing: 0) {
+                assetHeader
+                Color(.separator).frame(height: 0.5).padding(.vertical, 16)
+                equityRow
+            }
+            .padding(20)
+            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.06), radius: 16, y: 4)
+            .padding(.horizontal, 20)
         }
-        .padding(20)
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.06), radius: 16, y: 4)
-        .padding(.horizontal, 20)
+        .buttonStyle(.plain)
     }
 
     // MARK: Header
@@ -658,14 +661,9 @@ struct AssetCard: View {
                     Text(strings.dashboardLoan + ": −" + fmt(asset.remainingLoan))
                         .font(.caption2.monospacedDigit()).foregroundStyle(.orange)
                 }
-                Button(action: onEdit) {
-                    HStack(spacing: 3) {
-                        Image(systemName: "pencil").font(.caption2)
-                        Text(strings.dashboardEdit).font(.caption2)
-                    }
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(Color(.tertiaryLabel))
-                }
-                .buttonStyle(.plain)
             }
         }
     }
