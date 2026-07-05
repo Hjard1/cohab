@@ -474,15 +474,12 @@ struct DashboardView: View {
                 quickActionChip(icon: agreementIcon, label: agreementLabel,
                                 accent: agreementAccent, action: agreementAction)
 
-                // 4 — Ownership calculator (always)
+                // 4 — Settlement estimate (always)
                 quickActionNavChip(
-                    icon: "chart.pie.fill",
-                    label: strings.calcOwnershipTitle,
+                    icon: "scale.3d",
+                    label: strings.dashboardShowCalculation,
                     accent: Color(red: 0.93, green: 0.50, blue: 0.18),
-                    destination: OwnershipCalculatorView(
-                        nameA: h.partnerAName, nameB: partnerB,
-                        symbol: h.currencySymbol
-                    )
+                    destination: SettlementTabView()
                 )
             }
             .padding(.horizontal, 20)
