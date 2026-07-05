@@ -36,8 +36,7 @@ struct DashboardView: View {
 
                             // CREAM CONTENT — rounded top overlaps header
                             VStack(spacing: 0) {
-                                if let rate = availableRate,
-                                   abs(rate.rate - h.annualInterestRate) > 0.001 {
+                                if let rate = availableRate {
                                     rateUpdateBanner(household: h, rate: rate)
                                         .padding(.horizontal, 20)
                                         .padding(.top, 20)
@@ -60,7 +59,11 @@ struct DashboardView: View {
                         }
                     }
                     .task {
-                        availableRate = await InterestRateService.fetch(currency: h.currency)
+                        // Only show banner if fetched rate meaningfully differs from current
+                        if let fetched = await InterestRateService.fetch(currency: h.currency),
+                           abs(fetched.rate - h.annualInterestRate) > 0.001 {
+                            availableRate = fetched
+                        }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                         if h.agreementStatus == "pending" {
@@ -1028,13 +1031,23 @@ struct AgreementSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var hasStarted = false
     @State private var isSigned = false
+    @State private var showEmailCapture = false
+    @State private var draftEmailA = ""
+    @State private var draftEmailB = ""
+
+    private func missingEmails() -> Bool {
+        !DocuSealService.isValidEmail(household.emailA) ||
+        !DocuSealService.isValidEmail(household.emailB)
+    }
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.cohBg.ignoresSafeArea()
 
-                if isSigned {
+                if showEmailCapture {
+                    emailCaptureView
+                } else if isSigned {
                     signedConfirmation
                 } else if isGenerating {
                     generatingView
@@ -1046,7 +1059,8 @@ struct AgreementSheetView: View {
                     EmptyView()
                 }
             }
-            .navigationTitle(isSigned ? "Agreement Signed" : "Sign Agreement")
+            .navigationTitle(showEmailCapture ? AppStrings.shared.agreementAddEmails
+                             : isSigned ? "Agreement Signed" : "Sign Agreement")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -1059,7 +1073,6 @@ struct AgreementSheetView: View {
             hasStarted = true
 
             // Recovery: rebuild the in-memory submission from the URL we stored at creation time.
-            // Without this, returning to the sheet after a crash/restart shows a blank page.
             if submission == nil, !household.docusealViewUrl.isEmpty,
                household.agreementStatus == "pending" {
                 submission = DocuSealSubmission(
@@ -1075,7 +1088,16 @@ struct AgreementSheetView: View {
                 return
             }
 
-            if submission == nil { generate() }
+            if submission == nil {
+                if missingEmails() {
+                    // Show email capture before hitting DocuSeal
+                    draftEmailA = household.emailA
+                    draftEmailB = household.emailB
+                    showEmailCapture = true
+                } else {
+                    generate()
+                }
+            }
         }
         // Poll every 6s — uses try await so the loop exits cleanly on dismiss
         .task(id: submission?.slug) {
@@ -1096,6 +1118,83 @@ struct AgreementSheetView: View {
     }
 
     // MARK: Signed confirmation
+
+    // MARK: Email capture — shown before DocuSeal when emails missing
+
+    private var emailCaptureView: some View {
+        let s = AppStrings.shared
+        let needsA = !DocuSealService.isValidEmail(household.emailA)
+        let needsB = !DocuSealService.isValidEmail(household.emailB)
+
+        return ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(s.agreementEmailsNeeded)
+                        .font(.headline).foregroundStyle(Color.cohInk)
+                    Text(s.agreementEmailsNeededSub)
+                        .font(.subheadline).foregroundStyle(Color.cohMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                VStack(spacing: 14) {
+                    if needsA {
+                        emailField(
+                            label: "\(household.partnerAName)\(s.agreementPartnerEmailSuffix)",
+                            text: $draftEmailA
+                        )
+                    }
+                    if needsB {
+                        emailField(
+                            label: "\(household.partnerBName.isEmpty ? "Partner" : household.partnerBName)\(s.agreementPartnerEmailSuffix)",
+                            text: $draftEmailB
+                        )
+                    }
+                }
+
+                Button {
+                    if needsA { household.emailA = draftEmailA.trimmingCharacters(in: .whitespaces) }
+                    if needsB { household.emailB = draftEmailB.trimmingCharacters(in: .whitespaces) }
+                    showEmailCapture = false
+                    generate()
+                } label: {
+                    Text(s.agreementSaveAndContinue)
+                        .font(.headline).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).padding(.vertical, 16)
+                        .background(
+                            canSaveEmails(needsA: needsA, needsB: needsB)
+                                ? Color.cohGreen : Color.cohGreen.opacity(0.35),
+                            in: RoundedRectangle(cornerRadius: 14)
+                        )
+                }
+                .disabled(!canSaveEmails(needsA: needsA, needsB: needsB))
+            }
+            .padding(24)
+        }
+    }
+
+    private func canSaveEmails(needsA: Bool, needsB: Bool) -> Bool {
+        let okA = needsA ? DocuSealService.isValidEmail(draftEmailA) : true
+        let okB = needsB ? DocuSealService.isValidEmail(draftEmailB) : true
+        return okA && okB
+    }
+
+    private func emailField(label: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label.uppercased())
+                .font(.caption.bold()).tracking(0.5)
+                .foregroundStyle(Color(.secondaryLabel))
+            TextField("email@example.com", text: text)
+                .textContentType(.emailAddress)
+                .keyboardType(.emailAddress)
+                .autocorrectionDisabled()
+                .autocapitalization(.none)
+                .font(.body)
+                .padding(.horizontal, 14).padding(.vertical, 13)
+                .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color(.separator).opacity(0.4), lineWidth: 1))
+        }
+    }
 
     private var signedConfirmation: some View {
         VStack(spacing: 24) {
