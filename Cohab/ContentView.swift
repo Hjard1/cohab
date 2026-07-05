@@ -84,7 +84,7 @@ struct ContentView: View {
             CalculatorsView()
                 .tabItem { Label(s.tabCalculators, systemImage: "function") }
         }
-        .tint(.cohGreen)
+        .tint(Color.cohInk)
         .preferredColorScheme(.light)
     }
 
