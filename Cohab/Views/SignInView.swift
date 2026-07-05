@@ -7,6 +7,7 @@ struct SignInView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @AppStorage("onboardingComplete") private var onboardingComplete = false
+    @AppStorage("wasSignedOut") private var wasSignedOut = false
     @EnvironmentObject private var authManager: AuthManager
     @Query private var households: [Household]
 
@@ -44,6 +45,7 @@ struct SignInView: View {
                         VStack(spacing: 12) {
                             // Google
                             GoogleSignInButton(label: "Continue with Google") { user in
+                                wasSignedOut = false
                                 onboardingComplete = true
                                 dismiss()
                             } onError: { err in
@@ -145,6 +147,7 @@ struct SignInView: View {
             Task { @MainActor in
                 do {
                     try await authManager.signInWithApple(idToken: idToken, rawNonce: nonce)
+                    wasSignedOut = false
                     onboardingComplete = true
                     dismiss()
                 } catch {

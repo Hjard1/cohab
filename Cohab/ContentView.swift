@@ -5,6 +5,7 @@ struct ContentView: View {
     @Binding var pendingInviteToken: UUID?
 
     @AppStorage("onboardingComplete") private var onboardingComplete = false
+    @AppStorage("wasSignedOut") private var wasSignedOut = false
     @Query private var households: [Household]
     @EnvironmentObject private var strings: AppStrings
     @EnvironmentObject private var auth: AuthManager
@@ -19,11 +20,11 @@ struct ContentView: View {
             if auth.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if (onboardingComplete || !households.isEmpty) && auth.isSignedIn {
-                // Signed in with data → main app
+            } else if (onboardingComplete || !households.isEmpty) && !wasSignedOut {
+                // Has data and not explicitly signed out → main app (signed in or offline)
                 mainApp
-            } else if !auth.isSignedIn && (onboardingComplete || !households.isEmpty) {
-                // Signed out but data still on device → re-auth screen
+            } else if wasSignedOut && (onboardingComplete || !households.isEmpty) {
+                // Explicitly signed out → re-auth screen (data preserved on device)
                 SignInView()
             } else {
                 // No data → full onboarding

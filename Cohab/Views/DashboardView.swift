@@ -1183,6 +1183,7 @@ struct HouseholdSetupView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var auth: AuthManager
     @AppStorage("onboardingComplete") private var onboardingComplete = false
+    @AppStorage("wasSignedOut") private var wasSignedOut = false
     @ObservedObject private var strings = AppStrings.shared
 
     @State private var nameA = ""
@@ -1342,7 +1343,7 @@ struct HouseholdSetupView: View {
     }
 
     private func signOut() {
-        // Set onboardingComplete first — ContentView transitions away, sheet closes naturally
+        wasSignedOut = true          // triggers SignInView in ContentView
         onboardingComplete = false
         Task { await auth.signOut() }
     }
@@ -1350,12 +1351,14 @@ struct HouseholdSetupView: View {
     private func deleteAll() {
         if let h = household { modelContext.delete(h) }
         try? modelContext.save()
+        wasSignedOut = false         // full reset — go to OnboardingView
         onboardingComplete = false
     }
 
     private func deleteAccount() {
         if let h = household { modelContext.delete(h) }
         try? modelContext.save()
+        wasSignedOut = false         // full reset — go to OnboardingView
         onboardingComplete = false
         Task {
             do {
