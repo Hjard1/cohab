@@ -1193,6 +1193,8 @@ struct HouseholdSetupView: View {
     @State private var showDeleteAccountConfirm = false
     @State private var showSignOutConfirm = false
     @State private var deleteAccountError: String?
+    @State private var exportURL: URL?
+    @State private var showExportSheet = false
 
     let currencies = ["GBP", "USD", "EUR", "AUD", "CAD", "NOK", "SEK"]
     private var canSave: Bool {
@@ -1235,6 +1237,21 @@ struct HouseholdSetupView: View {
                     Text(s(en: "The interest rate determines how much each contribution grows over time. 5% is a sensible default.",
                            nb: "Renten bestemmer hvor mye hvert bidrag vokser over tid. 5 % er et fornuftig utgangspunkt."))
                         .font(.caption).foregroundStyle(.secondary)
+                }
+
+                if let h = household {
+                    Section {
+                        Button {
+                            exportURL = generateExportCSV(household: h)
+                            showExportSheet = exportURL != nil
+                        } label: {
+                            Label(s(en: "Export to Excel / CSV", nb: "Eksporter til Excel / CSV"),
+                                  systemImage: "arrow.up.doc.fill")
+                        }
+                    } footer: {
+                        Text(s(en: "Exports all assets, contributions and expenses as a .csv file (Excel, Numbers, Google Sheets).",
+                               nb: "Eksporterer alle eiendeler, bidrag og utgifter som en .csv-fil (Excel, Numbers, Google Sheets)."))
+                    }
                 }
 
                 if household != nil {
@@ -1295,6 +1312,11 @@ struct HouseholdSetupView: View {
             } message: {
                 Text(deleteAccountError ?? "")
             }
+            .sheet(isPresented: $showExportSheet) {
+                if let url = exportURL {
+                    ShareSheet(url: url)
+                }
+            }
         }
         .onAppear {
             guard let h = household else { return }
@@ -1345,9 +1367,100 @@ struct HouseholdSetupView: View {
         }
     }
 
+    // MARK: CSV Export
+
+    private func generateExportCSV(household h: Household) -> URL? {
+        let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .none
+        let sym = h.currencySymbol
+        var lines: [String] = []
+
+        // ── Header ──────────────────────────────────────────────────────────
+        lines += [
+            "COHAB EXPORT",
+            "Generated,\(df.string(from: Date()))",
+            "Household,\(h.partnerAName) & \(h.partnerBName)",
+            "Currency,\(h.currency)",
+            "Country,\(h.country)",
+            "Interest rate,\(String(format: "%.1f%%", h.annualInterestRate * 100))",
+            ""
+        ]
+
+        // ── Assets ──────────────────────────────────────────────────────────
+        lines += ["ASSETS", "Name,Type,Current value,Remaining loan,\(h.partnerAName) %,\(h.partnerBName) %,Address"]
+        for asset in h.assets.sorted(by: { $0.label < $1.label }) {
+            let pA = Int((asset.ownershipShareA * 100).rounded())
+            lines.append([
+                csvEsc(asset.label),
+                csvEsc(asset.type.rawValue),
+                "\(sym)\(Int(asset.currentValue))",
+                asset.remainingLoan > 0 ? "\(sym)\(Int(asset.remainingLoan))" : "",
+                "\(pA)%",
+                "\(100 - pA)%",
+                csvEsc(asset.address)
+            ].joined(separator: ","))
+        }
+        lines.append("")
+
+        // ── Contributions ───────────────────────────────────────────────────
+        lines += ["CONTRIBUTIONS", "Asset,Date,Partner,Amount,Label"]
+        for asset in h.assets.sorted(by: { $0.label < $1.label }) {
+            for c in asset.contributions.sorted(by: { $0.date < $1.date }) {
+                let partner = c.ownerKey == "A" ? h.partnerAName : h.partnerBName
+                lines.append([
+                    csvEsc(asset.label),
+                    df.string(from: c.date),
+                    csvEsc(partner),
+                    "\(sym)\(Int(c.amount))",
+                    csvEsc(c.label)
+                ].joined(separator: ","))
+            }
+        }
+        lines.append("")
+
+        // ── Shared expenses ─────────────────────────────────────────────────
+        lines += ["SHARED EXPENSES", "Label,Amount,Paid by,\(h.partnerAName) %,\(h.partnerBName) %,Recurring,Date"]
+        for exp in h.expenses.sorted(by: { $0.label < $1.label }) {
+            let paidBy = exp.paidByKey == "a" ? h.partnerAName : h.partnerBName
+            let pA = Int((exp.splitRatioA * 100).rounded())
+            lines.append([
+                csvEsc(exp.label),
+                "\(sym)\(Int(exp.amount))",
+                csvEsc(paidBy),
+                "\(pA)%",
+                "\(100 - pA)%",
+                exp.isRecurring ? "Yes" : "No",
+                exp.date
+            ].joined(separator: ","))
+        }
+
+        let csv = lines.joined(separator: "\n")
+        let nameSlug = "\(h.partnerAName)-\(h.partnerBName)".lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cohab-\(nameSlug).csv")
+        try? csv.write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    private func csvEsc(_ s: String) -> String {
+        s.contains(",") || s.contains("\"") || s.contains("\n")
+            ? "\"\(s.replacingOccurrences(of: "\"", with: "\"\""))\""
+            : s
+    }
+
     private func s(en: String, nb: String) -> String {
         strings.language == .nb ? nb : en
     }
+}
+
+// MARK: - Share sheet wrapper
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Add asset sheet (4-step wizard)
