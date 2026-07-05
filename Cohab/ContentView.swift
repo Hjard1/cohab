@@ -19,9 +19,14 @@ struct ContentView: View {
             if auth.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if onboardingComplete || !households.isEmpty {
+            } else if (onboardingComplete || !households.isEmpty) && auth.isSignedIn {
+                // Signed in with data → main app
                 mainApp
+            } else if !auth.isSignedIn && (onboardingComplete || !households.isEmpty) {
+                // Signed out but data still on device → re-auth screen
+                SignInView()
             } else {
+                // No data → full onboarding
                 OnboardingView()
             }
         }
