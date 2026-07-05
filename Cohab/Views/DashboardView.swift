@@ -36,14 +36,21 @@ struct DashboardView: View {
 
                             // CREAM CONTENT — rounded top overlaps header
                             VStack(spacing: 0) {
+                                // Soft gradient strip — blends header green into cream
+                                LinearGradient(
+                                    colors: [Color.cohGreen.opacity(0.08), Color.cohBg.opacity(0)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                                .frame(height: 24)
+
                                 if let rate = availableRate {
                                     rateUpdateBanner(household: h, rate: rate)
                                         .padding(.horizontal, 20)
-                                        .padding(.top, 20)
                                 }
 
                                 quickActions(h)
-                                    .padding(.top, 20)
+                                    .padding(.top, 16)
 
                                 assetsList(h).padding(.top, 20)
                                 if h.isFormalMode {
@@ -550,13 +557,15 @@ struct DashboardView: View {
     private var addButton: some View {
         Button { showAddAsset = true } label: {
             Image(systemName: "plus")
-                .font(.title2.bold())
+                .font(.system(size: 20, weight: .bold))
                 .foregroundStyle(.white)
-                .frame(width: 58, height: 58)
-                .background(Color.cohGreen, in: Circle())
-                .shadow(color: .cohGreen.opacity(0.35), radius: 14, y: 6)
+                .frame(width: 56, height: 56)
+                .background(Color.cohInk, in: Circle())
+                // White ring separates FAB from any background color
+                .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 2))
+                .shadow(color: .black.opacity(0.28), radius: 14, y: 5)
         }
-        .padding(24)
+        .buttonStyle(.plain)
     }
 }
 
