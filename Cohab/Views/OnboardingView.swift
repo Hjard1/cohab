@@ -240,7 +240,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 2: Partners (progressive reveal)
+    // MARK: - Step 2: Partners (default = add partner, subtle skip link)
 
     private var partnersStep: some View {
         ScrollView(showsIndicators: false) {
@@ -249,124 +249,81 @@ struct OnboardingView: View {
 
                 VStack(alignment: .leading, spacing: 16) {
 
-                    // ── YOUR NAME (always first) ──────────────────────────
+                    // ── YOUR NAME ─────────────────────────────────────────
                     inputField(label: s.onboardingYourName,
                                placeholder: s.onboardingYourNamePlaceholder,
                                text: $nameA, contentType: .name)
                         .onChange(of: nameA) { _, val in
                             if !val.trimmingCharacters(in: .whitespaces).isEmpty,
-                               !showInviteQuestion {
+                               !showPartnerName, inviteAnswer != "later" {
                                 withAnimation(.spring(duration: 0.4)) {
-                                    showInviteQuestion = true
+                                    showPartnerName = true
                                 }
                             }
                         }
 
-                    // ── INVITE QUESTION ───────────────────────────────────
-                    if showInviteQuestion {
-                        if inviteAnswer == nil {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text(s.onboardingAddPartnerQuestion)
-                                    .font(.headline)
-                                    .foregroundStyle(Color.cohInk)
-
-                                Button {
-                                    withAnimation(.spring(duration: 0.4)) { inviteAnswer = "yes" }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                        withAnimation(.spring(duration: 0.4)) { showPartnerName = true }
+                    // ── PARTNER'S NAME (appears automatically) ────────────
+                    if showPartnerName && inviteAnswer != "later" {
+                        VStack(alignment: .leading, spacing: 8) {
+                            inputField(label: s.onboardingPartnerName,
+                                       placeholder: s.onboardingPartnerNamePlaceholder,
+                                       text: $nameB, contentType: .name)
+                                .onChange(of: nameB) { _, val in
+                                    if !val.trimmingCharacters(in: .whitespaces).isEmpty,
+                                       !showPartnerEmail {
+                                        withAnimation(.spring(duration: 0.4).delay(0.1)) {
+                                            showPartnerEmail = true
+                                        }
                                     }
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "person.badge.plus")
-                                            .font(.subheadline)
-                                        Text(s.onboardingAddPartnerYes)
-                                            .font(.subheadline.weight(.semibold))
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption.weight(.semibold))
-                                    }
-                                    .foregroundStyle(Color.cohGreen)
-                                    .padding(16)
-                                    .background(
-                                        Color.cohGreen.opacity(0.08),
-                                        in: RoundedRectangle(cornerRadius: 14)
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 14)
-                                            .strokeBorder(Color.cohGreen.opacity(0.30), lineWidth: 1.5)
-                                    )
                                 }
-                                .buttonStyle(.plain)
 
-                                Button {
-                                    withAnimation(.spring(duration: 0.4)) {
-                                        inviteAnswer = "later"
-                                        nameB = ""
-                                    }
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "clock")
-                                            .font(.subheadline)
-                                        Text(s.onboardingAddPartnerLater)
-                                            .font(.subheadline.weight(.medium))
-                                        Spacer()
-                                    }
-                                    .foregroundStyle(Color.cohMuted)
-                                    .padding(16)
-                                    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 14))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        } else {
-                            // Selection confirmed — small pill with change option
-                            HStack(spacing: 8) {
-                                Image(systemName: inviteAnswer == "yes" ? "person.badge.plus" : "clock")
-                                    .font(.caption)
-                                    .foregroundStyle(Color.cohGreen)
-                                Text(inviteAnswer == "yes" ? s.onboardingAddingPartner : s.onboardingAddingLater)
-                                    .font(.subheadline)
-                                    .foregroundStyle(Color.cohInk)
-                                Spacer()
+                            // Subtle skip link — right-aligned, low contrast
+                            if !showPartnerEmail {
                                 Button {
                                     withAnimation(.spring(duration: 0.35)) {
-                                        inviteAnswer = nil
+                                        inviteAnswer = "later"
                                         nameB = ""; emailA = ""; emailB = ""
-                                        showPartnerName = false
                                         showPartnerEmail = false
                                         showYourEmail = false
                                     }
                                 } label: {
-                                    Text(s.onboardingChange)
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(Color.cohGreen)
+                                    Text(s.onboardingAddPartnerLater + " →")
+                                        .font(.caption)
+                                        .foregroundStyle(Color.cohTertiary)
                                 }
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                                .buttonStyle(.plain)
                             }
-                            .padding(14)
-                            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 12))
-                            .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
 
-                    // ── PARTNER'S NAME ────────────────────────────────────
-                    if showPartnerName && inviteAnswer == "yes" {
-                        inputField(label: s.onboardingPartnerName,
-                                   placeholder: s.onboardingPartnerNamePlaceholder,
-                                   text: $nameB, contentType: .name)
-                            .onChange(of: nameB) { _, val in
-                                if !val.trimmingCharacters(in: .whitespaces).isEmpty,
-                                   !showPartnerEmail {
-                                    withAnimation(.spring(duration: 0.4).delay(0.1)) {
-                                        showPartnerEmail = true
-                                    }
+                    // ── SKIPPED indicator (tap to undo) ───────────────────
+                    if inviteAnswer == "later" {
+                        HStack(spacing: 6) {
+                            Image(systemName: "clock")
+                                .font(.caption2)
+                                .foregroundStyle(Color.cohTertiary)
+                            Text(s.onboardingAddingLater)
+                                .font(.caption)
+                                .foregroundStyle(Color.cohTertiary)
+                            Spacer()
+                            Button {
+                                withAnimation(.spring(duration: 0.35)) {
+                                    inviteAnswer = nil
+                                    showPartnerName = true
                                 }
+                            } label: {
+                                Text(s.onboardingChange)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Color.cohGreen)
                             }
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
 
                     // ── PARTNER'S EMAIL ───────────────────────────────────
-                    if showPartnerEmail {
+                    if showPartnerEmail && inviteAnswer != "later" {
                         inputField(label: s.onboardingPartnerEmail,
                                    placeholder: s.onboardingEmailPlaceholder,
                                    text: $emailB, contentType: .emailAddress,
@@ -383,7 +340,7 @@ struct OnboardingView: View {
                     }
 
                     // ── YOUR EMAIL ────────────────────────────────────────
-                    if showYourEmail {
+                    if showYourEmail && inviteAnswer != "later" {
                         inputField(label: s.onboardingYourEmail,
                                    placeholder: s.onboardingEmailPlaceholder,
                                    text: $emailA, contentType: .emailAddress,
@@ -392,11 +349,10 @@ struct OnboardingView: View {
                     }
                 }
                 .padding(.horizontal, 28)
-                .animation(.spring(duration: 0.4), value: showInviteQuestion)
-                .animation(.spring(duration: 0.4), value: inviteAnswer)
                 .animation(.spring(duration: 0.4), value: showPartnerName)
                 .animation(.spring(duration: 0.4), value: showPartnerEmail)
                 .animation(.spring(duration: 0.4), value: showYourEmail)
+                .animation(.spring(duration: 0.4), value: inviteAnswer)
 
                 ctaButton(s.onboardingContinue, enabled: canAdvancePartners) { advance() }
                     .padding(.horizontal, 28)
@@ -408,11 +364,8 @@ struct OnboardingView: View {
 
     private var canAdvancePartners: Bool {
         guard !nameA.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
-        guard let answer = inviteAnswer else { return false }
-        if answer == "yes" {
-            return !nameB.trimmingCharacters(in: .whitespaces).isEmpty
-        }
-        return true  // "later" — allow advance without partner details
+        if inviteAnswer == "later" { return true }         // skipped — ok
+        return !nameB.trimmingCharacters(in: .whitespaces).isEmpty  // has partner name
     }
 
     // MARK: - Step 3: Cohab Option
