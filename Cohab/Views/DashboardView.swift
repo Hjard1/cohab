@@ -406,66 +406,84 @@ struct DashboardView: View {
         return assets.sorted { (order.firstIndex(of: $0.type) ?? 99) < (order.firstIndex(of: $1.type) ?? 99) }
     }
 
-    // MARK: Quick actions
+    // MARK: Quick actions — always exactly 4 chips, content rotates with context
 
     private func quickActions(_ h: Household) -> some View {
-        let noPartner = h.partnerBName.trimmingCharacters(in: .whitespaces).isEmpty
-        let noAssets  = h.assets.isEmpty
+        let noPartner  = h.partnerBName.trimmingCharacters(in: .whitespaces).isEmpty
+        let noAssets   = h.assets.isEmpty
         let noContribs = !h.assets.contains { !$0.contributions.isEmpty }
+        let partnerB   = h.partnerBName.isEmpty ? "Partner" : h.partnerBName
+
+        // ── Chip 1: Next step (most important thing to do) ──────────────────
+        let chip1: (icon: String, label: String, accent: Color, action: () -> Void)
+        if noPartner {
+            chip1 = ("person.badge.plus", strings.inviteTitle, Color.cohGreen, { showSetup = true })
+        } else if noAssets {
+            chip1 = ("plus.square.fill", strings.dashboardAddAsset, Color.cohGreen, { showAddAsset = true })
+        } else if noContribs {
+            chip1 = ("arrow.up.circle.fill", strings.addContribTitle,
+                     Color(red: 0.54, green: 0.31, blue: 0.96),
+                     { editingAsset = sortedAssets(h.assets).first })
+        } else {
+            // All done → invite partner to download app
+            chip1 = ("envelope.badge.fill", strings.inviteGenerate,
+                     Color.cohGreen, { showSetup = true })
+        }
+
+        // ── Chip 3: Agreement — always, label/action changes with status ────
+        let agreementIcon: String
+        let agreementLabel: String
+        let agreementAccent = Color(red: 0.04, green: 0.65, blue: 0.75)
+        let agreementAction: () -> Void
+        switch h.agreementStatus {
+        case "pending":
+            agreementIcon   = "clock.fill"
+            agreementLabel  = strings.agreementPending
+            agreementAction = { agreementSubmission = nil; showAgreementSheet = true }
+        case "signed" where !h.agreementNeedsUpdate:
+            agreementIcon   = "checkmark.seal.fill"
+            agreementLabel  = strings.agreementSigned
+            agreementAction = { agreementSubmission = nil; showAgreementSheet = true }
+        default:
+            agreementIcon   = "doc.text.fill"
+            agreementLabel  = h.isFormalMode ? strings.agreementGenerate : strings.onboardingYesAgreement
+            agreementAction = {
+                agreementSubmission = nil; agreementError = nil
+                showAgreementSheet = true
+            }
+        }
 
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                // Add partner — shown when partner not set up
-                if noPartner {
-                    quickActionChip(
-                        icon: "person.badge.plus",
-                        label: strings.inviteTitle,
-                        accent: Color.cohGreen
-                    ) { showSetup = true }
-                }
+                // 1 — Next step
+                quickActionChip(icon: chip1.icon, label: chip1.label,
+                                accent: chip1.accent, action: chip1.action)
 
-                // Add first asset
-                if noAssets {
-                    quickActionChip(
-                        icon: "plus.circle.fill",
-                        label: strings.dashboardAddAsset,
-                        accent: Color.cohGreen
-                    ) { showAddAsset = true }
-                }
-
-                // Expense split — always available
+                // 2 — Expenses (always)
                 quickActionNavChip(
                     icon: "dollarsign.circle.fill",
                     label: strings.calcExpenseTitle,
                     accent: Color(red: 0.20, green: 0.49, blue: 0.96),
                     destination: ExpenseSplitView(
-                        nameA: h.partnerAName,
-                        nameB: h.partnerBName.isEmpty ? "Partner" : h.partnerBName,
+                        nameA: h.partnerAName, nameB: partnerB,
                         symbol: h.currencySymbol
                     )
                 )
 
-                // Log contribution — shown when assets exist but no contributions
-                if !noAssets && noContribs {
-                    quickActionChip(
-                        icon: "arrow.up.circle.fill",
-                        label: strings.addContribTitle,
-                        accent: Color(red: 0.54, green: 0.31, blue: 0.96)
-                    ) { editingAsset = sortedAssets(h.assets).first }
-                }
+                // 3 — Agreement (always, content changes)
+                quickActionChip(icon: agreementIcon, label: agreementLabel,
+                                accent: agreementAccent, action: agreementAction)
 
-                // Agreement — formal mode
-                if h.isFormalMode && h.agreementStatus == "none" {
-                    quickActionChip(
-                        icon: "doc.text.fill",
-                        label: strings.tabAgreement,
-                        accent: Color(red: 0.04, green: 0.65, blue: 0.75)
-                    ) {
-                        agreementSubmission = nil
-                        agreementError = nil
-                        showAgreementSheet = true
-                    }
-                }
+                // 4 — Ownership calculator (always)
+                quickActionNavChip(
+                    icon: "chart.pie.fill",
+                    label: strings.calcOwnershipTitle,
+                    accent: Color(red: 0.93, green: 0.50, blue: 0.18),
+                    destination: OwnershipCalculatorView(
+                        nameA: h.partnerAName, nameB: partnerB,
+                        symbol: h.currencySymbol
+                    )
+                )
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 2)
