@@ -269,6 +269,16 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
 
     // MARK: Onboarding — new screens
 
+    var onboardingEyebrow: String { s(
+        en: "For couples living together",
+        nb: "For samboende par",
+        sv: "För samboende par",
+        da: "For samlevende par",
+        fi: "Avoliitossa eläville pareille",
+        de: "Für Paare, die zusammenleben",
+        fr: "Pour les couples qui vivent ensemble",
+        es: "Para parejas que conviven") }
+
     var onboardingHero: String { s(
         en: "Protect what matters.",
         nb: "Beskytt det som betyr noe.",
@@ -280,14 +290,14 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
         es: "Protege lo que importa.") }
 
     var onboardingHeroSub: String { s(
-        en: "Know who owns what, track every contribution, and avoid costly misunderstandings.",
-        nb: "Vit hvem som eier hva, spor hvert bidrag og unngå kostbare misforståelser.",
-        sv: "Veta vem som äger vad, spåra varje bidrag och undvik kostsamma missförståenden.",
-        da: "Vid hvem der ejer hvad, spor hvert bidrag og undgå dyre misforståelser.",
-        fi: "Tiedä kuka omistaa mitä, seuraa jokaista panosta ja vältä kalliit väärinkäsitykset.",
-        de: "Wisst, wer was besitzt, verfolgt jeden Beitrag und vermeidet kostspielige Missverständnisse.",
-        fr: "Sachez qui possède quoi, suivez chaque apport et évitez les malentendus coûteux.",
-        es: "Sabed quién posee qué, registrad cada aportación y evitad malentendidos costosos.") }
+        en: "Know who owns what. Track every contribution. Avoid costly misunderstandings.",
+        nb: "Vit hvem som eier hva. Spor hvert bidrag. Unngå kostbare misforståelser.",
+        sv: "Veta vem som äger vad. Spåra varje bidrag. Undvik kostsamma missförståenden.",
+        da: "Vid hvem der ejer hvad. Spor hvert bidrag. Undgå dyre misforståelser.",
+        fi: "Tiedä kuka omistaa mitä. Seuraa jokaista panosta. Vältä kalliit väärinkäsitykset.",
+        de: "Wisst, wer was besitzt. Verfolgt jeden Beitrag. Vermeidet kostspielige Missverständnisse.",
+        fr: "Sachez qui possède quoi. Suivez chaque apport. Évitez les malentendus coûteux.",
+        es: "Sabed quién posee qué. Registrad cada aportación. Evitad malentendidos costosos.") }
 
     var onboardingAlreadyHaveAccount: String { s(
         en: "I already have an account",

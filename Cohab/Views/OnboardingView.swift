@@ -136,17 +136,20 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Spacer().frame(height: imageHeight - geo.safeAreaInsets.top - 60)
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("cohab")
-                            .font(.system(.caption, design: .rounded).weight(.bold))
-                            .tracking(5)
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Eyebrow
+                        Text(s.onboardingEyebrow.uppercased())
+                            .font(.system(size: 11, weight: .semibold))
+                            .tracking(1.2)
                             .foregroundStyle(Color.cohGreen)
 
+                        // H1
                         Text(s.onboardingHero)
                             .font(.system(size: 28, weight: .bold, design: .serif))
                             .foregroundStyle(Color.cohInk)
                             .fixedSize(horizontal: false, vertical: true)
 
+                        // H2
                         Text(s.onboardingHeroSub)
                             .font(.subheadline)
                             .foregroundStyle(Color.cohMuted)
