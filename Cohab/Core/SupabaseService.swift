@@ -30,6 +30,10 @@ enum SupabaseService {
             .from("households")
             .select("*, household_members!inner(user_id)")
             .eq("household_members.user_id", value: uid.uuidString)
+            // A user can end up with several memberships (re-onboarding, an
+            // accepted invite). Pick deterministically: the newest household
+            // is the one they most recently set up or joined.
+            .order("created_at", ascending: false)
             .limit(1)
             .execute()
             .value

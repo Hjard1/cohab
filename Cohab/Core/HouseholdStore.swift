@@ -193,6 +193,13 @@ final class HouseholdStore {
                 let localAsset: Asset
                 if let existing = existingAssets.first {
                     localAsset = existing
+                    // An earlier claim preserved ids, so the asset may still be
+                    // attached to a leftover local household — re-home it to the
+                    // canonical one (it is detached from the leftover in the
+                    // prune below, before the context is saved).
+                    if !localHousehold.assets.contains(where: { $0.id == assetId }) {
+                        localHousehold.assets.append(existing)
+                    }
                 } else {
                     let purchaseDate = dateFormatter.date(from: dbAsset.purchaseDate) ?? Date()
                     let newAsset = Asset(
@@ -266,17 +273,29 @@ final class HouseholdStore {
             }
 
             // Remove leftover local households that don't match the canonical
-            // remote one (e.g. from a repeated onboarding). Only empty shells
-            // are touched — a local household holding real data is kept so it
-            // can still be claimed later.
+            // remote one (e.g. from a repeated onboarding, or a pre-sign-in
+            // local household whose remote copy was superseded). Once a remote
+            // household exists, a divergent local one can never be claimed —
+            // claim only runs when the server has nothing — so keeping it only
+            // lets stale data hijack `households.first` in every view: wrong id
+            // → FK failures on invite, silent no-op pushes, split-brain views.
+            // Children unique to the leftover are deleted with it; children
+            // shared with the canonical household (ids preserved by an earlier
+            // claim) are kept — they were re-homed in the asset loop above.
             let allLocal = (try? modelContext.fetch(FetchDescriptor<Household>())) ?? []
             for extra in allLocal where extra.id != householdId {
-                let hasContent = extra.assets.contains {
-                    $0.currentValue != 0 || $0.remainingLoan != 0 || !$0.contributions.isEmpty
-                } || !extra.expenses.isEmpty
-                if !hasContent {
-                    modelContext.delete(extra)
+                for asset in extra.assets
+                where !localHousehold.assets.contains(where: { $0.id == asset.id }) {
+                    modelContext.delete(asset)
                 }
+                for expense in extra.expenses {
+                    modelContext.delete(expense)
+                }
+                // Detach before delete so the cascade cannot touch children
+                // that were re-homed to the canonical household.
+                extra.assets = []
+                extra.expenses = []
+                modelContext.delete(extra)
             }
 
             try? modelContext.save()

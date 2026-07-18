@@ -4,6 +4,7 @@ struct InvitePartnerView: View {
     let household: Household
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(HouseholdStore.self) private var store
     @ObservedObject private var strings = AppStrings.shared
     @State private var token: UUID? = nil
     @State private var isGenerating = false
@@ -118,8 +119,12 @@ struct InvitePartnerView: View {
     private func generateToken() async {
         isGenerating = true
         error = nil
+        // The store's household is the canonical remote one. The local SwiftData
+        // household passed in can be a leftover with an id the server doesn't
+        // know (FK failure on insert), so prefer the store's id.
+        let householdId = store.household?.id ?? household.id
         do {
-            token = try await SupabaseService.createInviteToken(householdId: household.id)
+            token = try await SupabaseService.createInviteToken(householdId: householdId)
         } catch {
             self.error = error.localizedDescription
         }
