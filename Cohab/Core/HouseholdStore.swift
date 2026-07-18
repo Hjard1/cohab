@@ -282,31 +282,39 @@ final class HouseholdStore {
         defer { isClaiming = false }
 
         do {
-            try await SupabaseService.upsertHouseholdPreservingId(
-                id: local.id,
-                partnerALabel: local.partnerAName, partnerBLabel: local.partnerBName,
-                currency: local.currency, country: local.country,
-                annualInterestRate: local.annualInterestRate,
-                setupMode: local.setupMode, relationshipType: local.relationshipType,
-                agreementType: local.agreementType,
-                emailA: local.emailA, emailB: local.emailB)
-            try await SupabaseService.upsertMembership(householdId: local.id)
+            try await ignoreAlreadyClaimed {
+                try await SupabaseService.insertHouseholdPreservingId(
+                    id: local.id,
+                    partnerALabel: local.partnerAName, partnerBLabel: local.partnerBName,
+                    currency: local.currency, country: local.country,
+                    annualInterestRate: local.annualInterestRate,
+                    setupMode: local.setupMode, relationshipType: local.relationshipType,
+                    agreementType: local.agreementType,
+                    emailA: local.emailA, emailB: local.emailB)
+            }
+            try await ignoreAlreadyClaimed {
+                try await SupabaseService.insertMembership(householdId: local.id)
+            }
 
             let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
             for asset in local.assets {
-                try await SupabaseService.upsertAssetPreservingId(
-                    id: asset.id, householdId: local.id,
-                    assetType: asset.assetType, label: asset.label, address: asset.address,
-                    currentValue: asset.currentValue, remainingLoan: asset.remainingLoan,
-                    salesCostFraction: asset.salesCostFraction,
-                    ownershipShareA: min(max(asset.ownershipShareA, 0), 1),
-                    sortOrder: asset.sortOrder, purchaseDate: f.string(from: asset.purchaseDate))
+                try await ignoreAlreadyClaimed {
+                    try await SupabaseService.insertAssetPreservingId(
+                        id: asset.id, householdId: local.id,
+                        assetType: asset.assetType, label: asset.label, address: asset.address,
+                        currentValue: asset.currentValue, remainingLoan: asset.remainingLoan,
+                        salesCostFraction: asset.salesCostFraction,
+                        ownershipShareA: min(max(asset.ownershipShareA, 0), 1),
+                        sortOrder: asset.sortOrder, purchaseDate: f.string(from: asset.purchaseDate))
+                }
                 // The DB requires amount > 0 — skip empty rows rather than fail the claim.
                 for c in asset.contributions where c.amount > 0 {
-                    try await SupabaseService.upsertContributionPreservingId(
-                        id: c.id, assetId: asset.id,
-                        ownerKey: c.ownerKey.lowercased(), amount: c.amount,
-                        date: f.string(from: c.date), label: c.label, category: c.category)
+                    try await ignoreAlreadyClaimed {
+                        try await SupabaseService.insertContributionPreservingId(
+                            id: c.id, assetId: asset.id,
+                            ownerKey: c.ownerKey.lowercased(), amount: c.amount,
+                            date: f.string(from: c.date), label: c.label, category: c.category)
+                    }
                 }
             }
 
@@ -351,6 +359,13 @@ final class HouseholdStore {
         } catch {
             self.error = error.localizedDescription
         }
+    }
+
+    /// Tolerates duplicate-key errors (23505) so a retry after a partially
+    /// completed claim continues past rows that already made it to the server.
+    private func ignoreAlreadyClaimed(_ work: () async throws -> Void) async throws {
+        do { try await work() }
+        catch let e as PostgrestError where e.code == "23505" { }
     }
 
     // MARK: - Realtime

@@ -38,12 +38,16 @@ enum SupabaseService {
 
     // MARK: - Claim local household
 
-    /// Upserts a household row with a caller-chosen id. Used when a household was
+    /// Inserts a household row with a caller-chosen id. Used when a household was
     /// created locally while signed out (possible before sign-in was mandatory) and
     /// is now being claimed to the cloud — preserving the id means assets and
-    /// contributions keep their references without remapping. `ignoreDuplicates`
-    /// makes retries after a partial claim safe.
-    static func upsertHouseholdPreservingId(
+    /// contributions keep their references without remapping.
+    ///
+    /// NOTE: plain inserts, not upserts — Postgres applies the table's SELECT
+    /// policy during ON CONFLICT arbitration, so upserts fail RLS with 42501 for
+    /// rows that are not yet visible (no membership yet). Retries after a
+    /// partial claim are handled by ignoring duplicate-key (23505) errors.
+    static func insertHouseholdPreservingId(
         id: UUID, partnerALabel: String, partnerBLabel: String,
         currency: String, country: String, annualInterestRate: Double,
         setupMode: String, relationshipType: String, agreementType: String,
@@ -60,32 +64,32 @@ enum SupabaseService {
         }
         try await supabase
             .from("households")
-            .upsert(Row(id: id.uuidString,
+            .insert(Row(id: id.uuidString,
                         partner_a_label: partnerALabel, partner_b_label: partnerBLabel,
                         currency: currency, country: country,
                         annual_interest_rate: annualInterestRate,
                         setup_mode: setupMode, relationship_type: relationshipType,
                         agreement_type: agreementType,
                         email_a: emailA, email_b: emailB),
-                    onConflict: "id", ignoreDuplicates: true)
+                    returning: .minimal)
             .execute()
     }
 
-    /// Registers the current user as partner A of the household (idempotent).
-    static func upsertMembership(householdId: UUID) async throws {
+    /// Registers the current user as partner A of the household.
+    static func insertMembership(householdId: UUID) async throws {
         struct Row: Encodable {
             let household_id: String; let user_id: String; let role: String
         }
         let uid = try await supabase.auth.session.user.id
         try await supabase
             .from("household_members")
-            .upsert(Row(household_id: householdId.uuidString,
+            .insert(Row(household_id: householdId.uuidString,
                         user_id: uid.uuidString, role: "a"),
-                    onConflict: "household_id,user_id", ignoreDuplicates: true)
+                    returning: .minimal)
             .execute()
     }
 
-    static func upsertAssetPreservingId(
+    static func insertAssetPreservingId(
         id: UUID, householdId: UUID, assetType: String, label: String, address: String,
         currentValue: Double, remainingLoan: Double, salesCostFraction: Double,
         ownershipShareA: Double, sortOrder: Int, purchaseDate: String
@@ -99,17 +103,17 @@ enum SupabaseService {
         }
         try await supabase
             .from("assets")
-            .upsert(Row(id: id.uuidString, household_id: householdId.uuidString,
+            .insert(Row(id: id.uuidString, household_id: householdId.uuidString,
                         asset_type: assetType, label: label, address: address,
                         current_value: currentValue, remaining_loan: remainingLoan,
                         sales_cost_fraction: salesCostFraction,
                         ownership_share_a: ownershipShareA,
                         sort_order: sortOrder, purchase_date: purchaseDate),
-                    onConflict: "id", ignoreDuplicates: true)
+                    returning: .minimal)
             .execute()
     }
 
-    static func upsertContributionPreservingId(
+    static func insertContributionPreservingId(
         id: UUID, assetId: UUID, ownerKey: String, amount: Double,
         date: String, label: String, category: String
     ) async throws {
@@ -119,10 +123,10 @@ enum SupabaseService {
         }
         try await supabase
             .from("contributions")
-            .upsert(Row(id: id.uuidString, asset_id: assetId.uuidString,
+            .insert(Row(id: id.uuidString, asset_id: assetId.uuidString,
                         owner_key: ownerKey, amount: amount, date: date,
                         label: label, category: category),
-                    onConflict: "id", ignoreDuplicates: true)
+                    returning: .minimal)
             .execute()
     }
 
