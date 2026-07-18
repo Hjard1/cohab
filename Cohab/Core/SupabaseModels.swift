@@ -57,6 +57,11 @@ struct DBHousehold: Codable, Identifiable {
     var budgetPaysB: Double?
     var budgetNetTransfer: Double?
     var budgetSavedAt: Date?
+    // Live expense-split working state (preset rows + incomes)
+    var expensePresets: [DBExpensePreset]?
+    var expenseIncomeA: Double?
+    var expenseIncomeB: Double?
+    var expensesUpdatedAt: Date?
     let createdAt: Date
 
     var isFormalMode: Bool { setupMode == "formal" }
@@ -108,7 +113,23 @@ struct DBHousehold: Codable, Identifiable {
         case budgetPaysB = "budget_pays_b"
         case budgetNetTransfer = "budget_net_transfer"
         case budgetSavedAt = "budget_saved_at"
+        case expensePresets = "expense_presets"
+        case expenseIncomeA = "expense_income_a"
+        case expenseIncomeB = "expense_income_b"
+        case expensesUpdatedAt = "expenses_updated_at"
         case createdAt = "created_at"
+    }
+}
+
+// MARK: - DBExpensePreset (stored as JSONB array on households)
+
+struct DBExpensePreset: Codable, Equatable {
+    var amount: Double
+    var payer: String     // "a" | "b" | "both"
+    var splitA: Double    // A's share of the cost when payer == "both"
+
+    enum CodingKeys: String, CodingKey {
+        case amount; case payer; case splitA = "split_a"
     }
 }
 

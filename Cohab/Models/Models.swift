@@ -396,6 +396,15 @@ final class Household {
     var budgetEffectivePayA: Double { budgetPaysA - budgetNetTransfer }
     var budgetEffectivePayB: Double { budgetPaysB + budgetNetTransfer }
 
+    // Live expense-split working state — synced via Supabase so both partners
+    // see and edit the same numbers in the calculator.
+    var presetAmounts: [Double] = [0, 0, 0, 0, 0]
+    var presetPayers: [String] = ["a", "a", "a", "a", "a"]
+    var presetSplits: [Double] = [0.5, 0.5, 0.5, 0.5, 0.5]
+    var expenseIncomeA: Double = 0
+    var expenseIncomeB: Double = 0
+    var expensesUpdatedAt: Date? = nil
+
     // Snapshot of what was included in the last submitted agreement.
     var signedAssetCount: Int = 0
     var signedContribCount: Int = 0

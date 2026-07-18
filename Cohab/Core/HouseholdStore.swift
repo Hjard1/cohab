@@ -148,6 +148,16 @@ final class HouseholdStore {
             if let v = dbHousehold.budgetNetTransfer   { localHousehold.budgetNetTransfer = v }
             if let v = dbHousehold.budgetSavedAt       { localHousehold.budgetSavedAt = v }
 
+            // Live expense-split working state — keep both partners' calculators identical.
+            if let presets = dbHousehold.expensePresets, presets.count == 5 {
+                localHousehold.presetAmounts = presets.map { $0.amount }
+                localHousehold.presetPayers  = presets.map { $0.payer }
+                localHousehold.presetSplits  = presets.map { $0.splitA }
+            }
+            if let v = dbHousehold.expenseIncomeA   { localHousehold.expenseIncomeA = v }
+            if let v = dbHousehold.expenseIncomeB   { localHousehold.expenseIncomeB = v }
+            if let v = dbHousehold.expensesUpdatedAt { localHousehold.expensesUpdatedAt = v }
+
             // Update in-memory state
             household = dbHousehold
 

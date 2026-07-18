@@ -110,6 +110,31 @@ enum SupabaseService {
             .execute()
     }
 
+    /// Persists the live expense-split working state (preset rows + incomes),
+    /// so both partners see and edit the same numbers in the calculator.
+    static func updateExpensePresets(
+        householdId: UUID,
+        presets: [DBExpensePreset],
+        incomeA: Double, incomeB: Double,
+        updatedAt: Date
+    ) async throws {
+        struct Update: Encodable {
+            let expense_presets: [DBExpensePreset]
+            let expense_income_a: Double
+            let expense_income_b: Double
+            let expenses_updated_at: String
+        }
+        let iso = ISO8601DateFormatter()
+        try await supabase
+            .from("households")
+            .update(Update(
+                expense_presets: presets,
+                expense_income_a: incomeA, expense_income_b: incomeB,
+                expenses_updated_at: iso.string(from: updatedAt)))
+            .eq("id", value: householdId.uuidString)
+            .execute()
+    }
+
     /// Persists the agreement configuration that drives the contract text, so
     /// both partners generate an identical document.
     static func updateAgreementConfig(

@@ -20,10 +20,13 @@ struct ExpenseSplitView: View {
     @State private var savedBudget = false
     @State private var deleteError: String?
 
-    // Preset amounts, payers & split — loaded from / saved to UserDefaults
+    // Preset amounts, payers & split — mirrored to the Household model and
+    // pushed to Supabase (debounced) so both partners edit the same numbers.
     @State private var presetAmts: [String] = ["", "", "", "", ""]
     @State private var presetPays: [String] = ["a", "a", "a", "a", "a"]     // "a" | "b" | "both"
     @State private var presetSplits: [Double] = [0.5, 0.5, 0.5, 0.5, 0.5]   // A's share when "both"
+    @State private var lastLocalEdit = Date.distantPast
+    @State private var pushTask: Task<Void, Never>?
 
     private var presetNames: [String] {
         [strings.expenseCatHousing, strings.expenseCatCar, strings.expenseCatFood,
@@ -52,7 +55,7 @@ struct ExpenseSplitView: View {
             accumulate(into: &t, amount: e.amount, splitA: e.splitRatioA, payer: e.paidByKey)
         }
         for i in 0..<5 {
-            let amt = Double(presetAmts[i].replacingOccurrences(of: ",", with: "")) ?? 0
+            let amt = parse(presetAmts[i])
             guard amt > 0 else { continue }
             accumulate(into: &t, amount: amt, splitA: presetSplits[i], payer: presetPays[i])
         }
@@ -80,9 +83,7 @@ struct ExpenseSplitView: View {
     }
 
     private var hasAnyExpense: Bool {
-        !store.expenses.isEmpty || presetAmts.contains {
-            (Double($0.replacingOccurrences(of: ",", with: "")) ?? 0) > 0
-        }
+        !store.expenses.isEmpty || presetAmts.contains { parse($0) > 0 }
     }
 
     // MARK: Body
@@ -96,11 +97,16 @@ struct ExpenseSplitView: View {
             }
             .padding(20)
             .animation(.spring(duration: 0.35), value: store.expenses.count)
-            .onChange(of: presetAmts) { _, _ in savePresets() }
-            .onChange(of: presetPays) { _, _ in savePresets() }
-            .onChange(of: presetSplits) { _, _ in savePresets() }
-            .onChange(of: incomeAText) { _, _ in UserDefaults.standard.set(incomeAText, forKey: "cohab.income.a") }
-            .onChange(of: incomeBText) { _, _ in UserDefaults.standard.set(incomeBText, forKey: "cohab.income.b") }
+            .onChange(of: presetAmts) { _, _ in persistWorkingState() }
+            .onChange(of: presetPays) { _, _ in persistWorkingState() }
+            .onChange(of: presetSplits) { _, _ in persistWorkingState() }
+            .onChange(of: incomeAText) { _, _ in persistWorkingState() }
+            .onChange(of: incomeBText) { _, _ in persistWorkingState() }
+            .onChange(of: household?.expensesUpdatedAt) { _, ts in
+                // Remote edit from the partner — adopt it unless we typed more recently.
+                guard let h = household, let ts, ts > lastLocalEdit else { return }
+                applyFromHousehold(h)
+            }
         }
         .background(Color.cohBg.ignoresSafeArea())
         .navigationTitle(strings.calcExpenseTitle)
@@ -117,35 +123,82 @@ struct ExpenseSplitView: View {
             }
         }
         .onAppear {
-            loadPresets()
-            // Restore incomes: prefer the last typed value (persisted like presets),
-            // else fall back to the saved budget. budgetIncome* is MONTHLY net income.
-            let savedA = UserDefaults.standard.string(forKey: "cohab.income.a") ?? ""
-            let savedB = UserDefaults.standard.string(forKey: "cohab.income.b") ?? ""
-            if !savedA.isEmpty { incomeAText = savedA }
-            else if let h = household, h.budgetIncomeA > 0 { incomeAText = fmtInc(h.budgetIncomeA) }
-            if !savedB.isEmpty { incomeBText = savedB }
-            else if let h = household, h.budgetIncomeB > 0 { incomeBText = fmtInc(h.budgetIncomeB) }
-        }
-    }
-
-    // MARK: Preset persistence
-
-    private func loadPresets() {
-        for i in 0..<5 {
-            presetAmts[i] = UserDefaults.standard.string(forKey: "cohab.p\(i).amt") ?? ""
-            presetPays[i] = UserDefaults.standard.string(forKey: "cohab.p\(i).pay") ?? "a"
-            if UserDefaults.standard.object(forKey: "cohab.p\(i).split") != nil {
-                presetSplits[i] = UserDefaults.standard.double(forKey: "cohab.p\(i).split")
+            if let h = household, h.expensesUpdatedAt != nil {
+                // Synced working state exists — use it.
+                applyFromHousehold(h)
+            } else {
+                // Legacy path: migrate any UserDefaults values from before sync existed.
+                migrateLegacyDefaults()
             }
         }
     }
 
-    private func savePresets() {
+    // MARK: Working-state persistence (Household + Supabase)
+
+    /// Loads the synced working state from the Household model into the text fields.
+    /// The assignments re-trigger .onChange → persistWorkingState, which compares
+    /// against the model and no-ops because nothing actually changed.
+    private func applyFromHousehold(_ h: Household) {
         for i in 0..<5 {
-            UserDefaults.standard.set(presetAmts[i], forKey: "cohab.p\(i).amt")
-            UserDefaults.standard.set(presetPays[i], forKey: "cohab.p\(i).pay")
-            UserDefaults.standard.set(presetSplits[i], forKey: "cohab.p\(i).split")
+            presetAmts[i] = h.presetAmounts[i] > 0 ? fmt(h.presetAmounts[i]) : ""
+            presetPays[i] = h.presetPayers[i]
+            presetSplits[i] = h.presetSplits[i]
+        }
+        incomeAText = h.expenseIncomeA > 0 ? fmt(h.expenseIncomeA) : ""
+        incomeBText = h.expenseIncomeB > 0 ? fmt(h.expenseIncomeB) : ""
+    }
+
+    /// One-time migration of the old UserDefaults-based values (pre-sync builds).
+    private func migrateLegacyDefaults() {
+        let d = UserDefaults.standard
+        for i in 0..<5 {
+            if let amt = d.string(forKey: "cohab.p\(i).amt"), !amt.isEmpty { presetAmts[i] = amt }
+            if let pay = d.string(forKey: "cohab.p\(i).pay") { presetPays[i] = pay }
+            if d.object(forKey: "cohab.p\(i).split") != nil {
+                presetSplits[i] = d.double(forKey: "cohab.p\(i).split")
+            }
+        }
+        if let a = d.string(forKey: "cohab.income.a"), !a.isEmpty { incomeAText = a }
+        else if let h = household, h.budgetIncomeA > 0 { incomeAText = fmtInc(h.budgetIncomeA) }
+        if let b = d.string(forKey: "cohab.income.b"), !b.isEmpty { incomeBText = b }
+        else if let h = household, h.budgetIncomeB > 0 { incomeBText = fmtInc(h.budgetIncomeB) }
+        // The assignments above trigger persistWorkingState via .onChange,
+        // which writes them to the Household and pushes them to Supabase.
+    }
+
+    /// Mirrors the current field values into the Household model and schedules
+    /// a debounced push to Supabase. Skips no-op writes (e.g. remote echoes).
+    private func persistWorkingState() {
+        guard let h = household else { return }
+        let amts = presetAmts.map { parse($0) }
+        let incA = parse(incomeAText)
+        let incB = parse(incomeBText)
+        guard amts != h.presetAmounts || presetPays != h.presetPayers
+                || presetSplits != h.presetSplits
+                || incA != h.expenseIncomeA || incB != h.expenseIncomeB else { return }
+
+        let now = Date()
+        lastLocalEdit = now
+        h.presetAmounts = amts
+        h.presetPayers = presetPays
+        h.presetSplits = presetSplits
+        h.expenseIncomeA = incA
+        h.expenseIncomeB = incB
+        h.expensesUpdatedAt = now
+        try? modelContext.save()
+
+        pushTask?.cancel()
+        let householdId = h.id
+        let presets = (0..<5).map {
+            DBExpensePreset(amount: amts[$0], payer: presetPays[$0], splitA: presetSplits[$0])
+        }
+        pushTask = Task {
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            guard !Task.isCancelled else { return }
+            try? await SupabaseService.updateExpensePresets(
+                householdId: householdId, presets: presets,
+                incomeA: incA, incomeB: incB, updatedAt: now
+            )
         }
     }
 
@@ -245,7 +298,7 @@ struct ExpenseSplitView: View {
                     Text(symbol).font(.caption).foregroundStyle(.secondary)
                     TextField("0", text: Binding(
                         get: { presetAmts[i] },
-                        set: { presetAmts[i] = $0; savePresets() }
+                        set: { presetAmts[i] = $0 }
                     ))
                     .keyboardType(.decimalPad)
                     .font(.subheadline.monospacedDigit())
@@ -256,13 +309,13 @@ struct ExpenseSplitView: View {
                 // Payer toggle — A / Both / B
                 HStack(spacing: 4) {
                     payerPill(nameA, key: "a", current: presetPays[i], color: Color.cohGreen) {
-                        presetPays[i] = "a"; savePresets()
+                        presetPays[i] = "a"
                     }
                     payerPill(strings.expenseBoth, key: "both", current: presetPays[i], color: Color.cohInk) {
-                        presetPays[i] = "both"; savePresets()
+                        presetPays[i] = "both"
                     }
                     payerPill(nameB, key: "b", current: presetPays[i], color: blueColor) {
-                        presetPays[i] = "b"; savePresets()
+                        presetPays[i] = "b"
                     }
                 }
             }
@@ -271,7 +324,7 @@ struct ExpenseSplitView: View {
                 splitSlider(
                     ratioA: Binding(
                         get: { presetSplits[i] },
-                        set: { presetSplits[i] = $0; savePresets() }
+                        set: { presetSplits[i] = $0 }
                     ),
                     colorA: Color.cohGreen, colorB: blueColor
                 )
@@ -543,7 +596,16 @@ struct ExpenseSplitView: View {
         }
     }
 
-    private func parse(_ s: String) -> Double { Double(s.replacingOccurrences(of: ",", with: "")) ?? 0 }
+    /// Parses a typed/formatted amount. Strips grouping separators — commas
+    /// (en) and spaces incl. non-breaking (nb/sv) — so locale-formatted values
+    /// round-trip correctly (e.g. "12,000" and "12 000" both parse to 12000).
+    private func parse(_ s: String) -> Double {
+        let cleaned = s
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "\u{00A0}", with: "")
+        return Double(cleaned) ?? 0
+    }
     private func fmt(_ v: Double) -> String {
         let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
         return f.string(from: NSNumber(value: v)) ?? "0"
