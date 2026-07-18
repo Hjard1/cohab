@@ -52,7 +52,10 @@ struct InvitePartnerView: View {
                             .disabled(isGenerating)
                         } else {
                             if let url = inviteURL {
-                                ShareLink(item: url) {
+                                // The message tells the recipient to install the
+                                // app first — the cohab:// link only opens when
+                                // the app is already on their phone.
+                                ShareLink(item: url, message: Text(strings.inviteShareMessage)) {
                                     HStack(spacing: 8) {
                                         Image(systemName: "square.and.arrow.up")
                                         Text(strings.inviteShare).fontWeight(.semibold)
