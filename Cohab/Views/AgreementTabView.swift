@@ -10,12 +10,14 @@ struct AgreementTabView: View {
     @State private var submission: DocuSealSubmission?
     @State private var isGenerating = false
     @State private var agreementError: String?
-    @State private var showEmailPrompt = false
-    @State private var draftEmailA = ""
-    @State private var draftEmailB = ""
     @State private var isCheckingStatus = false
     @State private var lastChecked: Date? = nil
     @State private var showResetConfirm = false
+    @State private var showNewVersionConfirm = false
+    @State private var showPaywall = false
+    @State private var advancedExpanded = false
+    @State private var showHowItWorks = false
+    @FocusState private var rentAmountFocused: Bool
     @ObservedObject private var strings = AppStrings.shared
 
     private var household: Household? { households.first }
@@ -26,11 +28,7 @@ struct AgreementTabView: View {
     }
 
     var body: some View {
-        if !pm.hasFormalAccess {
-            PaywallView()
-        } else {
-            agreementContent
-        }
+        agreementContent
     }
 
     private var agreementContent: some View {
@@ -39,8 +37,10 @@ struct AgreementTabView: View {
                 Color.cohBg.ignoresSafeArea()
 
                 if let h = household, h.isFormalMode {
-                    // Show wizard on first visit when no agreement created yet
-                    if !introSeen && h.agreementStatus == "none" {
+                    // Show wizard on first visit when no agreement created yet.
+                    // Married couples skip the promotional intro — the agreement stays
+                    // reachable via the neutral status card in formalContent instead.
+                    if !introSeen && h.agreementStatus == "none" && h.relationshipType != "married" {
                         AgreementIntroView(household: h) {
                             introSeen = true
                         }
@@ -64,82 +64,11 @@ struct AgreementTabView: View {
                 )
             }
         }
-        .sheet(isPresented: $showEmailPrompt) {
-            emailSheet
-        }
         .sheet(isPresented: $showContractPreview) {
             if let h = household { ContractPreviewView(household: h) }
         }
-    }
-
-    private var emailSheet: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                Text(strings.agreementAddSigningEmails)
-                    .font(.title3.bold()).foregroundStyle(Color.cohInk)
-                Text(strings.agreementEmailBothNeed)
-                    .font(.subheadline).foregroundStyle(.secondary)
-
-                if let h = household {
-                    VStack(spacing: 14) {
-                        emailField(label: "\(h.partnerAName)\(strings.agreementPartnerEmailSuffix)", text: $draftEmailA)
-                        emailField(label: "\(h.partnerBName)\(strings.agreementPartnerEmailSuffix)", text: $draftEmailB)
-                    }
-                }
-
-                Spacer()
-
-                Button {
-                    if let h = household {
-                        h.emailA = draftEmailA.trimmingCharacters(in: .whitespaces)
-                        h.emailB = draftEmailB.trimmingCharacters(in: .whitespaces)
-                    }
-                    showEmailPrompt = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        submission = nil
-                        agreementError = nil
-                        showSigningSheet = true
-                    }
-                } label: {
-                    Text(strings.agreementSaveAndContinue)
-                        .font(.headline).foregroundStyle(.white)
-                        .frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .background(
-                            canSaveEmails ? Color.cohGreen : Color.cohGreen.opacity(0.35),
-                            in: RoundedRectangle(cornerRadius: 14)
-                        )
-                }
-                .disabled(!canSaveEmails)
-            }
-            .padding(24)
-            .background(Color.cohBg.ignoresSafeArea())
-            .navigationTitle("").navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(strings.cancel) { showEmailPrompt = false }
-                }
-            }
-        }
-    }
-
-    private var canSaveEmails: Bool {
-        draftEmailA.contains("@") && draftEmailB.contains("@")
-    }
-
-    private func emailField(label: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label.uppercased())
-                .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
-            TextField("email@example.com", text: text)
-                .textContentType(.emailAddress)
-                .keyboardType(.emailAddress)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .font(.body)
-                .padding(.horizontal, 16).padding(.vertical, 14)
-                .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 1))
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
         }
     }
 
@@ -166,16 +95,25 @@ struct AgreementTabView: View {
                 // Status banner
                 statusBanner(h)
 
-                // How it works — waterfall principle
-                howItWorksCard
-
-                // Clauses card
+                // Linear wizard: configure everything first…
+                // 1. What's included (summary)
                 clausesCard(h)
 
-                // Advanced optional clauses
+                // 2. Rental details — only relevant for a rental agreement
+                if h.agreementType == "rental" {
+                    rentalDetailsCard(h)
+                }
+
+                // 3. Advanced optional clauses
                 advancedClausesCard(h)
 
-                // Actions
+                // …then review the assembled document…
+                previewButton
+
+                // How settlement works — collapsible (already covered in the intro)
+                howItWorksDisclosure
+
+                // …then act (send for signing / view).
                 actionsCard(h)
 
                 // Update notice
@@ -232,7 +170,7 @@ struct AgreementTabView: View {
                     Button {
                         isCheckingStatus = true
                         Task {
-                            await DocuSealService.checkSigned(household: h)
+                            _ = await DocuSealService.checkSigned(household: h)
                             lastChecked = Date()
                             isCheckingStatus = false
                         }
@@ -321,24 +259,55 @@ struct AgreementTabView: View {
                     detail: strings.agreementDissolutionSub
                 )
             }
-
-            Divider()
-
-            // Preview full contract text
-            Button { showContractPreview = true } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .font(.subheadline).foregroundStyle(Color.cohGreen)
-                    Text(strings.agreementPreviewFullContract)
-                        .font(.subheadline.weight(.medium)).foregroundStyle(Color.cohGreen)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption.bold()).foregroundStyle(Color.cohTertiary)
-                }
-            }
-            .buttonStyle(.plain)
         }
         .padding(18)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    // MARK: - Preview full contract (own step, after configuration)
+
+    private var previewButton: some View {
+        Button { showContractPreview = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.subheadline).foregroundStyle(Color.cohGreen)
+                Text(strings.agreementPreviewFullContract)
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Color.cohGreen)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold()).foregroundStyle(Color.cohTertiary)
+            }
+            .padding(18)
+            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - How it works (collapsible disclosure)
+
+    private var howItWorksDisclosure: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.spring(duration: 0.3)) { showHowItWorks.toggle() }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "shield.checkered")
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(Color.cohGreen)
+                    Text(strings.agreementHowItWorksTitle)
+                        .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
+                    Spacer()
+                    Image(systemName: showHowItWorks ? "chevron.up" : "chevron.down")
+                        .font(.caption.bold()).foregroundStyle(.secondary)
+                }
+                .padding(18)
+            }
+            .buttonStyle(.plain)
+            if showHowItWorks {
+                howItWorksSteps.padding(.bottom, 4)
+            }
+        }
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
         .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
     }
@@ -366,6 +335,92 @@ struct AgreementTabView: View {
         }
     }
 
+    // MARK: - Rental details card
+
+    private func rentalDetailsCard(_ h: Household) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(strings.agreementRentalDetailsTitle)
+                .font(.subheadline.bold())
+                .foregroundStyle(Color.cohInk)
+            Text(strings.agreementRentalDetailsSub)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(strings.agreementRentalWhoPays)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                VStack(spacing: 8) {
+                    rentPayerRow(h, value: "a", label: h.partnerAName)
+                    rentPayerRow(h, value: "", label: strings.agreementRentalBothToLandlord)
+                    rentPayerRow(h, value: "b", label: h.partnerBName)
+                }
+            }
+
+            HStack {
+                Text(strings.agreementRentalAmountLabel)
+                    .font(.subheadline).foregroundStyle(Color.cohInk)
+                Spacer()
+                HStack(spacing: 4) {
+                    Text(h.currencySymbol).foregroundStyle(.secondary)
+                    TextField("0", text: Binding(
+                        get: { h.rentAmount > 0 ? String(Int(h.rentAmount)) : "" },
+                        set: { h.rentAmount = Double($0) ?? 0 }
+                    ))
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 90)
+                    .focused($rentAmountFocused)
+                }
+            }
+
+            Stepper(value: Binding(
+                get: { h.rentPaymentDay },
+                set: { h.rentPaymentDay = $0 }
+            ), in: 1...28) {
+                Text("\(strings.agreementRentalPaymentDayLabel) \(h.rentPaymentDay)")
+                    .font(.subheadline).foregroundStyle(Color.cohInk)
+            }
+        }
+        .padding(18)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button(strings.done) { rentAmountFocused = false }
+            }
+        }
+    }
+
+    private func rentPayerRow(_ h: Household, value: String, label: String) -> some View {
+        let isSelected = h.rentPayerKey == value
+        return Button {
+            h.rentPayerKey = value
+        } label: {
+            HStack {
+                Text(label)
+                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? Color.cohInk : .secondary)
+                Spacer()
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? Color.cohGreen : Color(.tertiaryLabel))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(
+                isSelected ? Color.cohGreen.opacity(0.08) : Color(.systemGray6),
+                in: RoundedRectangle(cornerRadius: 12)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(isSelected ? Color.cohGreen.opacity(0.35) : .clear, lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private func clauses(for h: Household) -> [(title: String, subtitle: String)] {
         var result = [(title: String, subtitle: String)]()
         result.append(("Property ownership", ""))
@@ -379,65 +434,85 @@ struct AgreementTabView: View {
     // MARK: - Actions card
 
     private func actionsCard(_ h: Household) -> some View {
-        VStack(spacing: 12) {
-            if missingEmails {
-                emailPromptCard(h)
-            }
+        let isSignedFinal = h.agreementStatus == "signed" && !h.agreementNeedsUpdate
 
-            // Primary action
-            let (label, color) = primaryAction(for: h)
-            Button {
-                if missingEmails {
-                    draftEmailA = h.emailA
-                    draftEmailB = h.emailB
-                    showEmailPrompt = true
-                } else {
-                    submission = nil
-                    agreementError = nil
-                    showSigningSheet = true
-                }
-            } label: {
-                Text(label)
-                    .font(.headline).foregroundStyle(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 16)
-                    .background(color, in: RoundedRectangle(cornerRadius: 14))
-            }
-
-            if h.agreementStatus == "signed", !h.docusealViewUrl.isEmpty,
-               let url = URL(string: h.docusealViewUrl) {
-                Button { UIApplication.shared.open(url) } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.up.right.square")
-                        Text(strings.agreementViewDownload)
+        return VStack(spacing: 12) {
+            if isSignedFinal {
+                // Signed & up to date: NO "generate" primary (that would silently
+                // create a new submission and reset status). Offer view + an
+                // explicit, confirmed "create new version" instead.
+                if !h.docusealViewUrl.isEmpty, let url = URL(string: h.docusealViewUrl) {
+                    Button { UIApplication.shared.open(url) } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.up.right.square")
+                            Text(strings.agreementViewDownload)
+                        }
+                        .font(.headline).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).padding(.vertical, 16)
+                        .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
                     }
-                    .font(.headline).foregroundStyle(Color.cohInk)
-                    .frame(maxWidth: .infinity).padding(.vertical, 16)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(Color.cohInk.opacity(0.2), lineWidth: 1.5)
-                    )
                 }
-            }
-
-            // Reset option when pending — lets user cancel and generate a fresh PDF
-            if h.agreementStatus == "pending" {
-                Button { showResetConfirm = true } label: {
-                    Text(strings.agreementGenerateFresh)
+                Button { showNewVersionConfirm = true } label: {
+                    Text(strings.agreementCreateNewVersion)
                         .font(.subheadline)
                         .foregroundStyle(Color.cohSecondary)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
                 .confirmationDialog(
-                    strings.agreementCancelSigningTitle,
-                    isPresented: $showResetConfirm,
+                    strings.agreementCreateNewVersionTitle,
+                    isPresented: $showNewVersionConfirm,
                     titleVisibility: .visible
                 ) {
-                    Button(strings.agreementYesGenerateNew, role: .destructive) {
+                    Button(strings.agreementCreateNewVersion, role: .destructive) {
                         resetAgreement(h)
                     }
                 } message: {
-                    Text(strings.agreementCancelSigningMessage)
+                    Text(strings.agreementCreateNewVersionMessage)
+                }
+            } else {
+                if missingEmails {
+                    emailPromptCard(h)
+                }
+
+                let (label, color) = primaryAction(for: h)
+                Button {
+                    if !pm.hasFormalAccess {
+                        showPaywall = true
+                    } else {
+                        // Always route through the review → confirm recipients →
+                        // send sheet. Email capture lives inside that sheet now.
+                        submission = nil
+                        agreementError = nil
+                        showSigningSheet = true
+                    }
+                } label: {
+                    Text(label)
+                        .font(.headline).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).padding(.vertical, 16)
+                        .background(color, in: RoundedRectangle(cornerRadius: 14))
+                }
+
+                // Reset option when pending — lets user cancel and start fresh
+                if h.agreementStatus == "pending" {
+                    Button { showResetConfirm = true } label: {
+                        Text(strings.agreementGenerateFresh)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.cohSecondary)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                    .confirmationDialog(
+                        strings.agreementCancelSigningTitle,
+                        isPresented: $showResetConfirm,
+                        titleVisibility: .visible
+                    ) {
+                        Button(strings.agreementYesGenerateNew, role: .destructive) {
+                            resetAgreement(h)
+                        }
+                    } message: {
+                        Text(strings.agreementCancelSigningMessage)
+                    }
                 }
             }
         }
@@ -455,7 +530,7 @@ struct AgreementTabView: View {
     private func primaryAction(for h: Household) -> (String, Color) {
         if h.agreementNeedsUpdate  { return (strings.agreementUpdate, .orange) }
         if h.agreementStatus == "pending" { return (strings.agreementViewSigning, Color.cohGreen) }
-        return (strings.agreementGenerate, Color.cohGreen)
+        return (strings.agreementReviewAndSend, Color.cohGreen)
     }
 
     // MARK: - Update notice
@@ -491,34 +566,35 @@ struct AgreementTabView: View {
     // MARK: - Advanced clauses card
 
     private func advancedClausesCard(_ h: Household) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let activeCount = [h.includeSeparatePropertyClause, h.includeBuyoutRightsClause,
+                           h.includeDisposalConsentClause, h.includeDisputeResolutionClause,
+                           h.includeDebtClause].filter { $0 }.count
+        return VStack(alignment: .leading, spacing: 0) {
+            // Chevron is PURE UI expand/collapse — it never clears selections.
+            // The contract generator reads each clause flag directly, so collapsing
+            // the section simply hides the rows; toggled clauses stay active.
             Button {
-                h.includeAdvancedClauses.toggle()
-                if !h.includeAdvancedClauses {
-                    h.includeSeparatePropertyClause = false
-                    h.includeBuyoutRightsClause = false
-                    h.includeDisposalConsentClause = false
-                    h.includeDisputeResolutionClause = false
-                    h.includeDebtClause = false
-                }
+                withAnimation(.spring(duration: 0.3)) { advancedExpanded.toggle() }
             } label: {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(strings.agreementAdvancedTitle)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Color.cohInk)
-                        Text(strings.agreementAdvancedSub)
-                            .font(.caption).foregroundStyle(.secondary)
+                        Text(activeCount > 0 && !advancedExpanded
+                             ? "\(activeCount) \(strings.agreementClausesSelected)"
+                             : strings.agreementAdvancedSub)
+                            .font(.caption).foregroundStyle(activeCount > 0 && !advancedExpanded ? Color.cohGreen : .secondary)
                     }
                     Spacer()
-                    Image(systemName: h.includeAdvancedClauses ? "chevron.up" : "chevron.down")
+                    Image(systemName: advancedExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption.bold()).foregroundStyle(.secondary)
                 }
                 .padding(18)
             }
             .buttonStyle(.plain)
 
-            if h.includeAdvancedClauses {
+            if advancedExpanded {
                 Divider().padding(.horizontal, 18)
                 VStack(spacing: 0) {
                     advancedToggle(
@@ -597,34 +673,37 @@ struct AgreementTabView: View {
             }
             .padding(.horizontal, 18).padding(.top, 18).padding(.bottom, 20)
 
-            // Flow steps with connecting line
-            VStack(spacing: 0) {
-                flowStep(
-                    step: 1, total: 3,
-                    color: Color.cohGreen,
-                    icon: "arrow.up.circle.fill",
-                    title: strings.agreementWaterfallStep1Title,
-                    body: strings.agreementWaterfallStep1Body
-                )
-                flowStep(
-                    step: 2, total: 3,
-                    color: Color.cohBlue,
-                    icon: "chart.pie.fill",
-                    title: strings.agreementWaterfallStep2Title,
-                    body: strings.agreementWaterfallStep2Body
-                )
-                flowStep(
-                    step: 3, total: 3,
-                    color: .orange,
-                    icon: "exclamationmark.triangle.fill",
-                    title: strings.agreementWaterfallStep3Title,
-                    body: strings.agreementWaterfallStep3Body
-                )
-            }
-            .padding(.bottom, 4)
+            howItWorksSteps.padding(.bottom, 4)
         }
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
         .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    // Flow steps with connecting line — shared by the card and the disclosure.
+    private var howItWorksSteps: some View {
+        VStack(spacing: 0) {
+            flowStep(
+                step: 1, total: 3,
+                color: Color.cohGreen,
+                icon: "arrow.up.circle.fill",
+                title: strings.agreementWaterfallStep1Title,
+                body: strings.agreementWaterfallStep1Body
+            )
+            flowStep(
+                step: 2, total: 3,
+                color: Color.cohBlue,
+                icon: "chart.pie.fill",
+                title: strings.agreementWaterfallStep2Title,
+                body: strings.agreementWaterfallStep2Body
+            )
+            flowStep(
+                step: 3, total: 3,
+                color: .orange,
+                icon: "exclamationmark.triangle.fill",
+                title: strings.agreementWaterfallStep3Title,
+                body: strings.agreementWaterfallStep3Body
+            )
+        }
     }
 
     private func flowStep(step: Int, total: Int, color: Color,

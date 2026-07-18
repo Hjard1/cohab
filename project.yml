@@ -6,13 +6,16 @@ options:
   createIntermediateGroups: true
 settings:
   base:
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
 packages:
   GoogleSignIn:
     url: https://github.com/google/GoogleSignIn-iOS
     from: "8.0.0"
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: "2.0.0"
 targets:
   Cohab:
     type: application
@@ -26,16 +29,22 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: Cohab/Cohab.entitlements
         DEVELOPMENT_TEAM: V83XPV3UQD
         GOOGLE_REVERSED_CLIENT_ID: com.googleusercontent.apps.202318303891-bk19jn92jfdg01t6r3p7v6nqp53gk9ai
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     dependencies:
       - package: GoogleSignIn
+      - package: Supabase
     info:
       path: Cohab/Info.plist
       properties:
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - $(GOOGLE_REVERSED_CLIENT_ID)
+          - CFBundleURLSchemes:
+              - cohab
         LSApplicationQueriesSchemes:
           - googlegmail
           - googlegmail-hd

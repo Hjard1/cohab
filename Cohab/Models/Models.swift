@@ -108,7 +108,7 @@ enum AssetType: String, CaseIterable {
         switch self {
         case .home:       return "house.fill"
         case .car:        return "car.fill"
-        case .cabin:      return "house.lodge.fill"
+        case .cabin:      return "tent.fill"
         case .investment: return "chart.line.uptrend.xyaxis"
         case .savings:    return "banknote.fill"
         case .furniture:  return "sofa.fill"
@@ -231,28 +231,30 @@ enum AssetType: String, CaseIterable {
     }
 
     var ownershipHint: String {
+        let s = AppStrings.shared
         switch self {
         case .home, .cabin:
-            return "Percentage registered at the land registry (title deed). Use the Ownership calculator if you're unsure."
+            return s.localized(en: "Percentage registered at the land registry (title deed).", nb: "Prosentandel registrert i matrikkelen (skjøtet).", sv: "Procentandel registrerad i fastighetsregistret (lagfart).", da: "Procentandel registreret i tingbogen (skøde).", fi: "Kiinteistörekisteriin merkitty prosenttiosuus (lainhuuto).", de: "Im Grundbuch eingetragener Prozentsatz (Urkunde).", fr: "Pourcentage enregistré au cadastre (acte de propriété).", es: "Porcentaje registrado en el registro de la propiedad (escritura).")
         case .car:
-            return "Who legally owns the vehicle? Split if jointly purchased and financed."
+            return s.localized(en: "Who legally owns the vehicle? Split if jointly purchased and financed.", nb: "Hvem eier kjøretøyet juridisk? Del hvis det er kjøpt og finansiert sammen.", sv: "Vem äger fordonet juridiskt? Dela om det köptes och finansierades tillsammans.", da: "Hvem ejer køretøjet juridisk? Del det, hvis det er købt og finansieret sammen.", fi: "Kuka omistaa ajoneuvon juridisesti? Jakakaa se, jos se on ostettu ja rahoitettu yhdessä.", de: "Wer besitzt das Fahrzeug rechtlich? Teilen Sie es auf, wenn es gemeinsam gekauft und finanziert wurde.", fr: "Qui possède légalement le véhicule ? Répartissez-le s'il a été acheté et financé ensemble.", es: "¿Quién es el propietario legal del vehículo? Divídelo si se compró y financió conjuntamente.")
         case .investment:
-            return "Proportion of this portfolio each partner holds."
+            return s.localized(en: "Proportion of this portfolio each partner holds.", nb: "Andel av denne porteføljen hver partner eier.", sv: "Andel av denna portfölj som varje partner äger.", da: "Andel af denne portefølje, som hver partner ejer.", fi: "Osuus tästä salkusta, jonka kumpikin omistaa.", de: "Anteil dieses Portfolios, den jeder Partner hält.", fr: "Part de ce portefeuille détenue par chaque partenaire.", es: "Proporción de esta cartera que posee cada miembro.")
         case .savings:
-            return "Share each partner holds in this account."
+            return s.localized(en: "Share each partner holds in this account.", nb: "Andel hver partner har i denne kontoen.", sv: "Andel som varje partner har på detta konto.", da: "Andel hver partner har på denne konto.", fi: "Osuus, joka kummallakin on tällä tilillä.", de: "Anteil, den jeder Partner auf diesem Konto hat.", fr: "Part détenue par chaque partenaire sur ce compte.", es: "Parte que posee cada miembro en esta cuenta.")
         case .furniture:
-            return "Overall ownership split. Individual items can be assigned per person."
+            return s.localized(en: "Overall ownership split. Individual items can be assigned per person.", nb: "Total eierskap. Enkeltgjenstander kan tilordnes per person.", sv: "Totalt ägande. Enskilda föremål kan tilldelas per person.", da: "Samlet ejerskab. Enkeltgenstande kan tildeles pr. person.", fi: "Kokonaisomistus. Yksittäiset esineet voidaan kohdistaa henkilölle.", de: "Gesamtanteil. Einzelne Gegenstände können einer Person zugeordnet werden.", fr: "Répartition globale. Les objets individuels peuvent être attribués à chacun.", es: "Propiedad global. Los artículos individuales pueden asignarse a cada persona.")
         case .pet:
-            return "Who is the primary owner of this pet?"
+            return s.localized(en: "Who is the primary owner of this pet?", nb: "Hvem er primær eier av dette kjæledyret?", sv: "Vem är huvudsaklig ägare till detta husdjur?", da: "Hvem er den primære ejer af dette kæledyr?", fi: "Kuka on tämän lemmikin ensisijainen omistaja?", de: "Wer ist der Haupteigentümer dieses Haustiers?", fr: "Qui est le propriétaire principal de cet animal ?", es: "¿Quién es el propietario principal de esta mascota?")
         case .other:
-            return "Proportion each partner owns of this asset."
+            return s.localized(en: "Proportion each partner owns of this asset.", nb: "Andel hver partner eier av denne eiendelen.", sv: "Andel som varje partner äger av denna tillgång.", da: "Andel hver partner ejer af dette aktiv.", fi: "Osuus tästä omaisuudesta, jonka kumpikin omistaa.", de: "Anteil dieses Vermögenswerts, den jeder Partner besitzt.", fr: "Part de cet actif détenue par chaque partenaire.", es: "Proporción de este activo que posee cada miembro.")
         }
     }
 
     var ownershipLabel: String {
+        let s = AppStrings.shared
         switch self {
-        case .home, .cabin: return "registered share"
-        default:            return "ownership share"
+        case .home, .cabin: return s.localized(en: "registered share", nb: "registrert andel", sv: "registrerad andel", da: "registreret andel", fi: "rekisteröity osuus", de: "eingetragener Anteil", fr: "quote-part enregistrée", es: "cuota registrada")
+        default:            return s.localized(en: "ownership share", nb: "eierandel", sv: "ägarandel", da: "ejerandel", fi: "omistusosuus", de: "Eigentumsanteil", fr: "quote-part", es: "cuota de propiedad")
         }
     }
 
@@ -334,7 +336,14 @@ final class Household {
     var docusealSlug: String = ""
     var docusealViewUrl: String = ""           // signingUrlA — usable as view/download link post-signing
     var signedAt: Date? = nil
-    var relationshipType: String = "couple"    // "couple" | "housemates" | "business"
+    var relationshipType: String = "partner"   // "partner" | "friend" | "married"
+    var agreementType: String = "cohabitation" // "cohabitation" | "rental"
+
+    // Rental details — only meaningful when agreementType == "rental".
+    // Local-only, like the advanced clause toggles below (not synced to Supabase).
+    var rentPayerKey: String = ""   // "a" | "b" | "" (both rent jointly from a third-party landlord)
+    var rentAmount: Double = 0
+    var rentPaymentDay: Int = 1     // day of month, 1-28
 
     init(
         partnerAName: String,
@@ -346,7 +355,8 @@ final class Household {
         includeDissolutionClause: Bool = true,
         emailA: String = "",
         emailB: String = "",
-        relationshipType: String = "couple"
+        relationshipType: String = "partner",
+        agreementType: String = "cohabitation"
     ) {
         self.id = UUID()
         self.partnerAName = partnerAName
@@ -362,6 +372,7 @@ final class Household {
         self.agreementStatus = "none"
         self.docusealSlug = ""
         self.relationshipType = relationshipType
+        self.agreementType = agreementType
         self.assets = []
         self.expenses = []
     }
@@ -375,7 +386,15 @@ final class Household {
     var budgetSplitA: Double = 0.5     // Partner A's fraction of shared costs
     var budgetFairnessMode: String = "" // "byIncome" | "equalLeft"
     var budgetSavedAt: Date? = nil
+    // Physical amount each partner pays out, and the net settling transfer.
+    var budgetPaysA: Double = 0
+    var budgetPaysB: Double = 0
+    var budgetNetTransfer: Double = 0  // + = B owes A, − = A owes B (per month)
     var hasBudget: Bool { budgetTotalExpenses > 0 }
+
+    /// What each partner effectively bears after the transfer settles.
+    var budgetEffectivePayA: Double { budgetPaysA - budgetNetTransfer }
+    var budgetEffectivePayB: Double { budgetPaysB + budgetNetTransfer }
 
     // Snapshot of what was included in the last submitted agreement.
     var signedAssetCount: Int = 0
@@ -389,7 +408,15 @@ final class Household {
         let totalContrib = assets.flatMap { $0.contributions }.reduce(0.0) { $0 + $1.amount }
         let ownership    = assets.sorted { $0.id.uuidString < $1.id.uuidString }
                                  .map { String(Int($0.ownershipShareA * 100)) }.joined(separator: ",")
-        return "\(assets.count)|\(assets.reduce(0){$0+$1.contributions.count})|\(Int(totalValue))|\(Int(totalLoan))|\(Int(totalContrib))|\(ownership)"
+        // Rate is printed in the contract, so a change must flag a re-sign.
+        let rate = String(format: "%.4f", annualInterestRate)
+        // Rental terms + advanced clause toggles also change the contract text.
+        let clauses = [includeSeparatePropertyClause, includeBuyoutRightsClause,
+                       includeDisposalConsentClause, includeDisputeResolutionClause,
+                       includeDebtClause, includeDissolutionClause]
+                       .map { $0 ? "1" : "0" }.joined()
+        let rental = "\(Int(rentAmount))/\(rentPayerKey)/\(rentPaymentDay)"
+        return "\(assets.count)|\(assets.reduce(0){$0+$1.contributions.count})|\(Int(totalValue))|\(Int(totalLoan))|\(Int(totalContrib))|\(ownership)|\(rate)|\(clauses)|\(rental)"
     }
 
     /// True when any agreement-relevant data has changed since the last submission.
@@ -444,7 +471,9 @@ final class Asset {
     var remainingLoan: Double
     var salesCostFraction: Double
     var ownershipShareA: Double
+    var sortOrder: Int
     var purchaseDate: Date
+    var isOwnershipRegistered: Bool?
 
     @Relationship(deleteRule: .cascade) var contributions: [ContributionRecord]
     @Relationship(deleteRule: .cascade) var furnitureItems: [FurnitureItem]
@@ -457,7 +486,9 @@ final class Asset {
         remainingLoan: Double = 0,
         salesCostFraction: Double = 0.02,
         ownershipShareA: Double = 0.5,
-        purchaseDate: Date = Date()
+        sortOrder: Int = 0,
+        purchaseDate: Date = Date(),
+        isOwnershipRegistered: Bool? = nil
     ) {
         self.id = UUID()
         self.assetType = assetType
@@ -467,7 +498,9 @@ final class Asset {
         self.remainingLoan = remainingLoan
         self.salesCostFraction = salesCostFraction
         self.ownershipShareA = ownershipShareA
+        self.sortOrder = sortOrder
         self.purchaseDate = purchaseDate
+        self.isOwnershipRegistered = isOwnershipRegistered
         self.contributions = []
         self.furnitureItems = []
     }

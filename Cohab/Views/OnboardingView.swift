@@ -3,24 +3,31 @@ import SwiftData
 import GoogleSignIn
 
 struct OnboardingView: View {
+    private let onFinished: () -> Void
+
     @Environment(\.modelContext) private var modelContext
     @AppStorage("onboardingComplete") private var onboardingComplete = false
+    @AppStorage("wasSignedOut") private var wasSignedOut = false
     @EnvironmentObject private var auth: AuthManager
 
-    // 0=welcome, 1=country, 2=partners, 3=cohab-option, 4=add-asset, 5=ready
+    // 0=welcome, 1=country, 2=partners, 3=relationship, 4=cohab-option, 5=agreement-type, 6=add-asset, 7=ready
     @State private var step = 0
     @State private var setupMode = "formal"
     @State private var nameA = ""
     @State private var nameB = ""
     @State private var emailA = ""
     @State private var emailB = ""
-    @State private var relationshipType = "couple"
+    @State private var relationshipType = "partner"
+    @State private var agreementType = "cohabitation"
     @State private var selectedCountry = CohabCountry.defaults.first(where: { $0.code == "GB" }) ?? CohabCountry.defaults[0]
     @State private var selectedAssetTypes: Set<AssetType> = [.home]
     @State private var disclaimerAccepted = false
     @State private var showDisclaimerSheet = false
+    @State private var showDisclaimerRequiredAlert = false
     @State private var showSignIn = false
     @State private var googleSignInError: String?
+    @State private var finishError: String?
+    @State private var isFinishing = false
 
     // Partner invite flow (step 2)
     @State private var inviteAnswer: String? = nil   // nil / "yes" / "later"
@@ -31,12 +38,16 @@ struct OnboardingView: View {
 
     private var s: AppStrings { AppStrings.shared }
 
+    init(onFinished: @escaping () -> Void = {}) {
+        self.onFinished = onFinished
+    }
+
     var body: some View {
         ZStack {
             Color.cohBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                if step > 0 && step < 5 {
+                if step > 0 && step < 7 {
                     HStack(spacing: 12) {
                         Button {
                             withAnimation(.easeInOut(duration: 0.32)) { step -= 1 }
@@ -58,8 +69,10 @@ struct OnboardingView: View {
                     case 0: welcomeStep
                     case 1: countryStep
                     case 2: partnersStep
-                    case 3: cohabOptionStep
-                    case 4: addAssetStep
+                    case 3: relationshipStep
+                    case 4: cohabOptionStep
+                    case 5: agreementTypeStep
+                    case 6: addAssetStep
                     default: readyStep
                     }
                 }
@@ -78,6 +91,19 @@ struct OnboardingView: View {
         }
         .sheet(isPresented: $showDisclaimerSheet) { disclaimerSheet }
         .sheet(isPresented: $showSignIn) { SignInView() }
+        .alert(s.disclaimerTitle, isPresented: $showDisclaimerRequiredAlert) {
+            Button(s.ok, role: .cancel) { }
+        } message: {
+            Text(s.onboardingAcceptDisclaimerToContinue)
+        }
+        .alert(s.error, isPresented: Binding(
+            get: { finishError != nil },
+            set: { if !$0 { finishError = nil } }
+        )) {
+            Button(s.ok, role: .cancel) { finishError = nil }
+        } message: {
+            Text(finishError ?? "")
+        }
     }
 
     // MARK: - Progress bar
@@ -87,7 +113,7 @@ struct OnboardingView: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.cohGreen.opacity(0.15)).frame(height: 3)
                 Capsule().fill(Color.cohGreen)
-                    .frame(width: max(0, g.size.width * CGFloat(step - 1) / 4.0), height: 3)
+                    .frame(width: max(0, g.size.width * CGFloat(step - 1) / 6.0), height: 3)
                     .animation(.easeInOut(duration: 0.3), value: step)
             }
         }
@@ -168,6 +194,12 @@ struct OnboardingView: View {
                             advance()
                         } onError: { err in
                             googleSignInError = err.localizedDescription
+                        }
+
+                        AppleSignInButtonView {
+                            advance()
+                        } onError: { msg in
+                            googleSignInError = msg
                         }
 
                         Button { showSignIn = true } label: {
@@ -342,14 +374,132 @@ struct OnboardingView: View {
         return !nameB.trimmingCharacters(in: .whitespaces).isEmpty  // has partner name
     }
 
-    // MARK: - Step 3: Cohab Option
+    // MARK: - Step 3: Relationship type
+
+    private var relationshipStep: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            stepHeader(s.onboardingRelationshipTitle, subtitle: s.onboardingRelationshipSub)
+
+            VStack(spacing: 14) {
+                relationshipOption(
+                    value: "partner", icon: "heart.fill", color: Color.cohGreen,
+                    title: s.onboardingRelPartner, subtitle: s.onboardingRelPartnerSub)
+                relationshipOption(
+                    value: "friend", icon: "person.2.fill", color: Color(red: 0.20, green: 0.47, blue: 0.83),
+                    title: s.onboardingRelFriend, subtitle: s.onboardingRelFriendSub)
+                relationshipOption(
+                    value: "married", icon: "figure.2.arms.open", color: Color(red: 0.54, green: 0.31, blue: 0.96),
+                    title: s.onboardingRelMarried, subtitle: s.onboardingRelMarriedSub)
+            }
+            .padding(.horizontal, 28)
+
+            Spacer()
+        }
+    }
+
+    private func relationshipOption(
+        value: String, icon: String, color: Color, title: String, subtitle: String
+    ) -> some View {
+        Button {
+            relationshipType = value
+            advance()
+        } label: {
+            HStack(alignment: .top, spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(color.opacity(0.10))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: icon)
+                        .font(.title3).foregroundStyle(color)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title).font(.headline).foregroundStyle(Color.cohInk)
+                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Image(systemName: relationshipType == value ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(relationshipType == value ? color : Color(.tertiaryLabel))
+            }
+            .padding(18)
+            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Step 5: Agreement type (cohabitation vs rental)
+    // Only reached when setupMode == "formal" and relationshipType != "married" —
+    // see cohabOptionStep, which skips straight to addAssetStep otherwise so we
+    // never ask "which agreement?" for someone who just said they don't want one.
+
+    private var agreementTypeStep: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            stepHeader(s.onboardingAgreementTypeTitle, subtitle: s.onboardingAgreementTypeSub)
+
+            VStack(spacing: 14) {
+                agreementTypeOption(
+                    value: "cohabitation", icon: "house.fill",
+                    title: s.onboardingAgreementCohab, subtitle: s.onboardingAgreementCohabSub)
+                agreementTypeOption(
+                    value: "rental", icon: "key.fill",
+                    title: s.onboardingAgreementRental, subtitle: s.onboardingAgreementRentalSub)
+            }
+            .padding(.horizontal, 28)
+
+            Spacer()
+        }
+    }
+
+    private func agreementTypeOption(
+        value: String, icon: String, title: String, subtitle: String
+    ) -> some View {
+        Button {
+            agreementType = value
+            advance()
+        } label: {
+            HStack(alignment: .top, spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.cohGreen.opacity(0.10))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: icon)
+                        .font(.title3).foregroundStyle(Color.cohGreen)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title).font(.headline).foregroundStyle(Color.cohInk)
+                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Image(systemName: agreementType == value ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(agreementType == value ? Color.cohGreen : Color(.tertiaryLabel))
+            }
+            .padding(18)
+            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Step 4: Cohab Option
 
     private var cohabOptionStep: some View {
         VStack(alignment: .leading, spacing: 0) {
             stepHeader(s.onboardingProtect, subtitle: s.onboardingProtectSub)
 
             VStack(spacing: 14) {
-                Button { setupMode = "formal"; advance() } label: {
+                Button {
+                    setupMode = "formal"
+                    if relationshipType == "married" {
+                        // Married users don't need the cohabitation-vs-rental
+                        // question — default silently and skip straight to assets.
+                        agreementType = "cohabitation"
+                        withAnimation(.easeInOut(duration: 0.32)) { step = 6 }
+                    } else {
+                        advance()
+                    }
+                } label: {
                     HStack(alignment: .top, spacing: 16) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 12)
@@ -376,7 +526,13 @@ struct OnboardingView: View {
                 }
                 .buttonStyle(.plain)
 
-                Button { setupMode = "memory"; advance() } label: {
+                Button {
+                    // Skipping the agreement entirely — no need to ask which
+                    // agreement type they'd want, so jump straight to assets.
+                    setupMode = "memory"
+                    agreementType = "cohabitation"
+                    withAnimation(.easeInOut(duration: 0.32)) { step = 6 }
+                } label: {
                     HStack(alignment: .top, spacing: 16) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 12)
@@ -413,7 +569,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 4: Add Asset
+    // MARK: - Step 6: Add Asset
 
     private var addAssetStep: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -471,7 +627,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 5: Ready
+    // MARK: - Step 7: Ready
 
     private var readyStep: some View {
         VStack(spacing: 0) {
@@ -532,7 +688,7 @@ struct OnboardingView: View {
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
                             Button { showDisclaimerSheet = true } label: {
-                                Text(s.language == .nb ? "Les mer →" : "Read more →")
+                                Text(s.disclaimerReadMore)
                                     .font(.caption)
                                     .foregroundStyle(Color.cohGreen)
                             }
@@ -558,13 +714,18 @@ struct OnboardingView: View {
                 .animation(.spring(duration: 0.2), value: disclaimerAccepted)
 
                 if !auth.isSignedIn {
-                    GoogleSignInButton(label: s.onboardingGoogleSignInSync) { user in
+                    GoogleSignInButton(label: s.onboardingContinueWithGoogle) { user in
                         if nameA.isEmpty { nameA = user.givenName }
                         if emailA.isEmpty { emailA = user.email }
                     } onError: { err in
                         googleSignInError = err.localizedDescription
                     }
-                    Text(s.onboardingSignInSyncNote)
+                    AppleSignInButtonView {
+                        googleSignInError = nil
+                    } onError: { msg in
+                        googleSignInError = msg
+                    }
+                    Text(s.onboardingSignInRequiredNote)
                         .font(.caption).foregroundStyle(Color.cohMuted)
                         .multilineTextAlignment(.center)
                     if let err = googleSignInError {
@@ -572,7 +733,29 @@ struct OnboardingView: View {
                     }
                 }
 
-                ctaButton(s.onboardingStartTracking, enabled: disclaimerAccepted) { finish() }
+                Button {
+                    guard disclaimerAccepted else {
+                        showDisclaimerRequiredAlert = true
+                        return
+                    }
+                    finish()
+                } label: {
+                    HStack(spacing: 10) {
+                        if isFinishing { ProgressView().tint(.white) }
+                        Text(s.onboardingStartTracking)
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        (disclaimerAccepted && auth.isSignedIn)
+                            ? Color.cohGreen : Color.cohGreen.opacity(0.35),
+                        in: RoundedRectangle(cornerRadius: 14)
+                    )
+                }
+                .disabled(!auth.isSignedIn || isFinishing)
+                .accessibilityHint(disclaimerAccepted ? "" : s.onboardingAcceptDisclaimerToContinue)
             }
             .padding(.horizontal, 28)
             .padding(.top, 16)
@@ -716,73 +899,91 @@ struct OnboardingView: View {
     }
 
     private func finish() {
-        let h = Household(
-            partnerAName: nameA.trimmingCharacters(in: .whitespaces),
-            partnerBName: nameB.trimmingCharacters(in: .whitespaces),
-            country: selectedCountry.code,
-            currency: selectedCountry.currency,
-            setupMode: setupMode,
-            includeDissolutionClause: true,
-            emailA: emailA.trimmingCharacters(in: .whitespaces),
-            emailB: emailB.trimmingCharacters(in: .whitespaces),
-            relationshipType: relationshipType
-        )
-        modelContext.insert(h)
-        var blankAssets: [(asset: Asset, type: AssetType)] = []
-        for type in AssetType.allCases where selectedAssetTypes.contains(type) {
-            let asset = Asset(
-                assetType: type.rawValue,
-                label: type.displayName,
-                currentValue: 0,
-                salesCostFraction: type.defaultSalesCostFraction
-            )
-            h.assets.append(asset)
-            blankAssets.append((asset, type))
-        }
+        // Sign-in is required so the household is written to Supabase and can sync
+        // with the partner. The button is disabled until signed in; this is a guard.
+        guard auth.isSignedIn else { return }
+        guard !isFinishing else { return }
 
-        // Sync to Supabase if the user is signed in
-        if auth.isSignedIn {
-            Task {
-                do {
-                    let householdId = try await SupabaseService.createHousehold(
-                        partnerALabel: h.partnerAName,
-                        partnerBLabel: h.partnerBName,
-                        currency: h.currency,
-                        country: h.country,
-                        annualInterestRate: 0,
-                        setupMode: h.setupMode,
-                        relationshipType: h.relationshipType,
-                        emailA: h.emailA,
-                        emailB: h.emailB
+        let selectedTypes = AssetType.allCases.filter { selectedAssetTypes.contains($0) }
+        isFinishing = true
+        googleSignInError = nil
+
+        Task {
+            do {
+                // 1. Create the household in Supabase FIRST so we have the canonical id.
+                let householdId = try await SupabaseService.createHousehold(
+                    partnerALabel: nameA.trimmingCharacters(in: .whitespaces),
+                    partnerBLabel: nameB.trimmingCharacters(in: .whitespaces),
+                    currency: selectedCountry.currency,
+                    country: selectedCountry.code,
+                    annualInterestRate: 0,
+                    setupMode: setupMode,
+                    relationshipType: relationshipType,
+                    agreementType: agreementType,
+                    emailA: emailA.trimmingCharacters(in: .whitespaces),
+                    emailB: emailB.trimmingCharacters(in: .whitespaces)
+                )
+
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                let today = dateFormatter.string(from: Date())
+
+                var remoteAssets: [(type: AssetType, id: UUID)] = []
+                for type in selectedTypes {
+                    let dbAsset = try await SupabaseService.insertAsset(
+                        householdId: householdId,
+                        assetType: type.rawValue,
+                        label: type.displayName,
+                        address: "",
+                        currentValue: 0,
+                        remainingLoan: 0,
+                        salesCostFraction: type.defaultSalesCostFraction,
+                        ownershipShareA: 0.5,
+                        purchaseDate: today
+                    )
+                    remoteAssets.append((type, dbAsset.id))
+                }
+
+                // 2. Mirror to local SwiftData using the same ids (offline source of truth).
+                await MainActor.run {
+                    let h = Household(
+                        partnerAName: nameA.trimmingCharacters(in: .whitespaces),
+                        partnerBName: nameB.trimmingCharacters(in: .whitespaces),
+                        country: selectedCountry.code,
+                        currency: selectedCountry.currency,
+                        setupMode: setupMode,
+                        includeDissolutionClause: true,
+                        emailA: emailA.trimmingCharacters(in: .whitespaces),
+                        emailB: emailB.trimmingCharacters(in: .whitespaces),
+                        relationshipType: relationshipType,
+                        agreementType: agreementType
                     )
                     h.id = householdId
-
-                    let dateFormatter = DateFormatter()
-                    dateFormatter.dateFormat = "yyyy-MM-dd"
-                    let today = dateFormatter.string(from: Date())
-
-                    for pair in blankAssets {
-                        let dbAsset = try await SupabaseService.insertAsset(
-                            householdId: householdId,
+                    modelContext.insert(h)
+                    for pair in remoteAssets {
+                        let asset = Asset(
                             assetType: pair.type.rawValue,
                             label: pair.type.displayName,
-                            address: "",
                             currentValue: 0,
-                            remainingLoan: 0,
-                            salesCostFraction: pair.type.defaultSalesCostFraction,
-                            ownershipShareA: 0.5,
-                            purchaseDate: today
+                            salesCostFraction: pair.type.defaultSalesCostFraction
                         )
-                        pair.asset.id = dbAsset.id
+                        asset.id = pair.id
+                        h.assets.append(asset)
                     }
-                } catch {
-                    // Local data is already saved; Supabase sync can be retried later
-                    print("[OnboardingView] Supabase sync failed: \(error)")
+                    try? modelContext.save()
+
+                    isFinishing = false
+                    wasSignedOut = false   // never get stuck on SignInView after fresh onboarding
+                    withAnimation { onboardingComplete = true }
+                    onFinished()
+                }
+            } catch {
+                await MainActor.run {
+                    isFinishing = false
+                    finishError = error.localizedDescription
                 }
             }
         }
-
-        withAnimation { onboardingComplete = true }
     }
 }
 

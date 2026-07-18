@@ -98,11 +98,14 @@ serve(async (req) => {
           { name: name_b, email: email_b, role: "Partner B", order: 0 },
         ],
         message: {
-          subject: `Agreement ready to sign: ${title}`,
+          subject: `Your cohabitation agreement is ready to sign`,
           body:
             `Hi {{submitter.name}},\n\n` +
-            `${name_a} and ${name_b} have created a shared ownership ` +
-            `agreement using cohab.\n\nClick below to review and sign:\n{{submitter.link}}`,
+            `${name_a} and ${name_b} have prepared a cohabitation agreement ` +
+            `using cohab — tracking shared assets, contributions, and ownership.\n\n` +
+            `Please review and sign below:\n\n{{submitter.link}}\n\n` +
+            `This link is unique to you and expires after 30 days.\n\n` +
+            `— cohab`,
         },
       }),
     });

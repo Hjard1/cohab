@@ -4,55 +4,131 @@ import SwiftData
 // MARK: - Dashboard
 
 struct DashboardView: View {
+    @Binding var selectedTab: AppTab
     @Query private var households: [Household]
     @Environment(\.modelContext) private var modelContext
     @ObservedObject private var strings = AppStrings.shared
     @State private var showSetup = false
     @State private var showAddAsset = false
     @State private var editingAsset: Asset?
-    @State private var showAgreementSheet = false
-    @State private var agreementSubmission: DocuSealSubmission?
-    @State private var isGeneratingAgreement = false
-    @State private var agreementError: String?
     @State private var availableRate: CentralBankRate?
     @State private var showRateSaved = false
+    @State private var navigatingToAsset: Asset?
+    @State private var showContribPicker = false
+    @State private var showInvitePartner = false
 
     private var household: Household? { households.first }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                // Green fills everything — shows in header area
-                Color.cohGreen.ignoresSafeArea()
+                // Aurora borealis header — lighter teal/emerald sky with drifting,
+                // multi-colour ribbons (green → teal → violet) instead of a
+                // flat green fill with plain glow blobs.
+                ZStack(alignment: .top) {
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.06, green: 0.24, blue: 0.30),
+                            Color(red: 0.07, green: 0.34, blue: 0.32),
+                            Color(red: 0.09, green: 0.46, blue: 0.34)
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .ignoresSafeArea(.all, edges: .top)
+
+                    TimelineView(.animation) { tl in
+                        Canvas { ctx, size in
+                            let t = tl.date.timeIntervalSinceReferenceDate * 0.15
+
+                            // Faint stars — cheap, static-per-frame scatter for a night-sky feel
+                            var starSeed: UInt64 = 42
+                            for _ in 0..<28 {
+                                starSeed = starSeed &* 6364136223846793005 &+ 1
+                                let rx = Double((starSeed >> 33) % 1000) / 1000
+                                starSeed = starSeed &* 6364136223846793005 &+ 1
+                                let ry = Double((starSeed >> 33) % 1000) / 1000
+                                let sx = size.width * rx
+                                let sy = size.height * ry * 0.7
+                                let twinkle = 0.08 + 0.10 * abs(sin(t * 1.4 + rx * 30))
+                                ctx.fill(
+                                    Path(ellipseIn: CGRect(x: sx, y: sy, width: 2, height: 2)),
+                                    with: .color(.white.opacity(twinkle))
+                                )
+                            }
+
+                            // Aurora ribbons — wavy horizontal bands, each its own colour
+                            // and drift speed, layered and blurred to feel like curtains of light.
+                            let bands: [(color: Color, phase: Double, speed: Double, amplitude: Double, yBase: Double, thickness: CGFloat)] = [
+                                (Color(red: 0.45, green: 1.00, blue: 0.70), 0.0, 0.9, 0.09, 0.22, 100),
+                                (Color(red: 0.50, green: 0.95, blue: 0.90), 1.7, 0.7, 0.13, 0.36, 120),
+                                (Color(red: 0.72, green: 0.70, blue: 1.00), 3.1, 1.1, 0.08, 0.50, 80),
+                                (Color(red: 0.40, green: 0.92, blue: 0.75), 4.6, 0.8, 0.11, 0.30, 70)
+                            ]
+
+                            for band in bands {
+                                let steps = 32
+                                var points: [CGPoint] = []
+                                for i in 0...steps {
+                                    let x = size.width * CGFloat(i) / CGFloat(steps)
+                                    let wave = sin(t * band.speed + band.phase + Double(i) * 0.4) * band.amplitude
+                                    let y = size.height * (band.yBase + wave)
+                                    points.append(CGPoint(x: x, y: y))
+                                }
+                                var path = Path()
+                                path.addLines(points)
+
+                                ctx.stroke(
+                                    path,
+                                    with: .linearGradient(
+                                        Gradient(colors: [
+                                            band.color.opacity(0),
+                                            band.color.opacity(0.75),
+                                            band.color.opacity(0)
+                                        ]),
+                                        startPoint: CGPoint(x: 0, y: 0),
+                                        endPoint: CGPoint(x: size.width, y: 0)
+                                    ),
+                                    lineWidth: band.thickness
+                                )
+                            }
+                        }
+                        .blur(radius: 20)
+                    }
+                    .frame(height: 320)
+                    .allowsHitTesting(false)
+                }
+                .ignoresSafeArea(.all, edges: .top)
 
                 if let h = household {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
-                            // GREEN HEADER
-                            headerSection(h)
-                                .padding(.horizontal, 24)
-                                .padding(.top, 8)
-                                .padding(.bottom, 36)
+                            // GREEN HEADER + quick actions inside green zone
+                            VStack(spacing: 0) {
+                                headerSection(h)
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 8)
+                                    .padding(.bottom, 32)
+
+                                // Quick actions — inside green, Revolut-style
+                                quickActionsOnGreen(h)
+                                    .padding(.horizontal, 20)
+                                    .padding(.bottom, 32)
+                            }
 
                             // CREAM CONTENT — rounded top overlaps header
                             VStack(spacing: 0) {
-                                // Soft gradient strip — blends header green into cream
-                                LinearGradient(
-                                    colors: [Color.cohGreen.opacity(0.08), Color.cohBg.opacity(0)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                                .frame(height: 24)
-
                                 if let rate = availableRate {
                                     rateUpdateBanner(household: h, rate: rate)
                                         .padding(.horizontal, 20)
+                                        .padding(.top, 16)
                                 }
 
-                                quickActions(h)
-                                    .padding(.top, 16)
-
                                 assetsList(h).padding(.top, 20)
+                                if h.hasBudget {
+                                    monthlyBudgetCard(h)
+                                        .padding(.horizontal, 20)
+                                        .padding(.top, 12)
+                                }
                                 if h.isFormalMode {
                                     agreementStatusRow(h)
                                         .padding(.horizontal, 20)
@@ -95,6 +171,11 @@ struct DashboardView: View {
             .toolbarBackground(Color.cohBg, for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
             .toolbar { toolbarContent }
+            .navigationDestination(item: $navigatingToAsset) { asset in
+                if let h = household {
+                    AssetDetailView(asset: asset, household: h)
+                }
+            }
         }
         .sheet(isPresented: $showSetup) {
             HouseholdSetupView(household: household)
@@ -112,14 +193,18 @@ struct DashboardView: View {
                 }
             }
         }
-        .sheet(isPresented: $showAgreementSheet) {
+        .sheet(isPresented: $showContribPicker) {
             if let h = household {
-                AgreementSheetView(
-                    household: h,
-                    submission: $agreementSubmission,
-                    isGenerating: $isGeneratingAgreement,
-                    error: $agreementError
-                )
+                ContribAssetPickerView(household: h)
+            }
+        }
+        .sheet(isPresented: $showInvitePartner) {
+            if let h = household {
+                NavigationStack {
+                    InvitePartnerView(household: h)
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
             }
         }
     }
@@ -142,9 +227,6 @@ struct DashboardView: View {
     private func headerSection(_ h: Household) -> some View {
         let (equityA, equityB) = totalNetEquity(h)
         let total = equityA + equityB
-        let shareA: Double = total > 0 ? equityA / total : 0.5
-        let pctA = Int((shareA * 100).rounded())
-        let pctB = 100 - pctA
         let sym = h.currencySymbol
 
         return VStack(alignment: .leading, spacing: 20) {
@@ -182,46 +264,6 @@ struct DashboardView: View {
                     .foregroundStyle(.white.opacity(0.55))
             }
 
-            // Split bar + percentages
-            if !h.assets.isEmpty {
-                VStack(spacing: 8) {
-                    HStack(spacing: 10) {
-                        Text("\(pctA)%")
-                            .font(.caption.bold().monospacedDigit())
-                            .foregroundStyle(.white)
-                            .frame(width: 32, alignment: .trailing)
-
-                        Capsule()
-                            .fill(.white.opacity(0.22))
-                            .overlay(alignment: .leading) {
-                                GeometryReader { geo in
-                                    Capsule()
-                                        .fill(.white)
-                                        .frame(width: geo.size.width * CGFloat(shareA),
-                                               height: geo.size.height)
-                                }
-                            }
-                            .frame(height: 6)
-
-                        Text("\(pctB)%")
-                            .font(.caption.bold().monospacedDigit())
-                            .foregroundStyle(.white.opacity(0.65))
-                            .frame(width: 32, alignment: .leading)
-                    }
-
-                    // Per-partner amounts
-                    HStack {
-                        Text(sym + Int(equityA).formatted())
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.white.opacity(0.80))
-                        Spacer()
-                        Text(sym + Int(equityB).formatted())
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.white.opacity(0.60))
-                    }
-                    .padding(.horizontal, 42) // align under bar labels
-                }
-            }
         }
     }
 
@@ -265,16 +307,110 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: Monthly budget overview (saved from the expense split calculator)
+
+    private func monthlyBudgetCard(_ h: Household) -> some View {
+        let strings = AppStrings.shared
+        let sym = h.currencySymbol
+        let total = h.budgetTotalExpenses
+        let blue = Color(red: 0.20, green: 0.49, blue: 0.96)
+        // Fall back to the split ratio for budgets saved before pays/transfer existed.
+        let hasDetail = (h.budgetPaysA + h.budgetPaysB) > 0
+        let paysA = hasDetail ? h.budgetPaysA : total * h.budgetSplitA
+        let paysB = hasDetail ? h.budgetPaysB : total * (1 - h.budgetSplitA)
+        let net = hasDetail ? h.budgetNetTransfer : 0   // + = B owes A, − = A owes B
+        // Effective share each partner bears after the settling transfer.
+        let leftA = h.budgetIncomeA - (paysA - net)
+        let leftB = h.budgetIncomeB - (paysB + net)
+
+        func money(_ v: Double) -> String {
+            let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
+            return sym + (f.string(from: NSNumber(value: v)) ?? "0")
+        }
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 5) {
+                Image(systemName: "chart.pie.fill").font(.caption2).foregroundStyle(Color.cohGreen)
+                Text(strings.budgetOverviewTitle)
+                    .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                Spacer()
+                Text(money(total)).font(.subheadline.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
+            }
+
+            HStack(spacing: 12) {
+                budgetPartnerColumn(name: h.partnerAName, income: h.budgetIncomeA,
+                                    pays: paysA, left: leftA, color: Color.cohGreen, money: money)
+                Divider().frame(height: 54)
+                budgetPartnerColumn(name: h.partnerBName, income: h.budgetIncomeB,
+                                    pays: paysB, left: leftB, color: blue, money: money)
+            }
+
+            Divider()
+
+            // The settling transfer — the key result of the expense split.
+            if abs(net) >= 0.5 {
+                let debtor  = net > 0 ? h.partnerBName : h.partnerAName
+                let creditor = net > 0 ? h.partnerAName : h.partnerBName
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.left.arrow.right.circle.fill")
+                        .font(.subheadline).foregroundStyle(Color.cohGreen)
+                    Text(strings.budgetTransfer(debtor, money(abs(net)), creditor))
+                        .font(.caption.weight(.semibold)).foregroundStyle(Color.cohInk)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                }
+            } else {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.subheadline).foregroundStyle(Color.cohGreen)
+                    Text(strings.expenseBalanced)
+                        .font(.caption.weight(.semibold)).foregroundStyle(Color.cohInk)
+                    Spacer()
+                }
+            }
+        }
+        .padding(18)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    private func budgetPartnerColumn(name: String, income: Double, pays: Double,
+                                     left: Double, color: Color,
+                                     money: (Double) -> String) -> some View {
+        let strings = AppStrings.shared
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Circle().fill(color).frame(width: 6, height: 6)
+                Text(name).font(.caption.weight(.semibold)).foregroundStyle(color).lineLimit(1)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(strings.budgetNetIncomeLabel).font(.caption2).foregroundStyle(.secondary)
+                Text(money(income)).font(.subheadline.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(strings.expensePaysOut).font(.caption2).foregroundStyle(.secondary)
+                Text(money(pays)).font(.caption.monospacedDigit()).foregroundStyle(Color.cohInk)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(strings.expenseLeftOver(name)).font(.caption2).foregroundStyle(.secondary)
+                Text(money(max(0, left)))
+                    .font(.caption.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(left >= 0 ? color : Color.red)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private func agreementStatusRow(_ h: Household) -> some View {
         Group {
             switch h.agreementStatus {
             case "signed" where !h.agreementNeedsUpdate:
-                Label("Agreement signed ✓", systemImage: "checkmark.seal.fill")
+                Label(strings.agreementSigned, systemImage: "checkmark.seal.fill")
                     .font(.subheadline.bold()).foregroundStyle(.white)
                     .frame(maxWidth: .infinity).padding(.vertical, 14)
                     .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 12))
             case "pending":
-                Label("Waiting for signatures…", systemImage: "clock.fill")
+                Label(strings.agreementSentWaiting, systemImage: "clock.fill")
                     .font(.subheadline.bold()).foregroundStyle(.white)
                     .frame(maxWidth: .infinity).padding(.vertical, 14)
                     .background(Color.orange, in: RoundedRectangle(cornerRadius: 12))
@@ -298,9 +434,9 @@ struct DashboardView: View {
             }
 
             VStack(spacing: 8) {
-                Text("Set up your household")
+                Text(strings.dashboardEmptyTitle)
                     .font(.title2.bold())
-                Text("Track shared assets, contributions, and get a fair settlement whenever you need it.")
+                Text(strings.dashboardEmptySub)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -308,7 +444,7 @@ struct DashboardView: View {
             }
 
             Button { showSetup = true } label: {
-                Text("Get started")
+                Text(strings.onboardingGetStarted)
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -366,11 +502,11 @@ struct DashboardView: View {
     private func assetsList(_ h: Household) -> some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Assets")
+                Text(strings.dashboardAssets)
                     .font(.headline)
                     .foregroundStyle(.primary)
                 Spacer()
-                Text("\(h.assets.count) \(h.assets.count == 1 ? "item" : "items")")
+                Text("\(h.assets.count) \(h.assets.count == 1 ? strings.dashboardItem : strings.dashboardItems)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -381,9 +517,15 @@ struct DashboardView: View {
                     .padding(.top, 16)
             } else {
                 VStack(spacing: 16) {
-                    ForEach(h.assets) { asset in
-                        AssetCard(asset: asset, household: h,
-                                  onEdit: { editingAsset = asset })
+                    ForEach(sortedAssets(h.assets)) { asset in
+                        HouseholdStoryCard(asset: asset, household: h,
+                                          onTap: {
+                                              if asset.currentValue == 0 && asset.contributions.isEmpty {
+                                                  editingAsset = asset
+                                              } else {
+                                                  navigatingToAsset = asset
+                                              }
+                                          })
                     }
                 }
                 .padding(.top, 16)
@@ -392,18 +534,37 @@ struct DashboardView: View {
     }
 
     private func noAssetsPrompt(action: @escaping () -> Void) -> some View {
-        VStack(spacing: 14) {
-            Image(systemName: "plus.square.dashed")
-                .font(.system(size: 36))
-                .foregroundStyle(Color(.tertiaryLabel))
-            Text("No assets yet")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Text("Add your home, car, or any shared asset to track contributions and see a fair settlement breakdown.")
-                .font(.subheadline)
-                .foregroundStyle(Color(.tertiaryLabel))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+        VStack(spacing: 18) {
+            ZStack {
+                Circle()
+                    .fill(Color.cohGreen.opacity(0.08))
+                    .frame(width: 90, height: 90)
+                Circle()
+                    .strokeBorder(Color.cohGreen.opacity(0.15), lineWidth: 1.5)
+                    .frame(width: 90, height: 90)
+                Image(systemName: "house.and.flag.fill")
+                    .font(.system(size: 38))
+                    .foregroundStyle(Color.cohGreen)
+            }
+            VStack(spacing: 8) {
+                Text(strings.assetsNoAssetsTitle)
+                    .font(.title3.bold())
+                    .foregroundStyle(Color.cohInk)
+                Text(strings.assetsNoAssetsSub)
+                    .font(.subheadline)
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+            Button(action: action) {
+                Label(strings.assetsAddFirst, systemImage: "plus")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
@@ -416,6 +577,88 @@ struct DashboardView: View {
     private func sortedAssets(_ assets: [Asset]) -> [Asset] {
         let order: [AssetType] = [.home, .cabin, .car, .savings, .investment, .furniture, .pet, .other]
         return assets.sorted { (order.firstIndex(of: $0.type) ?? 99) < (order.firstIndex(of: $1.type) ?? 99) }
+    }
+
+    // MARK: Quick actions on green — Revolut-style circles with white icons
+
+    private func quickActionsOnGreen(_ h: Household) -> some View {
+        let noPartner  = h.partnerBName.trimmingCharacters(in: .whitespaces).isEmpty
+        let noAssets   = h.assets.isEmpty
+        let noContribs = !h.assets.contains { !$0.contributions.isEmpty }
+        let partnerB   = h.partnerBName.isEmpty ? "Partner" : h.partnerBName
+
+        let chip1: (icon: String, label: String, action: () -> Void)
+        if noPartner {
+            // No partner name set yet → open settings to add
+            chip1 = ("person.badge.plus", strings.inviteTitle, { showSetup = true })
+        } else if noAssets {
+            // Partner name set but no assets → invite right away (most useful next step)
+            chip1 = ("envelope.badge.fill", strings.inviteGenerate, { showInvitePartner = true })
+        } else if noContribs {
+            chip1 = ("arrow.up.circle.fill", strings.addContribTitle, { showContribPicker = true })
+        } else {
+            chip1 = ("envelope.badge.fill", strings.inviteGenerate, { showInvitePartner = true })
+        }
+
+        let agreementIcon: String
+        let agreementLabel: String
+        let agreementAction: () -> Void
+        switch h.agreementStatus {
+        case "pending":
+            agreementIcon = "clock.fill"
+            agreementLabel = strings.agreementPending
+            agreementAction = { selectedTab = .agreement }
+        case "signed" where !h.agreementNeedsUpdate:
+            agreementIcon = "checkmark.seal.fill"
+            agreementLabel = strings.agreementSigned
+            agreementAction = { selectedTab = .agreement }
+        default:
+            agreementIcon = "doc.text.fill"
+            agreementLabel = h.isFormalMode ? strings.agreementGenerate : strings.onboardingYesAgreement
+            agreementAction = { selectedTab = .agreement }
+        }
+
+        return HStack(spacing: 0) {
+            greenChip(icon: chip1.icon, label: chip1.label, action: chip1.action)
+            greenNavChip(icon: "dollarsign.circle.fill", label: strings.calcExpenseTitle,
+                         destination: ExpenseSplitView(nameA: h.partnerAName, nameB: partnerB,
+                                                       symbol: h.currencySymbol))
+            greenChip(icon: agreementIcon, label: agreementLabel, action: agreementAction)
+            greenNavChip(icon: "scale.3d", label: strings.dashboardShowCalculation,
+                         destination: SettlementTabView())
+        }
+    }
+
+    private func greenChip(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { greenChipContent(icon: icon, label: label) }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func greenNavChip<D: View>(icon: String, label: String, destination: D) -> some View {
+        NavigationLink(destination: destination) { greenChipContent(icon: icon, label: label) }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+    }
+
+    private func greenChipContent(icon: String, label: String) -> some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.18))
+                    .frame(width: 52, height: 52)
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.90))
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(width: 70)
+        }
     }
 
     // MARK: Quick actions — always exactly 4 chips, content rotates with context
@@ -435,7 +678,7 @@ struct DashboardView: View {
         } else if noContribs {
             chip1 = ("arrow.up.circle.fill", strings.addContribTitle,
                      Color(red: 0.54, green: 0.31, blue: 0.96),
-                     { editingAsset = sortedAssets(h.assets).first })
+                     { showContribPicker = true })
         } else {
             // All done → invite partner to download app
             chip1 = ("envelope.badge.fill", strings.inviteGenerate,
@@ -451,18 +694,15 @@ struct DashboardView: View {
         case "pending":
             agreementIcon   = "clock.fill"
             agreementLabel  = strings.agreementPending
-            agreementAction = { agreementSubmission = nil; showAgreementSheet = true }
+            agreementAction = { selectedTab = .agreement }
         case "signed" where !h.agreementNeedsUpdate:
             agreementIcon   = "checkmark.seal.fill"
             agreementLabel  = strings.agreementSigned
-            agreementAction = { agreementSubmission = nil; showAgreementSheet = true }
+            agreementAction = { selectedTab = .agreement }
         default:
             agreementIcon   = "doc.text.fill"
             agreementLabel  = h.isFormalMode ? strings.agreementGenerate : strings.onboardingYesAgreement
-            agreementAction = {
-                agreementSubmission = nil; agreementError = nil
-                showAgreementSheet = true
-            }
+            agreementAction = { selectedTab = .agreement }
         }
 
         return ScrollView(.horizontal, showsIndicators: false) {
@@ -568,6 +808,77 @@ struct DashboardView: View {
                 .frame(width: 56, height: 56)
                 .background(Self.fabColor, in: Circle())
                 .shadow(color: Self.fabColor.opacity(0.45), radius: 16, y: 6)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Household story card (dashboard)
+
+struct HouseholdStoryCard: View {
+    let asset: Asset
+    let household: Household
+    let onTap: () -> Void
+    @ObservedObject private var strings = AppStrings.shared
+
+    private var ownershipLine: String {
+        guard asset.currentValue > 0 else { return strings.assetTapToSetUp }
+        let shareA = asset.ownershipShareA
+        let nameA = household.partnerAName
+        let nameB = household.partnerBName
+        if shareA >= 0.99 { return "\(nameA)'s" }
+        if shareA <= 0.01 { return "\(nameB)'s" }
+        let pA = Int((shareA * 100).rounded())
+        let pB = 100 - pA
+        if abs(pA - 50) <= 2 { return strings.assetSharedEqually }
+        return "\(strings.assetSharedFormat) \(pA)/\(pB)"
+    }
+
+    private var ownershipColor: Color {
+        guard asset.currentValue > 0 else { return Color.cohGreen }
+        let shareA = asset.ownershipShareA
+        if shareA >= 0.99 { return Color.cohGreen }
+        if shareA <= 0.01 { return Color(red: 0.20, green: 0.49, blue: 0.96) }
+        return Color(.secondaryLabel)
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(asset.type.color.opacity(0.10))
+                        .frame(width: 56, height: 56)
+                    Image(systemName: asset.type.icon)
+                        .font(.title2.weight(.medium))
+                        .foregroundStyle(asset.type.color)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(asset.label)
+                        .font(.headline)
+                        .foregroundStyle(Color.cohInk)
+                    if !asset.address.isEmpty {
+                        Text(asset.address)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Text(ownershipLine)
+                        .font(.subheadline)
+                        .foregroundStyle(ownershipColor)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+            .padding(18)
+            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
+            .padding(.horizontal, 20)
         }
         .buttonStyle(.plain)
     }
@@ -896,17 +1207,17 @@ extension DashboardView {
                 .font(.subheadline)
                 .foregroundStyle(.blue)
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(rate.source) rate updated")
+                Text(strings.dashboardRateUpdated(rate.source))
                     .font(.caption.weight(.semibold))
-                Text(String(format: "%.2f%%", rate.rate * 100) + " (currently " + String(format: "%.2f%%", household.annualInterestRate * 100) + ")")
+                Text(String(format: "%.2f%%", rate.rate * 100) + " " + strings.dashboardRateCurrently(String(format: "%.2f%%", household.annualInterestRate * 100)))
                     .font(.caption2).foregroundStyle(.secondary)
             }
             Spacer()
             if showRateSaved {
-                Label("Saved", systemImage: "checkmark.circle.fill")
+                Label(strings.saved, systemImage: "checkmark.circle.fill")
                     .font(.caption.weight(.semibold)).foregroundStyle(Color.cohGreen)
             } else {
-                Button("Update") {
+                Button(strings.update) {
                     household.annualInterestRate = rate.rate
                     showRateSaved = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -982,14 +1293,9 @@ extension DashboardView {
             if h.agreementStatus != "signed" || h.agreementNeedsUpdate {
                 let buttonLabel = buttonText(for: h)
                 Button {
-                    agreementSubmission = nil
-                    agreementError = nil
-                    showAgreementSheet = true
+                    selectedTab = .agreement
                 } label: {
                     HStack(spacing: 8) {
-                        if isGeneratingAgreement {
-                            ProgressView().scaleEffect(0.8)
-                        }
                         Text(buttonLabel)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.white)
@@ -1001,7 +1307,6 @@ extension DashboardView {
                         in: RoundedRectangle(cornerRadius: 10)
                     )
                 }
-                .disabled(isGeneratingAgreement)
             }
         }
         .padding(18)
@@ -1040,25 +1345,19 @@ struct AgreementSheetView: View {
     @Binding var isGenerating: Bool
     @Binding var error: String?
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var strings = AppStrings.shared
     @State private var hasStarted = false
     @State private var isSigned = false
-    @State private var showEmailCapture = false
+    @State private var reviewMode = false
     @State private var draftEmailA = ""
     @State private var draftEmailB = ""
-
-    private func missingEmails() -> Bool {
-        !DocuSealService.isValidEmail(household.emailA) ||
-        !DocuSealService.isValidEmail(household.emailB)
-    }
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.cohBg.ignoresSafeArea()
 
-                if showEmailCapture {
-                    emailCaptureView
-                } else if isSigned {
+                if isSigned {
                     signedConfirmation
                 } else if isGenerating {
                     generatingView
@@ -1066,16 +1365,17 @@ struct AgreementSheetView: View {
                     errorView(err)
                 } else if let sub = submission {
                     signingView(sub)
+                } else if reviewMode {
+                    reviewSendView
                 } else {
                     EmptyView()
                 }
             }
-            .navigationTitle(showEmailCapture ? AppStrings.shared.agreementAddEmails
-                             : isSigned ? "Agreement Signed" : "Sign Agreement")
+            .navigationTitle(navTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button(strings.done) { dismiss() }
                 }
             }
         }
@@ -1099,15 +1399,12 @@ struct AgreementSheetView: View {
                 return
             }
 
+            // New submission: show the review-and-send screen. Nothing is generated
+            // or emailed until the user explicitly taps "Send for signing".
             if submission == nil {
-                if missingEmails() {
-                    // Show email capture before hitting DocuSeal
-                    draftEmailA = household.emailA
-                    draftEmailB = household.emailB
-                    showEmailCapture = true
-                } else {
-                    generate()
-                }
+                draftEmailA = household.emailA
+                draftEmailB = household.emailB
+                reviewMode = true
             }
         }
         // Poll every 6s — uses try await so the loop exits cleanly on dismiss
@@ -1128,65 +1425,94 @@ struct AgreementSheetView: View {
         }
     }
 
-    // MARK: Signed confirmation
+    private var navTitle: String {
+        if isSigned { return strings.agreementSignedTitle }
+        if submission != nil && !isGenerating { return strings.agreementSignTitle }
+        return strings.agreementReviewSendTitle
+    }
 
-    // MARK: Email capture — shown before DocuSeal when emails missing
+    // MARK: Review & send — confirm recipients + document BEFORE anything is sent
 
-    private var emailCaptureView: some View {
-        let s = AppStrings.shared
-        let needsA = !DocuSealService.isValidEmail(household.emailA)
-        let needsB = !DocuSealService.isValidEmail(household.emailB)
+    private var partnerBDisplay: String {
+        household.partnerBName.isEmpty ? "Partner" : household.partnerBName
+    }
+
+    private var canSend: Bool {
+        DocuSealService.isValidEmail(draftEmailA) && DocuSealService.isValidEmail(draftEmailB)
+    }
+
+    private var reviewSendView: some View {
+        let clauseCount = [household.includeDissolutionClause,
+                           household.includeSeparatePropertyClause,
+                           household.includeBuyoutRightsClause,
+                           household.includeDisposalConsentClause,
+                           household.includeDisputeResolutionClause,
+                           household.includeDebtClause].filter { $0 }.count
 
         return ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(s.agreementEmailsNeeded)
-                        .font(.headline).foregroundStyle(Color.cohInk)
-                    Text(s.agreementEmailsNeededSub)
+                    Text(strings.agreementReviewSendHeading)
+                        .font(.title3.bold()).foregroundStyle(Color.cohInk)
+                    Text(strings.agreementReviewSendSub)
                         .font(.subheadline).foregroundStyle(Color.cohMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                VStack(spacing: 14) {
-                    if needsA {
-                        emailField(
-                            label: "\(household.partnerAName)\(s.agreementPartnerEmailSuffix)",
-                            text: $draftEmailA
-                        )
-                    }
-                    if needsB {
-                        emailField(
-                            label: "\(household.partnerBName.isEmpty ? "Partner" : household.partnerBName)\(s.agreementPartnerEmailSuffix)",
-                            text: $draftEmailB
-                        )
-                    }
+                // Document summary
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(strings.agreementDocumentTitle)
+                        .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                    summaryLine(icon: "house.fill",
+                                text: "\(household.assets.count) \(household.assets.count == 1 ? strings.agreementSharedAsset : strings.agreementSharedAssets)")
+                    summaryLine(icon: "list.bullet.rectangle",
+                                text: "\(clauseCount) \(strings.agreementClausesSelected)")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
+
+                // Recipients
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(strings.agreementRecipientsTitle)
+                        .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                    emailField(label: "\(household.partnerAName)\(strings.agreementPartnerEmailSuffix)",
+                               text: $draftEmailA)
+                    emailField(label: "\(partnerBDisplay)\(strings.agreementPartnerEmailSuffix)",
+                               text: $draftEmailB)
                 }
 
+                // Explicit send explainer + button
+                Text(strings.agreementSendExplainer(partnerBDisplay))
+                    .font(.caption).foregroundStyle(Color(.secondaryLabel))
+                    .fixedSize(horizontal: false, vertical: true)
+
                 Button {
-                    if needsA { household.emailA = draftEmailA.trimmingCharacters(in: .whitespaces) }
-                    if needsB { household.emailB = draftEmailB.trimmingCharacters(in: .whitespaces) }
-                    showEmailCapture = false
+                    household.emailA = draftEmailA.trimmingCharacters(in: .whitespaces)
+                    household.emailB = draftEmailB.trimmingCharacters(in: .whitespaces)
+                    reviewMode = false
                     generate()
                 } label: {
-                    Text(s.agreementSaveAndContinue)
-                        .font(.headline).foregroundStyle(.white)
-                        .frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .background(
-                            canSaveEmails(needsA: needsA, needsB: needsB)
-                                ? Color.cohGreen : Color.cohGreen.opacity(0.35),
-                            in: RoundedRectangle(cornerRadius: 14)
-                        )
+                    HStack(spacing: 8) {
+                        Image(systemName: "paperplane.fill")
+                        Text(strings.agreementSendForSigning)
+                    }
+                    .font(.headline).foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 16)
+                    .background(canSend ? Color.cohGreen : Color.cohGreen.opacity(0.35),
+                                in: RoundedRectangle(cornerRadius: 14))
                 }
-                .disabled(!canSaveEmails(needsA: needsA, needsB: needsB))
+                .disabled(!canSend)
             }
             .padding(24)
         }
     }
 
-    private func canSaveEmails(needsA: Bool, needsB: Bool) -> Bool {
-        let okA = needsA ? DocuSealService.isValidEmail(draftEmailA) : true
-        let okB = needsB ? DocuSealService.isValidEmail(draftEmailB) : true
-        return okA && okB
+    private func summaryLine(icon: String, text: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).font(.caption).foregroundStyle(Color.cohGreen).frame(width: 20)
+            Text(text).font(.subheadline).foregroundStyle(Color.cohInk)
+        }
     }
 
     private func emailField(label: String, text: Binding<String>) -> some View {
@@ -1215,13 +1541,13 @@ struct AgreementSheetView: View {
                     .font(.system(size: 44)).foregroundStyle(Color.cohGreen)
             }
             VStack(spacing: 8) {
-                Text("Agreement signed")
+                Text(strings.agreementSignedTitle)
                     .font(.title2.bold())
-                Text("Both \(household.partnerAName) and \(household.partnerBName) have signed. Your agreement is now complete.")
+                Text(strings.agreementSignedBody(household.partnerAName, partnerBDisplay))
                     .font(.subheadline).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center).padding(.horizontal, 32)
             }
-            Button("Done") { dismiss() }
+            Button(strings.done) { dismiss() }
                 .buttonStyle(.borderedProminent).tint(Color.cohGreen)
         }
     }
@@ -1231,9 +1557,9 @@ struct AgreementSheetView: View {
     private var generatingView: some View {
         VStack(spacing: 20) {
             ProgressView().scaleEffect(1.3)
-            Text("Preparing agreement…")
+            Text(strings.agreementPreparingTitle)
                 .font(.subheadline).foregroundStyle(.secondary)
-            Text("Generating PDF and creating signing session in DocuSeal.")
+            Text(strings.agreementPreparingSub)
                 .font(.caption).foregroundStyle(Color(.tertiaryLabel))
                 .multilineTextAlignment(.center).padding(.horizontal, 40)
         }
@@ -1244,10 +1570,10 @@ struct AgreementSheetView: View {
     private func errorView(_ msg: String) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "xmark.circle.fill").font(.system(size: 44)).foregroundStyle(.red)
-            Text("Something went wrong").font(.headline)
+            Text(strings.agreementSomethingWrong).font(.headline)
             Text(msg).font(.subheadline).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center).padding(.horizontal, 32)
-            Button("Try again") { error = nil; generate() }
+            Button(strings.agreementTryAgain) { error = nil; reviewMode = true }
                 .buttonStyle(.borderedProminent).tint(.cohGreen)
         }
     }
@@ -1256,17 +1582,20 @@ struct AgreementSheetView: View {
 
     private func signingView(_ sub: DocuSealSubmission) -> some View {
         VStack(spacing: 0) {
+            // Prominent: this signs for the current user; the partner signs by email.
+            HStack(spacing: 8) {
+                Image(systemName: "info.circle.fill").font(.subheadline).foregroundStyle(Color.cohGreen)
+                Text(strings.agreementYouSignHereNote(partnerBDisplay))
+                    .font(.caption).foregroundStyle(Color.cohInk)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Color.cohGreen.opacity(0.08))
+
             // Embedded DocuSeal signing form — only for the current user (Partner A)
             DocuSealSigningView(signingURL: sub.signingUrlA)
                 .ignoresSafeArea(edges: .bottom)
-
-            // Partner B must sign from their own device via email
-            HStack(spacing: 6) {
-                Image(systemName: "envelope").font(.caption2).foregroundStyle(.secondary)
-                Text("\(household.partnerBName) will receive a signing link by email.")
-                    .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
-            }
-            .padding(.bottom, 8)
         }
     }
 
@@ -1274,9 +1603,32 @@ struct AgreementSheetView: View {
 
     private func generate() {
         isGenerating = true
+        // Capture the config on the main actor before the background work.
+        let hid = household.id
+        let rentAmount = household.rentAmount
+        let rentPayerKey = household.rentPayerKey
+        let rentPaymentDay = household.rentPaymentDay
+        let inclDissolution = household.includeDissolutionClause
+        let inclSeparate = household.includeSeparatePropertyClause
+        let inclBuyout = household.includeBuyoutRightsClause
+        let inclDisposal = household.includeDisposalConsentClause
+        let inclDispute = household.includeDisputeResolutionClause
+        let inclDebt = household.includeDebtClause
         Task {
             do {
                 let result = try await DocuSealService.submit(household: household)
+                // Persist the config that produced this contract so the partner's
+                // device generates/reads an identical agreement.
+                try? await SupabaseService.updateAgreementConfig(
+                    householdId: hid,
+                    rentAmount: rentAmount, rentPayerKey: rentPayerKey,
+                    rentPaymentDay: rentPaymentDay,
+                    includeDissolutionClause: inclDissolution,
+                    includeSeparatePropertyClause: inclSeparate,
+                    includeBuyoutRightsClause: inclBuyout,
+                    includeDisposalConsentClause: inclDisposal,
+                    includeDisputeResolutionClause: inclDispute,
+                    includeDebtClause: inclDebt)
                 await MainActor.run { submission = result; isGenerating = false }
             } catch {
                 await MainActor.run { self.error = error.localizedDescription; isGenerating = false }
@@ -1352,6 +1704,14 @@ struct HouseholdSetupView: View {
 
                 if let h = household {
                     Section {
+                        Button {
+                            if let url = URL(string: "mailto:support@cohab.app?subject=Support%20request") {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            Label(s(en: "Contact support", nb: "Kontakt support"),
+                                  systemImage: "envelope.fill")
+                        }
                         Button {
                             exportURL = generateExportCSV(household: h)
                             showExportSheet = exportURL != nil
@@ -1592,6 +1952,10 @@ struct AddAssetView: View {
     @State private var valueText = ""
     @State private var loanText = ""
     @State private var shareA: Double = 0.5
+    @State private var isRegistered: Bool = true
+    @State private var sheetDetent: PresentationDetent = .fraction(0.62)
+
+    private var canBeRegistered: Bool { [.home, .cabin, .car].contains(selectedType) }
 
     private var s: AppStrings { strings }
     private var sym: String { household.currencySymbol }
@@ -1636,6 +2000,15 @@ struct AddAssetView: View {
             }
             .navigationTitle(existingAsset == nil ? s.addAssetNavTitle : s.completeSetup)
             .navigationBarTitleDisplayMode(.inline)
+            .presentationDetents([.fraction(0.62), .large], selection: $sheetDetent)
+            .presentationDragIndicator(.visible)
+            // Ratchet: expand when keyboard shows, never shrink back automatically
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                sheetDetent = .large
+            }
+            .onChange(of: step) { _, newStep in
+                if newStep == 0 { sheetDetent = .large }
+            }
             .onAppear {
                 if let a = existingAsset {
                     selectedType = a.type
@@ -1707,9 +2080,11 @@ struct AddAssetView: View {
     // MARK: Step 1 — Name
 
     private var nameStep: some View {
-        VStack(spacing: 0) {
-            wizardHeader(s.stepNameIt, subtitle: s.stepNameSub)
-            ScrollView(showsIndicators: false) {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                wizardHeader(s.stepNameIt, subtitle: s.stepNameSub)
+                    .padding(.top, 32)
+                    .padding(.bottom, 24)
                 VStack(spacing: 12) {
                     wizardField(label: s.fieldName,
                                 placeholder: selectedType.displayName,
@@ -1719,8 +2094,10 @@ struct AddAssetView: View {
                                 text: $address, keyboard: .default)
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+                Spacer(minLength: 120)
             }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             wizardCTA(s.onboardingContinue,
                       enabled: !label.trimmingCharacters(in: .whitespaces).isEmpty) {
                 withAnimation(.easeInOut(duration: 0.28)) { step = 2 }
@@ -1731,9 +2108,11 @@ struct AddAssetView: View {
     // MARK: Step 2 — Value
 
     private var valueStep: some View {
-        VStack(spacing: 0) {
-            wizardHeader(s.stepWhatWorth)
-            ScrollView(showsIndicators: false) {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                wizardHeader(s.stepWhatWorth)
+                    .padding(.top, 32)
+                    .padding(.bottom, 24)
                 VStack(spacing: 12) {
                     wizardField(label: selectedType.valueLabel,
                                 placeholder: selectedType.valuePlaceholder,
@@ -1745,8 +2124,10 @@ struct AddAssetView: View {
                     }
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+                Spacer(minLength: 120)
             }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             wizardCTA(s.onboardingContinue, enabled: true) {
                 withAnimation(.easeInOut(duration: 0.28)) { step = 3 }
             }
@@ -1756,11 +2137,12 @@ struct AddAssetView: View {
     // MARK: Step 3 — Ownership
 
     private var ownershipStep: some View {
-        VStack(spacing: 0) {
-            wizardHeader(s.stepWhoOwns, subtitle: selectedType.ownershipHint)
-            ScrollView(showsIndicators: false) {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                wizardHeader(s.stepWhoOwns, subtitle: selectedType.ownershipHint)
+                    .padding(.top, 32)
+                    .padding(.bottom, 24)
                 VStack(spacing: 20) {
-                    // Partner percentages
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(household.partnerAName)
@@ -1782,13 +2164,25 @@ struct AddAssetView: View {
                                 .contentTransition(.numericText())
                         }
                     }
-
                     Slider(value: $shareA, in: 0...1, step: 0.01)
                         .tint(Color.cohGreen)
+
+                    if canBeRegistered {
+                        Divider()
+                        VStack(alignment: .leading, spacing: 6) {
+                            Toggle(s.assetIsRegistered, isOn: $isRegistered)
+                                .font(.subheadline)
+                            Text(s.assetIsRegisteredHint)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+                Spacer(minLength: 120)
             }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             wizardCTA(s.add, enabled: true) { save() }
         }
     }
@@ -1860,14 +2254,14 @@ struct AddAssetView: View {
             : 0
 
         if let existing = existingAsset {
-            // Update blank asset in-place
-            existing.assetType      = selectedType.rawValue
-            existing.label          = label.trimmingCharacters(in: .whitespaces)
-            existing.address        = address.trimmingCharacters(in: .whitespaces)
-            existing.currentValue   = value
-            existing.remainingLoan  = loan
-            existing.salesCostFraction = selectedType.defaultSalesCostFraction
-            existing.ownershipShareA   = shareA
+            existing.assetType               = selectedType.rawValue
+            existing.label                   = label.trimmingCharacters(in: .whitespaces)
+            existing.address                 = address.trimmingCharacters(in: .whitespaces)
+            existing.currentValue            = value
+            existing.remainingLoan           = loan
+            existing.salesCostFraction       = selectedType.defaultSalesCostFraction
+            existing.ownershipShareA         = shareA
+            existing.isOwnershipRegistered   = canBeRegistered && isRegistered
         } else {
             let asset = Asset(
                 assetType: selectedType.rawValue,
@@ -1876,7 +2270,8 @@ struct AddAssetView: View {
                 currentValue: value,
                 remainingLoan: loan,
                 salesCostFraction: selectedType.defaultSalesCostFraction,
-                ownershipShareA: shareA
+                ownershipShareA: shareA,
+                isOwnershipRegistered: canBeRegistered && isRegistered
             )
             household.assets.append(asset)
         }
@@ -1891,6 +2286,7 @@ struct EditAssetView: View {
     let household: Household
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var strings = AppStrings.shared
 
     @State private var selectedType: AssetType = .home
     @State private var label = ""
@@ -1922,9 +2318,9 @@ struct EditAssetView: View {
             .navigationTitle(label.isEmpty ? "Edit asset" : label)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .topBarLeading) { Button(strings.cancel) { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }.bold().disabled(!canSave)
+                    Button(strings.save) { save() }.bold().disabled(!canSave)
                 }
             }
         }
@@ -1937,9 +2333,9 @@ struct EditAssetView: View {
             isPresented: $showDeleteConfirm,
             titleVisibility: .visible
         ) {
-            Button("Delete asset", role: .destructive) { deleteAsset() }
+            Button(strings.deleteAsset, role: .destructive) { deleteAsset() }
         } message: {
-            Text("All contributions linked to this asset will also be deleted.")
+            Text(strings.assetDeleteMessage)
         }
     }
 
@@ -1947,7 +2343,7 @@ struct EditAssetView: View {
 
     private var typePicker: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("TYPE").font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+            Text(strings.assetTypeLabel).font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(AssetType.allCases, id: \.self) { type in
                     let selected = selectedType == type
@@ -2035,7 +2431,7 @@ struct EditAssetView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("EQUITY CONTRIBUTIONS")
+                    Text(strings.assetEquityContributions)
                         .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
                     Text(selectedType.contributionSubtitle)
                         .font(.caption).foregroundStyle(Color(.tertiaryLabel))
@@ -2187,79 +2583,317 @@ struct ContributionRow: View {
     }
 }
 
+// MARK: - Contribution asset picker
+
+struct ContribAssetPickerView: View {
+    let household: Household
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedAsset: Asset?
+
+    private var sortedAssets: [Asset] {
+        household.assets
+            .filter { $0.currentValue > 0 }
+            .sorted { $0.label < $1.label }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 12) {
+                    ForEach(sortedAssets) { asset in
+                        Button { selectedAsset = asset } label: {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(asset.type.color.opacity(0.12))
+                                        .frame(width: 46, height: 46)
+                                    Image(systemName: asset.type.icon)
+                                        .font(.body.weight(.semibold))
+                                        .foregroundStyle(asset.type.color)
+                                }
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(asset.label)
+                                        .font(.headline).foregroundStyle(Color.cohInk)
+                                    if !asset.address.isEmpty {
+                                        Text(asset.address)
+                                            .font(.caption).foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                Spacer()
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text("\(Int(asset.ownershipShareA * 100))/\(100 - Int(asset.ownershipShareA * 100))")
+                                        .font(.caption.bold().monospacedDigit())
+                                        .foregroundStyle(.secondary)
+                                    Text(household.currencySymbol + "\(Int(asset.currentValue).formatted())")
+                                        .font(.caption.monospacedDigit())
+                                        .foregroundStyle(.secondary)
+                                }
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(Color(.tertiaryLabel))
+                            }
+                            .padding(16)
+                            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 16))
+                            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            }
+            .background(Color.cohBg.ignoresSafeArea())
+            .navigationTitle("Add contribution")
+            .navigationBarTitleDisplayMode(.inline)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .sheet(item: $selectedAsset) { asset in
+            AddContributionView(asset: asset, household: household, onComplete: { dismiss() })
+        }
+    }
+}
+
 // MARK: - Add contribution sheet
 
 struct AddContributionView: View {
     let asset: Asset
     let household: Household
+    var onComplete: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var strings = AppStrings.shared
 
-    @State private var ownerKey   = "A"
-    @State private var amountText = ""
-    @State private var date       = Date()
-    @State private var label      = ""
-    @State private var category   = "deposit"
+    @State private var ownerKey        = "A"
+    @State private var amountText      = ""
+    @State private var amountTextB     = ""
+    @State private var date            = Date()
+    @State private var label           = ""
+    @State private var category        = "deposit"
+    @State private var adjustOwnership = false
+    @State private var ownershipShareA = 0.5
 
-    private let categories: [(String, String)] = [
-        ("deposit",         "Deposit"),
-        ("extra_repayment", "Extra loan repayment"),
-        ("renovation",      "Renovation / improvement"),
-        ("inheritance",     "Inheritance or gift"),
-        ("other",           "Other"),
-    ]
+    private struct ContribCategory {
+        let key: String
+        let label: String
+        let icon: String
+    }
+
+    private var categories: [ContribCategory] {
+        let s = AppStrings.shared
+        switch asset.type {
+        case .home, .cabin:
+            return [
+                .init(key: "deposit",         label: s.contribCatDeposit,    icon: "banknote.fill"),
+                .init(key: "extra_repayment", label: s.contribCatRepayment,  icon: "arrow.down.to.line"),
+                .init(key: "renovation",      label: s.contribCatRenovation, icon: "hammer.fill"),
+                .init(key: "inheritance",     label: s.contribCatGift,       icon: "gift.fill"),
+            ]
+        case .car:
+            return [
+                .init(key: "deposit",         label: s.contribCatDeposit,    icon: "banknote.fill"),
+                .init(key: "extra_repayment", label: s.contribCatRepayment,  icon: "arrow.down.to.line"),
+                .init(key: "renovation",      label: s.contribCatRepairs,    icon: "hammer.fill"),
+                .init(key: "inheritance",     label: s.contribCatGift,       icon: "gift.fill"),
+            ]
+        case .investment, .savings:
+            return [
+                .init(key: "deposit",     label: s.contribCatDeposit, icon: "banknote.fill"),
+                .init(key: "inheritance", label: s.contribCatGift,    icon: "gift.fill"),
+            ]
+        case .furniture, .pet:
+            return [
+                .init(key: "deposit",     label: s.contribCatPurchase, icon: "banknote.fill"),
+                .init(key: "inheritance", label: s.contribCatGift,     icon: "gift.fill"),
+            ]
+        case .other:
+            return [
+                .init(key: "deposit",         label: s.contribCatPayment,    icon: "banknote.fill"),
+                .init(key: "extra_repayment", label: s.contribCatRepayment,  icon: "arrow.down.to.line"),
+                .init(key: "renovation",      label: s.contribCatRenovation, icon: "hammer.fill"),
+                .init(key: "inheritance",     label: s.contribCatGift,       icon: "gift.fill"),
+            ]
+        }
+    }
 
     private var canAdd: Bool {
-        (Double(amountText.replacingOccurrences(of: ",", with: "")) ?? 0) > 0
+        let a = Double(amountText.replacingOccurrences(of: ",", with: "")) ?? 0
+        if ownerKey == "BOTH" {
+            let b = Double(amountTextB.replacingOccurrences(of: ",", with: "")) ?? 0
+            return a > 0 || b > 0
+        }
+        return a > 0
+    }
+
+    private var selectedCategory: ContribCategory {
+        categories.first { $0.key == category } ?? categories[0]
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Who contributed?") {
+                Section(strings.contribWhoSection) {
                     Picker("Partner", selection: $ownerKey) {
                         Text(household.partnerAName).tag("A")
                         Text(household.partnerBName).tag("B")
+                        Text(strings.contribBoth).tag("BOTH")
                     }
                     .pickerStyle(.segmented)
                 }
 
-                Section("Details") {
-                    HStack {
-                        Text(household.currencySymbol).foregroundStyle(.secondary)
-                        TextField("Amount", text: $amountText).keyboardType(.decimalPad)
+                Section(strings.contribCategorySection) {
+                    HStack(spacing: 10) {
+                        ForEach(categories, id: \.key) { cat in
+                            let selected = category == cat.key
+                            Button {
+                                let wasAuto = categories.contains(where: { $0.label == label })
+                                category = cat.key
+                                if label.isEmpty || wasAuto {
+                                    label = cat.label
+                                }
+                            } label: {
+                                VStack(spacing: 6) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(selected ? Color.cohGreen : Color(.systemGray5))
+                                            .frame(width: 48, height: 48)
+                                        Image(systemName: cat.icon)
+                                            .font(.system(size: 18, weight: .medium))
+                                            .foregroundStyle(selected ? .white : Color.cohGreen)
+                                    }
+                                    Text(cat.label)
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(selected ? Color.cohGreen : .secondary)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
-                    TextField("Label (e.g. Deposit, Kitchen renovation)", text: $label)
+                    .padding(.vertical, 6)
                 }
 
-                Section("Category") {
-                    Picker("Category", selection: $category) {
-                        ForEach(categories, id: \.0) { c in Text(c.1).tag(c.0) }
+                Section(strings.contribDetailsSection) {
+                    if ownerKey == "BOTH" {
+                        VStack(spacing: 10) {
+                            HStack {
+                                HStack(spacing: 6) {
+                                    Circle().fill(Color.cohGreen).frame(width: 8, height: 8)
+                                    Text(household.partnerAName)
+                                        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(household.currencySymbol).foregroundStyle(.secondary).font(.subheadline)
+                                TextField("0", text: $amountText).keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 100)
+                            }
+                            Divider()
+                            HStack {
+                                HStack(spacing: 6) {
+                                    Circle().fill(Color(red: 0.20, green: 0.49, blue: 0.96)).frame(width: 8, height: 8)
+                                    Text(household.partnerBName)
+                                        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(household.currencySymbol).foregroundStyle(.secondary).font(.subheadline)
+                                TextField("0", text: $amountTextB).keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 100)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        HStack {
+                            Text(household.currencySymbol).foregroundStyle(.secondary)
+                            TextField(strings.contribAmountPlaceholder, text: $amountText).keyboardType(.decimalPad)
+                        }
                     }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
+                    DatePicker(strings.contribDateLabel, selection: $date, displayedComponents: .date)
+                    TextField(strings.contribLabelPlaceholder, text: $label)
+                }
+
+                Section {
+                    Toggle(strings.contribAdjustOwnership, isOn: $adjustOwnership)
+                    if adjustOwnership {
+                        VStack(spacing: 12) {
+                            HStack {
+                                HStack(spacing: 6) {
+                                    Circle().fill(Color.cohGreen).frame(width: 8, height: 8)
+                                    Text(household.partnerAName).font(.subheadline)
+                                }
+                                Spacer()
+                                Text("\(Int((ownershipShareA * 100).rounded()))%")
+                                    .font(.subheadline.bold().monospacedDigit())
+                            }
+                            HStack {
+                                HStack(spacing: 6) {
+                                    Circle().fill(Color(red: 0.20, green: 0.49, blue: 0.96)).frame(width: 8, height: 8)
+                                    Text(household.partnerBName).font(.subheadline)
+                                }
+                                Spacer()
+                                Text("\(100 - Int((ownershipShareA * 100).rounded()))%")
+                                    .font(.subheadline.bold().monospacedDigit())
+                            }
+                            Slider(value: $ownershipShareA, in: 0...1, step: 0.01)
+                                .tint(Color.cohGreen)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    Text(strings.assetOwnership)
+                } footer: {
+                    if adjustOwnership {
+                        Text(strings.contribOwnershipFooter)
+                    }
                 }
             }
-            .navigationTitle("Add contribution")
+            .navigationTitle(strings.addContribTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .topBarLeading) { Button(strings.cancel) { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Add") { add() }.bold().disabled(!canAdd)
+                    Button(strings.add) { add() }.bold().disabled(!canAdd)
                 }
             }
         }
+        .onAppear { ownershipShareA = asset.ownershipShareA }
     }
 
     private func add() {
         let amount = Double(amountText.replacingOccurrences(of: ",", with: "")) ?? 0
+        let amountB = Double(amountTextB.replacingOccurrences(of: ",", with: "")) ?? 0
         let displayLabel = label.trimmingCharacters(in: .whitespaces).isEmpty
-            ? (categories.first { $0.0 == category }?.1 ?? "Contribution")
+            ? (categories.first { $0.key == category }?.label ?? "Contribution")
             : label.trimmingCharacters(in: .whitespaces)
-        asset.contributions.append(
-            ContributionRecord(ownerKey: ownerKey, amount: amount, date: date,
-                               label: displayLabel, category: category)
-        )
+        if ownerKey == "BOTH" {
+            if amount > 0 {
+                asset.contributions.append(
+                    ContributionRecord(ownerKey: "A", amount: amount, date: date,
+                                       label: displayLabel, category: category)
+                )
+            }
+            if amountB > 0 {
+                asset.contributions.append(
+                    ContributionRecord(ownerKey: "B", amount: amountB, date: date,
+                                       label: displayLabel, category: category)
+                )
+            }
+        } else {
+            asset.contributions.append(
+                ContributionRecord(ownerKey: ownerKey, amount: amount, date: date,
+                                   label: displayLabel, category: category)
+            )
+        }
+        if adjustOwnership {
+            asset.ownershipShareA = ownershipShareA
+        }
         dismiss()
+        DispatchQueue.main.async { onComplete?() }
     }
 }

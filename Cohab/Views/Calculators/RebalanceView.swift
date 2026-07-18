@@ -1,6 +1,16 @@
 import SwiftUI
 
 struct RebalanceView: View {
+    let nameA: String
+    let nameB: String
+    let symbol: String
+
+    @ObservedObject private var strings = AppStrings.shared
+
+    init(nameA: String = "Partner A", nameB: String = "Partner B", symbol: String = "£") {
+        self.nameA = nameA; self.nameB = nameB; self.symbol = symbol
+    }
+
     @State private var valueText    = ""
     @State private var loanText     = ""
     @State private var currentShareA = 50.0
@@ -29,12 +39,12 @@ struct RebalanceView: View {
         ScrollView {
             VStack(spacing: 20) {
                 resultCard
-                inputCard("PROPERTY") {
-                    inputRow("Current market value", placeholder: "450,000", text: $valueText)
-                    inputRow("Remaining loan",        placeholder: "300,000", text: $loanText)
+                inputCard(strings.calcRebPropertySection) {
+                    inputRow(strings.calcRebCurrentValue, placeholder: "450,000", text: $valueText)
+                    inputRow(strings.calcRebRemainingLoan, placeholder: "300,000", text: $loanText)
                     if value > 0 {
                         HStack {
-                            Text("Net equity").font(.subheadline).foregroundStyle(.secondary)
+                            Text(strings.calcRebNetEquity).font(.subheadline).foregroundStyle(.secondary)
                             Spacer()
                             Text(fmt(netEquity))
                                 .font(.subheadline.bold().monospacedDigit())
@@ -42,18 +52,18 @@ struct RebalanceView: View {
                         }
                     }
                 }
-                inputCard("CURRENT REGISTERED OWNERSHIP") {
-                    sliderRow("Partner A currently owns", value: $currentShareA)
+                inputCard(strings.calcRebCurrentSection) {
+                    sliderRow(strings.calcRebCurrentlyOwns(nameA), value: $currentShareA)
                 }
-                inputCard("TARGET OWNERSHIP") {
-                    sliderRow("Partner A should own", value: $targetShareA)
+                inputCard(strings.calcRebTargetSection) {
+                    sliderRow(strings.calcRebShouldOwn(nameA), value: $targetShareA)
                 }
                 if hasInput && hasChange { paymentPlanCard }
             }
             .padding(20)
         }
         .background(Color.cohBg.ignoresSafeArea())
-        .navigationTitle("Rebalance ownership")
+        .navigationTitle(strings.calcRebalanceTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -61,41 +71,40 @@ struct RebalanceView: View {
 
     private var resultCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Rebalancing payment")
+            Text(strings.calcRebPaymentTitle)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
 
             if hasInput && hasChange {
-                let fromName = payment > 0 ? "Partner B" : "Partner A"
-                let toName   = payment > 0 ? "Partner A" : "Partner B"
+                let fromName = payment > 0 ? nameB : nameA
+                let toName   = payment > 0 ? nameA : nameB
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(fmt(absPayment))
                             .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
-                        Text("from \(fromName) to \(toName)")
+                        Text(strings.calcRebFromTo(fromName, toName))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .padding(.leading, 4)
                     }
-                    Text(String(format: "Moves ownership from %.0f%%/%.0f%% → %.0f%%/%.0f%%",
-                                currentShareA, 100 - currentShareA,
-                                targetShareA, 100 - targetShareA))
+                    Text(strings.calcRebMoves(Int(currentShareA), Int(100 - currentShareA),
+                                              Int(targetShareA), Int(100 - targetShareA)))
                         .font(.caption)
-                        .foregroundStyle(Color(.tertiaryLabel))
+                        .foregroundStyle(Color.cohTertiary)
                 }
             } else if hasInput {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(Color.cohGreen)
-                    Text("Ownership is already balanced — no payment needed.")
+                    Text(strings.calcRebBalanced)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Text("Enter a property value and adjust the sliders to see how much a rebalancing payment would be.")
+                Text(strings.calcRebEnterValue)
                     .font(.caption)
-                    .foregroundStyle(Color(.tertiaryLabel))
+                    .foregroundStyle(Color.cohTertiary)
             }
         }
         .padding(20)
@@ -109,10 +118,10 @@ struct RebalanceView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("PAYMENT PLAN")
+                    Text(strings.calcRebPaymentPlan)
                         .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
-                    Text("Spread the payment over time")
-                        .font(.caption).foregroundStyle(Color(.tertiaryLabel))
+                    Text(strings.calcRebSpread)
+                        .font(.caption).foregroundStyle(Color.cohTertiary)
                 }
                 Spacer()
                 Toggle("", isOn: $showPlan.animation())
@@ -122,17 +131,17 @@ struct RebalanceView: View {
 
             if showPlan {
                 HStack(spacing: 12) {
-                    inputRow("Annual rate (%)", placeholder: "5.0", text: $rateText)
-                    inputRow("Years",           placeholder: "5",   text: $yearsText)
+                    inputRow(strings.calcRebAnnualRate, placeholder: "5.0", text: $rateText)
+                    inputRow(strings.calcRebYears,      placeholder: "5",   text: $yearsText)
                 }
                 if let monthly = monthlyPayment {
                     let n     = max(1, Int(parse(yearsText)) * 12)
                     let total = monthly * Double(n)
                     VStack(spacing: 10) {
                         Color(.separator).frame(height: 0.5)
-                        detailRow("Monthly payment",  fmt(monthly), bold: true)
-                        detailRow("Total paid",       fmt(total))
-                        detailRow("Total interest",   fmt(total - absPayment))
+                        detailRow(strings.calcRebMonthlyPayment,  fmt(monthly), bold: true)
+                        detailRow(strings.calcRebTotalPaid,       fmt(total))
+                        detailRow(strings.calcRebTotalInterest,   fmt(total - absPayment))
                     }
                 }
             }
@@ -195,4 +204,4 @@ struct RebalanceView: View {
     }
 }
 
-#Preview { NavigationStack { RebalanceView() } }
+#Preview { NavigationStack { RebalanceView(nameA: "Sarah", nameB: "James") } }

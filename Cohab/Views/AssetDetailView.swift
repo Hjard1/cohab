@@ -6,6 +6,8 @@ struct AssetDetailView: View {
 
     @State private var showAddContribution = false
     @State private var showEdit = false
+    @State private var showSettlement = false
+    @State private var editingOwnership = false
     @Environment(\.modelContext) private var modelContext
     @ObservedObject private var strings = AppStrings.shared
 
@@ -32,11 +34,15 @@ struct AssetDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Donut chart
-                ownershipChart
+                // Themed visual header — icon + colour per asset type,
+                // so a home, a car, and a sofa don't all look like the same row of text.
+                heroHeader
 
-                // Net equity card
+                // Settlement value + split (primary info first)
                 equityCard
+
+                // Ownership chart (compact)
+                ownershipChart
 
                 // Contribution history
                 contributionHistory
@@ -64,36 +70,100 @@ struct AssetDetailView: View {
         .sheet(isPresented: $showEdit) {
             EditAssetView(asset: asset, household: household)
         }
+        .sheet(isPresented: $showSettlement) {
+            SettlementView(asset: asset, household: household)
+        }
+    }
+
+    // MARK: - Hero header
+
+    private var heroHeader: some View {
+        ZStack(alignment: .bottomLeading) {
+            LinearGradient(
+                colors: [asset.type.color, asset.type.color.opacity(0.72)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+
+            // Oversized, low-opacity icon motif bleeding off the corner —
+            // decorative texture, not competing with the readable text below.
+            Image(systemName: asset.type.icon)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 170, height: 170)
+                .foregroundStyle(.white.opacity(0.14))
+                .rotationEffect(.degrees(-10))
+                .offset(x: 78, y: -36)
+
+            VStack(alignment: .leading, spacing: 12) {
+                ZStack {
+                    Circle().fill(.white.opacity(0.20)).frame(width: 52, height: 52)
+                    Image(systemName: asset.type.icon)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(asset.type.displayName.uppercased())
+                        .font(.caption2.weight(.bold))
+                        .tracking(1.2)
+                        .foregroundStyle(.white.opacity(0.75))
+                    Text(asset.label)
+                        .font(.system(size: 24, weight: .bold, design: .serif))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !asset.address.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "mappin.and.ellipse").font(.caption2)
+                            Text(asset.address).font(.caption).lineLimit(1)
+                        }
+                        .foregroundStyle(.white.opacity(0.75))
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .frame(minHeight: 168)
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .shadow(color: asset.type.color.opacity(0.25), radius: 12, y: 6)
     }
 
     // MARK: - Donut chart
 
     private var ownershipChart: some View {
         VStack(spacing: 20) {
+            // Tappable donut
             ZStack {
-                // Background ring
                 Circle()
-                    .stroke(Color(.systemGray5), lineWidth: 20)
-                    .frame(width: 180, height: 180)
+                    .stroke(Color(.systemGray5), lineWidth: 16)
+                    .frame(width: 130, height: 130)
 
-                // Ownership arc
                 Circle()
                     .trim(from: 0, to: asset.ownershipShareA)
-                    .stroke(Color.cohGreen, style: StrokeStyle(lineWidth: 20, lineCap: .round))
-                    .frame(width: 180, height: 180)
+                    .stroke(Color.cohGreen, style: StrokeStyle(lineWidth: 16, lineCap: .round))
+                    .frame(width: 130, height: 130)
                     .rotationEffect(.degrees(-90))
 
-                // Centre label
-                VStack(spacing: 4) {
+                VStack(spacing: 3) {
                     Text(strings.assetOwnership)
                         .font(.caption2.bold()).tracking(1)
                         .foregroundStyle(.secondary)
                     Text("\(Int(asset.ownershipShareA * 100))%")
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.cohInk)
+                    if !editingOwnership {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(Color.cohGreen.opacity(0.6))
+                    }
                 }
             }
-            .animation(.easeInOut(duration: 0.5), value: asset.ownershipShareA)
+            .animation(.easeInOut(duration: 0.4), value: asset.ownershipShareA)
+            .onTapGesture {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    editingOwnership.toggle()
+                }
+            }
 
             // Partner split row
             HStack(spacing: 24) {
@@ -103,9 +173,46 @@ struct AssetDetailView: View {
                 Divider().frame(height: 32)
                 partnerShare(name: household.partnerBName,
                              share: 1 - asset.ownershipShareA,
-                             color: Color(red: 0.20, green: 0.49, blue: 0.96))
+                             color: Color.cohBlue)
             }
             .padding(.horizontal, 40)
+
+            // Inline ownership slider — appears on tap
+            if editingOwnership {
+                VStack(spacing: 10) {
+                    Divider()
+                    HStack {
+                        Text(household.partnerAName)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.cohGreen)
+                        Spacer()
+                        Text(household.partnerBName)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.cohBlue)
+                    }
+                    Slider(value: Binding(
+                        get: { asset.ownershipShareA },
+                        set: { asset.ownershipShareA = $0 }
+                    ), in: 0...1, step: 0.01)
+                    .tint(Color.cohGreen)
+
+                    Button {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            editingOwnership = false
+                        }
+                    } label: {
+                        Text(strings.save)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 4)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .padding(24)
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
@@ -126,7 +233,8 @@ struct AssetDetailView: View {
     // MARK: - Equity card
 
     private var equityCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        let shortfall = equityResult.shortfall
+        return VStack(alignment: .leading, spacing: 14) {
             Text(strings.assetNetEquity)
                 .font(.caption.bold()).tracking(0.5)
                 .foregroundStyle(.secondary)
@@ -145,7 +253,17 @@ struct AssetDetailView: View {
                 equityRow(name: household.partnerAName, amount: equityA, color: Color.cohGreen)
                 Spacer()
                 equityRow(name: household.partnerBName, amount: equityB,
-                          color: Color(red: 0.20, green: 0.49, blue: 0.96))
+                          color: Color.cohBlue)
+            }
+
+            if !asset.contributions.isEmpty {
+                Divider()
+                Text(shortfall
+                     ? strings.settlementShortfallInline
+                     : strings.dashboardContribFirst)
+                    .font(.caption2)
+                    .foregroundStyle(shortfall ? Color.orange : Color(.tertiaryLabel))
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -181,7 +299,14 @@ struct AssetDetailView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(asset.contributions.sorted { $0.date > $1.date }) { contrib in
-                        HStack {
+                        let contribColor: Color = contrib.ownerKey == "A" ? .cohGreen : .cohBlue
+                        let contribName: String = contrib.ownerKey == "A" ? household.partnerAName : household.partnerBName
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle().fill(contribColor.opacity(0.12)).frame(width: 32, height: 32)
+                                Text(String(contribName.prefix(1)).uppercased())
+                                    .font(.caption.bold()).foregroundStyle(contribColor)
+                            }
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(contrib.label.isEmpty ? contrib.category.capitalized : contrib.label)
                                     .font(.subheadline.weight(.medium))
@@ -192,12 +317,11 @@ struct AssetDetailView: View {
                             Spacer()
                             Text("\(household.currencySymbol)\(Int(contrib.amount).formatted())")
                                 .font(.subheadline.bold())
-                                .foregroundStyle(contrib.ownerKey == "A" ? Color.cohGreen
-                                                 : Color(red: 0.20, green: 0.49, blue: 0.96))
+                                .foregroundStyle(contribColor)
                         }
                         .padding(.vertical, 12)
 
-                        if contrib.id != asset.contributions.sorted { $0.date > $1.date }.last?.id {
+                        if contrib.id != asset.contributions.sorted(by: { $0.date > $1.date }).last?.id {
                             Divider()
                         }
                     }
@@ -213,8 +337,8 @@ struct AssetDetailView: View {
 
     private var bottomButtons: some View {
         HStack(spacing: 14) {
-            Button { showEdit = true } label: {
-                Text(strings.assetRecalculate)
+            Button { showSettlement = true } label: {
+                Text(strings.settlementTitle)
                     .font(.headline).foregroundStyle(Color.cohInk)
                     .frame(maxWidth: .infinity).padding(.vertical, 16)
                     .overlay(

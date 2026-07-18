@@ -60,14 +60,10 @@ enum DocuSealService {
     /// and updates the household's agreementStatus and docusealSlug.
     static func isValidEmail(_ email: String) -> Bool {
         let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.contains("@") else { return false }
-        let parts = trimmed.split(separator: "@", maxSplits: 1)
-        guard parts.count == 2,
-              !parts[0].isEmpty,
-              parts[1].contains("."),
-              !parts[1].hasPrefix("."),
-              !parts[1].hasSuffix(".") else { return false }
-        return true
+        guard !trimmed.isEmpty else { return false }
+        // RFC 5321-compatible pattern: local@domain.tld with ≥2-char TLD
+        let pattern = "^[A-Z0-9a-z._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}$"
+        return NSPredicate(format: "SELF MATCHES %@", pattern).evaluate(with: trimmed)
     }
 
     @MainActor
@@ -92,7 +88,7 @@ enum DocuSealService {
             "household_id": household.id.uuidString,
             // [cohab] prefix keeps templates distinct from Samboappen on the
             // shared DocuSeal account dashboard.
-            "title": "[cohab] \(household.partnerAName) & \(household.partnerBName) — Ownership Agreement"
+            "title": "\(household.partnerAName) & \(household.partnerBName) — Cohabitation Agreement"
         ]
 
         var request = URLRequest(url: APIConfig.submitURL)
@@ -112,12 +108,13 @@ enum DocuSealService {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         do {
             let result = try decoder.decode(DocuSealSubmission.self, from: data)
-            household.agreementStatus   = "pending"
-            household.docusealSlug      = result.slug
-            household.docusealViewUrl   = result.signingUrlA
-            // Snapshot state so we can detect changes later
-            household.signedAssetCount  = household.assets.count
+            household.agreementStatus    = "pending"
+            household.docusealSlug       = result.slug
+            household.docusealViewUrl    = result.signingUrlA
+            // Snapshot all agreement-relevant data so any change triggers an update prompt
+            household.signedAssetCount   = household.assets.count
             household.signedContribCount = household.assets.reduce(0) { $0 + $1.contributions.count }
+            household.signedDataSnapshot = household.currentDataSnapshot
             return result
         } catch {
             throw DocuSealError.decodingError(error.localizedDescription)

@@ -35,6 +35,9 @@ xcuserdata/
 ## Supabase CLI temp files
 supabase/.temp/
 
+## Claude Code tooling
+.claude/
+
 ## env / secrets
 .env
 .env.*

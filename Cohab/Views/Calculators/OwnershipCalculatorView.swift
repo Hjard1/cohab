@@ -1,6 +1,16 @@
 import SwiftUI
 
 struct OwnershipCalculatorView: View {
+    let nameA: String
+    let nameB: String
+    let symbol: String
+
+    @ObservedObject private var strings = AppStrings.shared
+
+    init(nameA: String = "Partner A", nameB: String = "Partner B", symbol: String = "£") {
+        self.nameA = nameA; self.nameB = nameB; self.symbol = symbol
+    }
+
     @State private var purchasePrice = ""
     @State private var purchaseCosts = ""
     @State private var depositA = ""
@@ -29,18 +39,18 @@ struct OwnershipCalculatorView: View {
         ScrollView {
             VStack(spacing: 20) {
                 resultCard
-                inputCard("PURCHASE") {
-                    inputRow("Purchase price",           placeholder: "350,000", text: $purchasePrice)
-                    inputRow("Purchase costs (stamp duty, legal…)", placeholder: "5,000", text: $purchaseCosts)
+                inputCard(strings.calcOwnPurchaseSection) {
+                    inputRow(strings.calcOwnPurchasePrice, placeholder: "350,000", text: $purchasePrice)
+                    inputRow(strings.calcOwnPurchaseCosts, placeholder: "5,000", text: $purchaseCosts)
                 }
-                inputCard("DEPOSITS") {
-                    inputRow("Partner A deposit", placeholder: "30,000", text: $depositA)
-                    inputRow("Partner B deposit", placeholder: "20,000", text: $depositB)
+                inputCard(strings.calcOwnDepositsSection) {
+                    inputRow(strings.calcOwnDeposit(nameA), placeholder: "30,000", text: $depositA)
+                    inputRow(strings.calcOwnDeposit(nameB), placeholder: "20,000", text: $depositB)
                 }
-                inputCard("LOAN RESPONSIBILITY") {
+                inputCard(strings.calcOwnLoanSection) {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text("Partner A responsible for")
+                            Text(strings.calcOwnResponsibleFor(nameA))
                                 .font(.subheadline)
                                 .foregroundStyle(.primary)
                             Spacer()
@@ -51,9 +61,9 @@ struct OwnershipCalculatorView: View {
                         Slider(value: $loanShareA, in: 0...100, step: 1)
                             .tint(.cohGreen)
                         if loanAmount > 0 {
-                            Text("Loan: \(fmt(loanAmount)) (price + costs − deposits)")
+                            Text(strings.calcOwnLoanNote(fmt(loanAmount)))
                                 .font(.caption)
-                                .foregroundStyle(Color(.tertiaryLabel))
+                                .foregroundStyle(Color.cohTertiary)
                         }
                     }
                 }
@@ -62,7 +72,7 @@ struct OwnershipCalculatorView: View {
             .padding(20)
         }
         .background(Color.cohBg.ignoresSafeArea())
-        .navigationTitle("Ownership share")
+        .navigationTitle(strings.calcOwnershipTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -70,14 +80,14 @@ struct OwnershipCalculatorView: View {
 
     private var resultCard: some View {
         VStack(spacing: 16) {
-            Text("Fair ownership split")
+            Text(strings.calcOwnFairSplit)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 12) {
-                shareColumn("Partner A", share: hasInput ? fairShareA : 0.5, color: .cohGreen)
-                shareColumn("Partner B", share: hasInput ? fairShareB : 0.5,
+                shareColumn(nameA, share: hasInput ? fairShareA : 0.5, color: .cohGreen)
+                shareColumn(nameB, share: hasInput ? fairShareB : 0.5,
                             color: Color(red: 0.20, green: 0.49, blue: 0.96))
             }
 
@@ -94,9 +104,9 @@ struct OwnershipCalculatorView: View {
             .frame(height: 10)
 
             if !hasInput {
-                Text("Enter values above to calculate your fair ownership split.")
+                Text(strings.calcOwnEnterValues)
                     .font(.caption)
-                    .foregroundStyle(Color(.tertiaryLabel))
+                    .foregroundStyle(Color.cohTertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
@@ -109,7 +119,7 @@ struct OwnershipCalculatorView: View {
         VStack(spacing: 4) {
             Text(String(format: "%.1f%%", share * 100))
                 .font(.system(size: 34, weight: .bold, design: .rounded).monospacedDigit())
-                .foregroundStyle(hasInput ? color : Color(.tertiaryLabel))
+                .foregroundStyle(hasInput ? color : Color.cohTertiary)
             Text(name)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -121,12 +131,12 @@ struct OwnershipCalculatorView: View {
 
     private var detailsCard: some View {
         VStack(spacing: 10) {
-            detailRow("Partner A total stake",  fmt(contribA))
-            detailRow("Partner B total stake",  fmt(contribB))
+            detailRow(strings.calcOwnTotalStake(nameA),  fmt(contribA))
+            detailRow(strings.calcOwnTotalStake(nameB),  fmt(contribB))
             Color(.separator).frame(height: 0.5)
-            detailRow("Total to finance",       fmt(totalCost))
+            detailRow(strings.calcOwnTotalToFinance,       fmt(totalCost))
             if loanAmount > 0 {
-                detailRow("Auto-calculated loan", fmt(loanAmount))
+                detailRow(strings.calcOwnAutoLoan, fmt(loanAmount))
             }
         }
         .padding(18)
@@ -173,4 +183,4 @@ struct OwnershipCalculatorView: View {
     }
 }
 
-#Preview { NavigationStack { OwnershipCalculatorView() } }
+#Preview { NavigationStack { OwnershipCalculatorView(nameA: "Sarah", nameB: "James") } }

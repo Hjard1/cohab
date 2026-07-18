@@ -1,5 +1,6 @@
 import SwiftUI
 import GoogleSignIn
+import Supabase
 
 // MARK: - Google Auth result
 
@@ -11,6 +12,13 @@ struct GoogleUser {
 
 // MARK: - Service
 
+enum GoogleAuthError: LocalizedError {
+    case missingIdToken
+    var errorDescription: String? {
+        "Could not retrieve Google ID token. Check the Google Sign-In configuration."
+    }
+}
+
 enum GoogleAuthService {
     /// Sign in with Google and return the user's basic profile.
     /// Call this from the Welcome screen so email is pre-filled in onboarding.
@@ -21,6 +29,19 @@ enum GoogleAuthService {
 
         let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: viewController)
         let profile = result.user.profile
+
+        // Exchange the Google ID token for a Supabase session so a profile row is
+        // created (handle_new_user trigger) and every subsequent write is
+        // authenticated. This MUST succeed — if it throws, the Google provider or
+        // its Authorized Client IDs are misconfigured in the Supabase Dashboard
+        // (Auth → Providers → Google). We surface the error instead of swallowing
+        // it, otherwise the user appears "signed in" while all writes silently fail.
+        guard let idToken = result.user.idToken?.tokenString else {
+            throw GoogleAuthError.missingIdToken
+        }
+        try await supabase.auth.signInWithIdToken(
+            credentials: .init(provider: .google, idToken: idToken)
+        )
 
         return GoogleUser(
             email: profile?.email ?? "",

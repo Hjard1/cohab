@@ -13,3 +13,8 @@ port = 54323
 
 [functions]
 # Edge functions are in supabase/functions/<name>/index.ts
+
+[auth.external.google]
+enabled = true
+client_id = "202318303891-mqkbc0pdtd3kk1h2jaosbvbh3lkg8rph.apps.googleusercontent.com"
+secret = "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"

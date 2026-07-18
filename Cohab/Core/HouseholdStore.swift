@@ -3,6 +3,12 @@ import SwiftData
 import Foundation
 import Supabase
 
+/// Wrapper that lets a `ModelContext` cross a `@Sendable` closure boundary.
+/// Safe here because the context is only ever used on the main actor.
+private struct UncheckedSendableModelContext: @unchecked Sendable {
+    let value: ModelContext
+}
+
 // MARK: - HouseholdStore
 //
 // @Observable single source of truth for all remote data.
@@ -95,7 +101,8 @@ final class HouseholdStore {
                     setupMode: dbHousehold.setupMode,
                     emailA: dbHousehold.emailA,
                     emailB: dbHousehold.emailB,
-                    relationshipType: dbHousehold.relationshipType
+                    relationshipType: dbHousehold.relationshipType,
+                    agreementType: dbHousehold.agreementType
                 )
                 newHousehold.id = householdId
                 modelContext.insert(newHousehold)
@@ -110,6 +117,7 @@ final class HouseholdStore {
             localHousehold.annualInterestRate = dbHousehold.annualInterestRate
             localHousehold.setupMode          = dbHousehold.setupMode
             localHousehold.relationshipType   = dbHousehold.relationshipType
+            localHousehold.agreementType      = dbHousehold.agreementType
             localHousehold.agreementStatus    = dbHousehold.agreementStatus
             localHousehold.signedAt           = dbHousehold.signedAt
             localHousehold.signedAssetCount   = dbHousehold.signedAssetCount
@@ -118,6 +126,17 @@ final class HouseholdStore {
             localHousehold.docusealViewUrl    = dbHousehold.docusealViewUrl
             localHousehold.emailA             = dbHousehold.emailA
             localHousehold.emailB             = dbHousehold.emailB
+
+            // Agreement config — keep both partners' contracts identical.
+            if let v = dbHousehold.rentAmount            { localHousehold.rentAmount = v }
+            if let v = dbHousehold.rentPayerKey          { localHousehold.rentPayerKey = v }
+            if let v = dbHousehold.rentPaymentDay        { localHousehold.rentPaymentDay = v }
+            if let v = dbHousehold.includeDissolutionClause       { localHousehold.includeDissolutionClause = v }
+            if let v = dbHousehold.includeSeparatePropertyClause  { localHousehold.includeSeparatePropertyClause = v }
+            if let v = dbHousehold.includeBuyoutRightsClause      { localHousehold.includeBuyoutRightsClause = v }
+            if let v = dbHousehold.includeDisposalConsentClause   { localHousehold.includeDisposalConsentClause = v }
+            if let v = dbHousehold.includeDisputeResolutionClause { localHousehold.includeDisputeResolutionClause = v }
+            if let v = dbHousehold.includeDebtClause              { localHousehold.includeDebtClause = v }
 
             // Update in-memory state
             household = dbHousehold
@@ -151,6 +170,7 @@ final class HouseholdStore {
                         remainingLoan: dbAsset.remainingLoan,
                         salesCostFraction: dbAsset.salesCostFraction,
                         ownershipShareA: dbAsset.ownershipShareA,
+                        sortOrder: dbAsset.sortOrder,
                         purchaseDate: purchaseDate
                     )
                     newAsset.id = assetId
@@ -169,6 +189,7 @@ final class HouseholdStore {
                 localAsset.remainingLoan    = dbAsset.remainingLoan
                 localAsset.salesCostFraction = dbAsset.salesCostFraction
                 localAsset.ownershipShareA  = dbAsset.ownershipShareA
+                localAsset.sortOrder          = dbAsset.sortOrder
                 if let pd = dateFormatter.date(from: dbAsset.purchaseDate) {
                     localAsset.purchaseDate = pd
                 }
@@ -227,26 +248,26 @@ final class HouseholdStore {
 
         // Capture modelContext as a local so closures don't capture self strongly
         // in a context where @Observable isolation could cause issues.
-        let capturedModelContext = modelContext
+        let capturedModelContext = UncheckedSendableModelContext(value: modelContext)
 
-        channel.onPostgresChange(AnyAction.self, schema: "public", table: "households") { [weak self] _ in
+        _ = channel.onPostgresChange(AnyAction.self, schema: "public", table: "households") { [weak self] _ in
             guard let self else { return }
-            Task { await self.sync(modelContext: capturedModelContext) }
+            Task { await self.sync(modelContext: capturedModelContext.value) }
         }
 
-        channel.onPostgresChange(AnyAction.self, schema: "public", table: "assets") { [weak self] _ in
+        _ = channel.onPostgresChange(AnyAction.self, schema: "public", table: "assets") { [weak self] _ in
             guard let self else { return }
-            Task { await self.sync(modelContext: capturedModelContext) }
+            Task { await self.sync(modelContext: capturedModelContext.value) }
         }
 
-        channel.onPostgresChange(AnyAction.self, schema: "public", table: "contributions") { [weak self] _ in
+        _ = channel.onPostgresChange(AnyAction.self, schema: "public", table: "contributions") { [weak self] _ in
             guard let self else { return }
-            Task { await self.sync(modelContext: capturedModelContext) }
+            Task { await self.sync(modelContext: capturedModelContext.value) }
         }
 
-        channel.onPostgresChange(AnyAction.self, schema: "public", table: "shared_expenses") { [weak self] _ in
+        _ = channel.onPostgresChange(AnyAction.self, schema: "public", table: "shared_expenses") { [weak self] _ in
             guard let self else { return }
-            Task { await self.sync(modelContext: capturedModelContext) }
+            Task { await self.sync(modelContext: capturedModelContext.value) }
         }
 
         realtimeChannel = channel
@@ -261,13 +282,15 @@ final class HouseholdStore {
     func createHousehold(
         partnerALabel: String, partnerBLabel: String,
         currency: String, country: String, annualInterestRate: Double,
-        setupMode: String, relationshipType: String, emailA: String, emailB: String
+        setupMode: String, relationshipType: String, agreementType: String,
+        emailA: String, emailB: String
     ) async throws {
         _ = try await SupabaseService.createHousehold(
             partnerALabel: partnerALabel, partnerBLabel: partnerBLabel,
             currency: currency, country: country,
             annualInterestRate: annualInterestRate, setupMode: setupMode,
-            relationshipType: relationshipType, emailA: emailA, emailB: emailB)
+            relationshipType: relationshipType, agreementType: agreementType,
+            emailA: emailA, emailB: emailB)
         await load()
     }
 
@@ -371,7 +394,9 @@ final class HouseholdStore {
     func generateInviteLink() async throws -> URL {
         guard let h = household else { throw StoreError.noHousehold }
         let token = try await SupabaseService.createInviteToken(householdId: h.id)
-        return URL(string: "https://cohab.app/join/\(token.uuidString)")!
+        // Must match the scheme parsed in CohabApp.onOpenURL and the link built in
+        // InvitePartnerView — a universal https link has no associated-domain setup.
+        return URL(string: "cohab://join?token=\(token.uuidString)")!
     }
 
     func joinWithToken(_ tokenString: String) async throws {

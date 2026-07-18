@@ -266,6 +266,7 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
     var onboardingGetStarted: String { s(en: "Get started", nb: "Kom i gang", sv: "Kom igång", da: "Kom i gang", fi: "Aloita", de: "Loslegen", fr: "Commencer", es: "Empezar") }
     var onboardingContinue: String   { s(en: "Continue",    nb: "Fortsett",   sv: "Fortsätt", da: "Fortsæt",   fi: "Jatka", de: "Weiter", fr: "Continuer", es: "Continuar") }
     var onboardingStartTracking: String { s(en: "Start tracking", nb: "Start registrering", sv: "Börja registrera", da: "Start registrering", fi: "Aloita seuranta", de: "Tracking starten", fr: "Commencer le suivi", es: "Comenzar seguimiento") }
+    var onboardingAcceptDisclaimerToContinue: String { s(en: "Confirm that you understand the notice before continuing.", nb: "Bekreft at du har lest og forstått informasjonen før du fortsetter.", sv: "Bekräfta att du har läst och förstått informationen innan du fortsätter.", da: "Bekræft, at du har læst og forstået informationen, før du fortsætter.", fi: "Vahvista, että olet lukenut ja ymmärtänyt tiedot ennen jatkamista.", de: "Bestätige, dass du die Informationen gelesen und verstanden hast, bevor du fortfährst.", fr: "Confirmez avoir lu et compris les informations avant de continuer.", es: "Confirma que has leído y entendido la información antes de continuar.") }
 
     // MARK: Onboarding — new screens
 
@@ -407,10 +408,101 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
     var onboardingYourEmail: String { s(en: "YOUR EMAIL",    nb: "DIN E-POST",     sv: "DIN E-POST",   da: "DIN E-MAIL",  fi: "SÄHKÖPOSTISI",        de: "IHRE E-MAIL",        fr: "VOTRE E-MAIL",         es: "SU CORREO") }
     var onboardingPartnerEmail: String { s(en: "PARTNER'S EMAIL", nb: "PARTNERS E-POST", sv: "PARTNERNS E-POST", da: "PARTNERS E-MAIL", fi: "KUMPPANIN SÄHKÖPOSTI", de: "E-MAIL DES PARTNERS", fr: "E-MAIL DU PARTENAIRE", es: "CORREO DEL SOCIO") }
 
-    var onboardingRelationship: String { s(en: "RELATIONSHIP", nb: "FORHOLD", sv: "RELATION", da: "FORHOLD", fi: "SUHDE", de: "BEZIEHUNG", fr: "RELATION", es: "RELACIÓN") }
-    var onboardingCouple: String     { s(en: "Couple",            nb: "Par",               sv: "Par",             da: "Par",             fi: "Pari",                de: "Paar",               fr: "Couple",               es: "Pareja") }
-    var onboardingHousemates: String { s(en: "Housemates",        nb: "Samboere",          sv: "Sambos",          da: "Samboere",        fi: "Asuntotoverit",       de: "Mitbewohner",        fr: "Colocataires",         es: "Compañeros de piso") }
-    var onboardingBusiness: String   { s(en: "Business partners", nb: "Forretningspartnere", sv: "Affärspartners", da: "Forretningspartnere", fi: "Liikekumppanit",  de: "Geschäftspartner",   fr: "Partenaires commerciaux", es: "Socios comerciales") }
+    var onboardingRelationshipTitle: String { s(
+        en: "What's your\nsituation?",
+        nb: "Hva er\nsituasjonen deres?",
+        sv: "Vad är er\nsituation?",
+        da: "Hvad er jeres\nsituation?",
+        fi: "Mikä on\ntilanteenne?",
+        de: "Wie ist Ihre\nSituation?",
+        fr: "Quelle est votre\nsituation ?",
+        es: "¿Cuál es su\nsituación?") }
+
+    var onboardingRelationshipSub: String { s(
+        en: "This helps us tailor what we show you.",
+        nb: "Dette hjelper oss å skreddersy det vi viser deg.",
+        sv: "Detta hjälper oss att anpassa vad vi visar dig.",
+        da: "Dette hjælper os med at skræddersy det vi viser dig.",
+        fi: "Tämä auttaa meitä räätälöimään sisällön sinulle.",
+        de: "So können wir Ihnen passende Inhalte anzeigen.",
+        fr: "Cela nous aide à adapter ce que nous vous montrons.",
+        es: "Esto nos ayuda a personalizar lo que te mostramos.") }
+
+    var onboardingRelPartner: String { s(en: "Partner", nb: "Partner", sv: "Partner", da: "Partner", fi: "Kumppani", de: "Partner", fr: "Partenaire", es: "Pareja") }
+    var onboardingRelPartnerSub: String { s(
+        en: "We live together and share things, unmarried.",
+        nb: "Vi bor sammen og deler ting, men er ikke gift.",
+        sv: "Vi bor tillsammans och delar saker, men är inte gifta.",
+        da: "Vi bor sammen og deler ting, men er ikke gift.",
+        fi: "Asumme yhdessä ja jaamme asioita, mutta emme ole naimisissa.",
+        de: "Wir leben zusammen und teilen Dinge, sind aber nicht verheiratet.",
+        fr: "Nous vivons ensemble et partageons des choses, sans être mariés.",
+        es: "Vivimos juntos y compartimos cosas, sin estar casados.") }
+
+    var onboardingRelFriend: String { s(en: "Friend or family", nb: "Venn eller familie", sv: "Vän eller familj", da: "Ven eller familie", fi: "Ystävä tai perhe", de: "Freund oder Familie", fr: "Ami ou famille", es: "Amigo o familia") }
+    var onboardingRelFriendSub: String { s(
+        en: "We share a home or assets, not romantically.",
+        nb: "Vi deler bolig eller eiendeler, ikke som par.",
+        sv: "Vi delar bostad eller tillgångar, inte som par.",
+        da: "Vi deler bolig eller aktiver, ikke som par.",
+        fi: "Jaamme kodin tai omaisuutta, emme parisuhteessa.",
+        de: "Wir teilen ein Zuhause oder Vermögen, nicht als Paar.",
+        fr: "Nous partageons un logement ou des biens, sans être en couple.",
+        es: "Compartimos vivienda o bienes, no como pareja.") }
+
+    var onboardingRelMarried: String { s(en: "Married couple", nb: "Gift par", sv: "Gift par", da: "Gift par", fi: "Aviopari", de: "Verheiratetes Paar", fr: "Couple marié", es: "Pareja casada") }
+    var onboardingRelMarriedSub: String { s(
+        en: "We're married or in a civil partnership.",
+        nb: "Vi er gift eller registrerte partnere.",
+        sv: "Vi är gifta eller registrerade partner.",
+        da: "Vi er gift eller registrerede partnere.",
+        fi: "Olemme naimisissa tai rekisteröityjä kumppaneita.",
+        de: "Wir sind verheiratet oder eingetragene Partner.",
+        fr: "Nous sommes mariés ou pacsés.",
+        es: "Estamos casados o somos pareja de hecho registrada.") }
+
+    var onboardingAgreementTypeTitle: String { s(
+        en: "Cohabitation or\nrental?",
+        nb: "Samboer- eller\nleieavtale?",
+        sv: "Samboavtal eller\nhyresavtal?",
+        da: "Samlivskontrakt eller\nlejekontrakt?",
+        fi: "Avoliitto- vai\nvuokrasopimus?",
+        de: "Partnerschaftsvertrag\noder Mietvereinbarung?",
+        fr: "Cohabitation ou\nlocation ?",
+        es: "¿Convivencia o\nalquiler?") }
+
+    var onboardingAgreementTypeSub: String { s(
+        en: "This decides which agreement template fits.",
+        nb: "Dette avgjør hvilken avtalemal som passer.",
+        sv: "Detta avgör vilken avtalsmall som passar.",
+        da: "Dette afgør hvilken kontraktskabelon der passer.",
+        fi: "Tämä ratkaisee, mikä sopimuspohja sopii.",
+        de: "So finden wir die passende Vertragsvorlage.",
+        fr: "Cela détermine quel modèle de contrat convient.",
+        es: "Esto decide qué plantilla de acuerdo se ajusta.") }
+
+    var onboardingAgreementCohab: String { s(en: "Cohabitation agreement", nb: "Samboeravtale", sv: "Samboavtal", da: "Samlivskontrakt", fi: "Avoliittosopimus", de: "Partnerschaftsvertrag", fr: "Accord de cohabitation", es: "Acuerdo de convivencia") }
+    var onboardingAgreementCohabSub: String { s(
+        en: "We own things together or share a home as owners.",
+        nb: "Vi eier ting sammen eller bor i bolig vi eier.",
+        sv: "Vi äger saker tillsammans eller bor i en bostad vi äger.",
+        da: "Vi ejer ting sammen eller bor i en bolig vi ejer.",
+        fi: "Omistamme asioita yhdessä tai asumme omistamassamme kodissa.",
+        de: "Wir besitzen gemeinsam Dinge oder wohnen als Eigentümer.",
+        fr: "Nous possédons des biens ensemble ou vivons en tant que propriétaires.",
+        es: "Poseemos cosas juntos o vivimos en una vivienda que somos propietarios.") }
+
+    var onboardingAgreementRental: String { s(en: "Rental agreement", nb: "Leieavtale", sv: "Hyresavtal", da: "Lejekontrakt", fi: "Vuokrasopimus", de: "Mietvereinbarung", fr: "Accord de location", es: "Acuerdo de alquiler") }
+    var onboardingAgreementRentalSub: String { s(
+        en: "One of us rents from the other, or we jointly rent.",
+        nb: "En av oss leier av den andre, eller vi leier sammen.",
+        sv: "En av oss hyr av den andra, eller vi hyr tillsammans.",
+        da: "En af os lejer af den anden, eller vi lejer sammen.",
+        fi: "Toinen vuokraa toiselta, tai vuokraamme yhdessä.",
+        de: "Einer von uns mietet vom anderen, oder wir mieten gemeinsam.",
+        fr: "L'un de nous loue à l'autre, ou nous louons ensemble.",
+        es: "Uno de nosotros alquila al otro, o alquilamos juntos.") }
+
 
     var onboardingProtect: String { s(
         en: "Protect what you\nbuild together.",
@@ -685,6 +777,130 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
         fr: "Connectez-vous pour synchroniser votre foyer avec votre partenaire. Vous pouvez également le faire plus tard.",
         es: "Inicia sesión para sincronizar tu hogar con tu pareja. También puedes hacerlo más tarde.") }
 
+    var onboardingContinueWithApple: String { s(
+        en: "Continue with Apple",
+        nb: "Fortsett med Apple",
+        sv: "Fortsätt med Apple",
+        da: "Fortsæt med Apple",
+        fi: "Jatka Applella",
+        de: "Mit Apple fortfahren",
+        fr: "Continuer avec Apple",
+        es: "Continuar con Apple") }
+
+    var onboardingSignInRequiredNote: String { s(
+        en: "Sign in to save your household and sync it with your partner.",
+        nb: "Logg inn for å lagre husholdningen og synkronisere den med partneren din.",
+        sv: "Logga in för att spara ditt hushåll och synka det med din partner.",
+        da: "Log ind for at gemme din husstand og synkronisere den med din partner.",
+        fi: "Kirjaudu sisään tallentaaksesi taloutesi ja synkataksesi sen kumppanisi kanssa.",
+        de: "Melden Sie sich an, um Ihren Haushalt zu speichern und mit Ihrem Partner zu synchronisieren.",
+        fr: "Connectez-vous pour enregistrer votre foyer et le synchroniser avec votre partenaire.",
+        es: "Inicia sesión para guardar tu hogar y sincronizarlo con tu pareja.") }
+
+    // MARK: Sign in screen
+
+    var signInWelcomeBack: String { s(
+        en: "Welcome back",
+        nb: "Velkommen tilbake",
+        sv: "Välkommen tillbaka",
+        da: "Velkommen tilbage",
+        fi: "Tervetuloa takaisin",
+        de: "Willkommen zurück",
+        fr: "Bon retour",
+        es: "Bienvenido de nuevo") }
+
+    var signInSubtitle: String { s(
+        en: "Sign in to access your household.",
+        nb: "Logg inn for å få tilgang til husholdningen din.",
+        sv: "Logga in för att komma åt ditt hushåll.",
+        da: "Log ind for at få adgang til din husstand.",
+        fi: "Kirjaudu sisään päästäksesi talouteesi.",
+        de: "Melden Sie sich an, um auf Ihren Haushalt zuzugreifen.",
+        fr: "Connectez-vous pour accéder à votre foyer.",
+        es: "Inicia sesión para acceder a tu hogar.") }
+
+    var signInBackToSignUp: String { s(
+        en: "Back to sign up",
+        nb: "Tilbake til registrering",
+        sv: "Tillbaka till registrering",
+        da: "Tilbage til tilmelding",
+        fi: "Takaisin rekisteröintiin",
+        de: "Zurück zur Registrierung",
+        fr: "Retour à l'inscription",
+        es: "Volver al registro") }
+
+    var signInStartFresh: String { s(
+        en: "Start fresh — delete local data",
+        nb: "Start på nytt — slett lokale data",
+        sv: "Börja om — radera lokal data",
+        da: "Start forfra — slet lokale data",
+        fi: "Aloita alusta — poista paikalliset tiedot",
+        de: "Neu beginnen — lokale Daten löschen",
+        fr: "Recommencer — supprimer les données locales",
+        es: "Empezar de nuevo — eliminar datos locales") }
+
+    var signInDeleteTitle: String { s(
+        en: "Delete local data?",
+        nb: "Slette lokale data?",
+        sv: "Radera lokal data?",
+        da: "Slet lokale data?",
+        fi: "Poistetaanko paikalliset tiedot?",
+        de: "Lokale Daten löschen?",
+        fr: "Supprimer les données locales ?",
+        es: "¿Eliminar datos locales?") }
+
+    var signInDeleteConfirm: String { s(
+        en: "Delete and start over",
+        nb: "Slett og start på nytt",
+        sv: "Radera och börja om",
+        da: "Slet og start forfra",
+        fi: "Poista ja aloita alusta",
+        de: "Löschen und neu beginnen",
+        fr: "Supprimer et recommencer",
+        es: "Eliminar y empezar de nuevo") }
+
+    var signInDeleteMessage: String { s(
+        en: "Your local assets and contributions will be removed. Sign in later to restore cloud data.",
+        nb: "Dine lokale eiendeler og bidrag blir fjernet. Logg inn senere for å gjenopprette skydata.",
+        sv: "Dina lokala tillgångar och bidrag tas bort. Logga in senare för att återställa molndata.",
+        da: "Dine lokale aktiver og bidrag fjernes. Log ind senere for at gendanne skydata.",
+        fi: "Paikalliset omaisuutesi ja panoksesi poistetaan. Kirjaudu myöhemmin palauttaaksesi pilvitiedot.",
+        de: "Ihre lokalen Vermögenswerte und Beiträge werden entfernt. Melden Sie sich später an, um Cloud-Daten wiederherzustellen.",
+        fr: "Vos actifs et contributions locaux seront supprimés. Connectez-vous plus tard pour restaurer les données cloud.",
+        es: "Tus activos y aportaciones locales se eliminarán. Inicia sesión más tarde para restaurar los datos en la nube.") }
+
+    var authAppleTokenError: String { s(
+        en: "Could not extract Apple identity token.",
+        nb: "Kunne ikke hente Apple-identitetstoken.",
+        sv: "Kunde inte hämta Apple-identitetstoken.",
+        da: "Kunne ikke hente Apple-identitetstoken.",
+        fi: "Apple-tunnistetietoa ei voitu hakea.",
+        de: "Apple-Identitätstoken konnte nicht abgerufen werden.",
+        fr: "Impossible d'extraire le jeton d'identité Apple.",
+        es: "No se pudo extraer el token de identidad de Apple.") }
+
+    // MARK: Join household (deep link)
+
+    var joiningHousehold: String { s(
+        en: "Joining household…",
+        nb: "Blir med i husholdning…",
+        sv: "Går med i hushåll…",
+        da: "Tilslutter husstand…",
+        fi: "Liitytään talouteen…",
+        de: "Haushalt wird beigetreten…",
+        fr: "Connexion au foyer…",
+        es: "Uniéndose al hogar…") }
+
+    var joinFailed: String { s(
+        en: "Could not join household",
+        nb: "Kunne ikke bli med i husholdningen",
+        sv: "Kunde inte gå med i hushållet",
+        da: "Kunne ikke tilslutte husstanden",
+        fi: "Talouteen ei voitu liittyä",
+        de: "Beitritt zum Haushalt fehlgeschlagen",
+        fr: "Impossible de rejoindre le foyer",
+        es: "No se pudo unir al hogar") }
+
     // MARK: Onboarding — welcome step
 
     var onboardingContinueWithGoogle: String { s(
@@ -708,6 +924,16 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
         de: "Ich verstehe",
         fr: "Je comprends",
         es: "Entiendo") }
+
+    var disclaimerReadMore: String { s(
+        en: "Read more →",
+        nb: "Les mer →",
+        sv: "Läs mer →",
+        da: "Læs mere →",
+        fi: "Lue lisää →",
+        de: "Mehr lesen →",
+        fr: "En savoir plus →",
+        es: "Leer más →") }
 
     var disclaimerClose: String { s(
         en: "Close",
@@ -815,10 +1041,44 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
     var addAssetNavTitle: String { s(en: "Add asset", nb: "Legg til eiendel", sv: "Lägg till tillgång", da: "Tilføj aktiv", fi: "Lisää varallisuus", de: "Vermögenswert hinzufügen", fr: "Ajouter un actif", es: "Agregar activo") }
     var addContribTitle: String { s(en: "Add contribution", nb: "Legg til bidrag", sv: "Lägg till bidrag", da: "Tilføj bidrag", fi: "Lisää maksu", de: "Beitrag hinzufügen", fr: "Ajouter une contribution", es: "Agregar aportación") }
     var noContribsYet: String { s(en: "No contributions yet", nb: "Ingen bidrag ennå", sv: "Inga bidrag ännu", da: "Ingen bidrag endnu", fi: "Ei maksuja vielä", de: "Noch keine Beiträge", fr: "Aucune contribution encore", es: "Sin aportaciones aún") }
+
+    // MARK: Add contribution form
+    var contribWhoSection: String    { s(en: "Who contributed?",     nb: "Hvem bidro?",                sv: "Vem bidrog?",              da: "Hvem bidrog?",              fi: "Kuka maksoi?",               de: "Wer hat beigetragen?",          fr: "Qui a contribué ?",            es: "¿Quién aportó?") }
+    var contribBoth: String          { s(en: "Both",                  nb: "Begge",                       sv: "Båda",                     da: "Begge",                     fi: "Molemmat",                   de: "Beide",                         fr: "Les deux",                     es: "Ambos") }
+    var contribCategorySection: String { s(en: "Category",            nb: "Kategori",                    sv: "Kategori",                 da: "Kategori",                  fi: "Kategoria",                  de: "Kategorie",                     fr: "Catégorie",                    es: "Categoría") }
+    var contribDetailsSection: String { s(en: "Details",              nb: "Detaljer",                    sv: "Detaljer",                 da: "Detaljer",                  fi: "Tiedot",                     de: "Details",                       fr: "Détails",                      es: "Detalles") }
+    var contribAmountPlaceholder: String { s(en: "Amount",            nb: "Beløp",                       sv: "Belopp",                   da: "Beløb",                     fi: "Summa",                      de: "Betrag",                        fr: "Montant",                      es: "Importe") }
+    var contribDateLabel: String     { s(en: "Date",                  nb: "Dato",                        sv: "Datum",                    da: "Dato",                      fi: "Päivämäärä",                 de: "Datum",                         fr: "Date",                         es: "Fecha") }
+    var contribLabelPlaceholder: String { s(en: "Label (e.g. Deposit, Kitchen renovation)", nb: "Beskrivelse (f.eks. Innskudd, Kjøkkenoppussing)", sv: "Beskrivning (t.ex. Insättning, Köksrenovering)", da: "Beskrivelse (f.eks. Indskud, Køkkenrenovering)", fi: "Kuvaus (esim. Talletus, Keittiöremontti)", de: "Bezeichnung (z. B. Einzahlung, Küchenrenovierung)", fr: "Libellé (ex. Dépôt, Rénovation cuisine)", es: "Etiqueta (p. ej. Depósito, Reforma cocina)") }
+    var contribAdjustOwnership: String { s(en: "Adjust ownership split", nb: "Juster eierfordelingen", sv: "Justera ägarandelen",       da: "Juster ejerskabsfordelingen", fi: "Muuta omistusosuutta",       de: "Eigentumsaufteilung anpassen",  fr: "Ajuster la répartition",       es: "Ajustar reparto de propiedad") }
+    var contribOwnershipFooter: String { s(en: "Updates the ownership split for this asset alongside the contribution.", nb: "Oppdaterer eierfordelingen for denne eiendelen sammen med bidraget.", sv: "Uppdaterar ägarandelen för denna tillgång tillsammans med bidraget.", da: "Opdaterer ejerskabsfordelingen for dette aktiv sammen med bidraget.", fi: "Päivittää omistusosuuden tälle varallisuudelle yhdessä maksun kanssa.", de: "Aktualisiert die Eigentumsaufteilung für diesen Vermögenswert zusammen mit dem Beitrag.", fr: "Met à jour la répartition de propriété pour cet actif avec la contribution.", es: "Actualiza el reparto de propiedad de este activo junto con la aportación.") }
+    // Category labels
+    var contribCatDeposit: String    { s(en: "Deposit",    nb: "Innskudd",    sv: "Insättning",  da: "Indskud",     fi: "Talletus",   de: "Einzahlung",  fr: "Dépôt",      es: "Depósito") }
+    var contribCatRepayment: String  { s(en: "Repayment",  nb: "Nedbetaling", sv: "Amortering",  da: "Tilbagebetaling", fi: "Lyhennys", de: "Tilgung",    fr: "Remboursement", es: "Amortización") }
+    var contribCatRenovation: String { s(en: "Renovation", nb: "Oppussing",   sv: "Renovering",  da: "Renovering",  fi: "Remontti",   de: "Renovierung", fr: "Rénovation", es: "Renovación") }
+    var contribCatRepairs: String    { s(en: "Repairs",    nb: "Reparasjoner",sv: "Reparationer",da: "Reparationer",fi: "Korjaukset",  de: "Reparaturen", fr: "Réparations",es: "Reparaciones") }
+    var contribCatGift: String       { s(en: "Gift",       nb: "Gave",        sv: "Gåva",        da: "Gave",        fi: "Lahja",      de: "Schenkung",   fr: "Don",        es: "Donación") }
+    var contribCatPurchase: String   { s(en: "Purchase",   nb: "Kjøp",        sv: "Köp",         da: "Køb",         fi: "Hankinta",   de: "Kauf",        fr: "Achat",      es: "Compra") }
+    var contribCatPayment: String    { s(en: "Payment",    nb: "Betaling",    sv: "Betalning",   da: "Betaling",    fi: "Maksu",      de: "Zahlung",     fr: "Paiement",   es: "Pago") }
     var deleteAsset: String { s(en: "Delete asset", nb: "Slett eiendel", sv: "Ta bort tillgång", da: "Slet aktiv", fi: "Poista varallisuus", de: "Vermögenswert löschen", fr: "Supprimer l'actif", es: "Eliminar activo") }
+    var assetDeleteMessage: String { s(en: "All contributions linked to this asset will also be deleted.", nb: "Alle bidrag knyttet til denne eiendelen slettes også.", sv: "Alla bidrag kopplade till denna tillgång tas också bort.", da: "Alle bidrag knyttet til dette aktiv slettes også.", fi: "Kaikki tähän varallisuuteen liitetyt maksut poistetaan myös.", de: "Alle mit diesem Vermögenswert verknüpften Beiträge werden ebenfalls gelöscht.", fr: "Toutes les contributions liées à cet actif seront également supprimées.", es: "También se eliminarán todas las aportaciones vinculadas a este activo.") }
+    var assetTypeLabel: String { s(en: "TYPE", nb: "TYPE", sv: "TYP", da: "TYPE", fi: "TYYPPI", de: "TYP", fr: "TYPE", es: "TIPO") }
+    var assetEquityContributions: String { s(en: "EQUITY CONTRIBUTIONS", nb: "EGENKAPITALBIDRAG", sv: "KAPITALTILLSKOTT", da: "EGENKAPITALBIDRAG", fi: "OMAN PÄÄOMAN PANOKSET", de: "EIGENKAPITALBEITRÄGE", fr: "APPORTS EN CAPITAL", es: "APORTACIONES DE CAPITAL") }
+    var assetNoContributions: String { s(en: "No contributions yet", nb: "Ingen bidrag ennå", sv: "Inga bidrag än", da: "Ingen bidrag endnu", fi: "Ei vielä maksuja", de: "Noch keine Beiträge", fr: "Aucune contribution pour l'instant", es: "Aún no hay aportaciones") }
+    var moveAssetUp: String { s(en: "Move up", nb: "Flytt opp", sv: "Flytta upp", da: "Flyt op", fi: "Siirrä ylös", de: "Nach oben", fr: "Monter", es: "Mover arriba") }
+    var moveAssetDown: String { s(en: "Move down", nb: "Flytt ned", sv: "Flytta ned", da: "Flyt ned", fi: "Siirrä alas", de: "Nach unten", fr: "Descendre", es: "Mover abajo") }
+    var deleteAssetConfirmationTitle: String { s(en: "Delete asset?", nb: "Slette eiendel?", sv: "Ta bort tillgång?", da: "Slet aktiv?", fi: "Poistetaanko varallisuus?", de: "Vermögenswert löschen?", fr: "Supprimer l'actif ?", es: "¿Eliminar activo?") }
     var fieldName: String   { s(en: "Name",     nb: "Navn",      sv: "Namn",    da: "Navn",    fi: "Nimi",        de: "Name",     fr: "Nom",       es: "Nombre") }
     var optional: String   { s(en: "optional", nb: "valgfritt", sv: "valfritt", da: "valgfrit", fi: "valinnainen", de: "optional", fr: "optionnel", es: "opcional") }
     var cancel: String { s(en: "Cancel", nb: "Avbryt", sv: "Avbryt", da: "Annuller", fi: "Peruuta", de: "Abbrechen", fr: "Annuler", es: "Cancelar") }
+    var ok: String { s(en: "OK", nb: "OK", sv: "OK", da: "OK", fi: "OK", de: "OK", fr: "OK", es: "OK") }
+    var saved: String { s(en: "Saved", nb: "Lagret", sv: "Sparat", da: "Gemt", fi: "Tallennettu", de: "Gespeichert", fr: "Enregistré", es: "Guardado") }
+    var update: String { s(en: "Update", nb: "Oppdater", sv: "Uppdatera", da: "Opdatér", fi: "Päivitä", de: "Aktualisieren", fr: "Mettre à jour", es: "Actualizar") }
+    var dashboardEmptyTitle: String { s(en: "Set up your household", nb: "Sett opp husholdningen din", sv: "Skapa ditt hushåll", da: "Opsæt din husstand", fi: "Määritä taloutesi", de: "Richten Sie Ihren Haushalt ein", fr: "Configurez votre foyer", es: "Configura tu hogar") }
+    var dashboardEmptySub: String { s(en: "Track shared assets, contributions, and get a fair settlement whenever you need it.", nb: "Følg felles eiendeler og bidrag, og få et rettferdig oppgjør når du trenger det.", sv: "Håll koll på gemensamma tillgångar och bidrag, och få en rättvis uppgörelse när du behöver den.", da: "Hold styr på fælles aktiver og bidrag, og få en retfærdig opgørelse, når du har brug for den.", fi: "Seuraa yhteisiä varoja ja panoksia ja saa reilu selvitys tarvittaessa.", de: "Verfolgen Sie gemeinsame Vermögenswerte und Beiträge und erhalten Sie jederzeit eine faire Aufteilung.", fr: "Suivez les actifs et apports communs et obtenez un partage équitable quand vous en avez besoin.", es: "Registra activos y aportaciones compartidos y obtén un reparto justo cuando lo necesites.") }
+    func dashboardRateUpdated(_ source: String) -> String { s(en: "\(source) rate updated", nb: "\(source)-rente oppdatert", sv: "\(source)-ränta uppdaterad", da: "\(source)-rente opdateret", fi: "\(source)-korko päivitetty", de: "\(source)-Zinssatz aktualisiert", fr: "Taux \(source) mis à jour", es: "Tasa de \(source) actualizada") }
+    func dashboardRateCurrently(_ pct: String) -> String { s(en: "(currently \(pct))", nb: "(nå \(pct))", sv: "(nu \(pct))", da: "(nu \(pct))", fi: "(nyt \(pct))", de: "(aktuell \(pct))", fr: "(actuellement \(pct))", es: "(actualmente \(pct))") }
+    var error: String { s(en: "Error", nb: "Feil", sv: "Fel", da: "Fejl", fi: "Virhe", de: "Fehler", fr: "Erreur", es: "Error") }
     var save: String { s(en: "Save", nb: "Lagre", sv: "Spara", da: "Gem", fi: "Tallenna", de: "Speichern", fr: "Enregistrer", es: "Guardar") }
     var add: String { s(en: "Add", nb: "Legg til", sv: "Lägg till", da: "Tilføj", fi: "Lisää", de: "Hinzufügen", fr: "Ajouter", es: "Agregar") }
     var continueButton: String { s(en: "Continue", nb: "Fortsett", sv: "Fortsätt", da: "Fortsæt", fi: "Jatka", de: "Weiter", fr: "Continuer", es: "Continuar") }
@@ -826,6 +1086,8 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
     var stepNameIt: String     { s(en: "Name it", nb: "Gi den et navn", sv: "Namnge den", da: "Navngiv det", fi: "Anna nimi", de: "Benennen", fr: "Nommer", es: "Nombrar") }
     var stepWhatWorth: String  { s(en: "What's it worth?", nb: "Hva er den verdt?", sv: "Vad är den värd?", da: "Hvad er den værd?", fi: "Mikä on arvo?", de: "Was ist es wert?", fr: "Quelle est sa valeur?", es: "¿Cuánto vale?") }
     var stepWhoOwns: String    { s(en: "Who owns what?", nb: "Hvem eier hva?", sv: "Vem äger vad?", da: "Hvem ejer hvad?", fi: "Kuka omistaa?", de: "Wer besitzt was?", fr: "Qui possède quoi?", es: "¿Quién posee qué?") }
+    var assetIsRegistered: String { s(en: "Ownership is officially registered", nb: "Eierskapet er tinglyst", sv: "Ägarskapet är registrerat", da: "Ejerskabet er tinglyst", fi: "Omistus on rekisteröity", de: "Eigentum ist eingetragen", fr: "La propriété est enregistrée", es: "La propiedad está registrada") }
+    var assetIsRegisteredHint: String { s(en: "e.g. land registry, vehicle register", nb: "f.eks. grunnboken, kjøretøyregisteret", sv: "t.ex. fastighetsregistret, fordonsregistret", da: "f.eks. tingbogen, køretøjsregistret", fi: "esim. kiinteistörekisteri, ajoneuvorekisteri", de: "z. B. Grundbuch, Fahrzeugregister", fr: "ex. cadastre, immatriculation", es: "p. ej. registro de la propiedad, matrícula") }
     var stepNameSub: String    { s(en: "Give your asset a name", nb: "Gi eiendelen et navn", sv: "Ge tillgången ett namn", da: "Giv aktivet et navn", fi: "Anna varallisuudelle nimi", de: "Benennen Sie Ihren Vermögenswert", fr: "Donnez un nom à votre actif", es: "Ponle nombre a tu activo") }
     var stepContribs: String   { s(en: "Who paid what?", nb: "Hvem betalte hva?", sv: "Vem betalade vad?", da: "Hvem betalte hvad?", fi: "Kuka maksoi?", de: "Wer hat was bezahlt?", fr: "Qui a payé quoi?", es: "¿Quién pagó qué?") }
     var stepContribsSub: String { s(
@@ -917,6 +1179,9 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
     var assetRecalculate: String    { s(en: "Recalculate",       nb: "Beregn på nytt",    sv: "Beräkna om",      da: "Genberegn",          fi: "Laske uudelleen",     de: "Neu berechnen",      fr: "Recalculer",           es: "Recalcular") }
     var assetOwnership: String      { s(en: "OWNERSHIP",         nb: "EIERSKAP",          sv: "ÄGARANDEL",       da: "EJERSKAB",           fi: "OMISTUS",             de: "EIGENTUMSANTEIL",    fr: "PROPRIÉTÉ",            es: "PROPIEDAD") }
     var assetInterestEarned: String { s(en: "interest",          nb: "renter",            sv: "ränta",           da: "renter",             fi: "korko",               de: "Zinsen",             fr: "intérêts",             es: "intereses") }
+    var assetTapToSetUp: String    { s(en: "Tap to set up →",   nb: "Trykk for å sette opp →", sv: "Tryck för att ställa in →", da: "Tryk for at konfigurere →", fi: "Napauta asettaaksesi →", de: "Zum Einrichten tippen →", fr: "Toucher pour configurer →", es: "Toca para configurar →") }
+    var assetSharedEqually: String { s(en: "Shared equally",    nb: "Delt likt",         sv: "Delas lika",      da: "Delt ligeligt",      fi: "Jaettu tasan",        de: "Gleich geteilt",     fr: "Partagé à parts égales", es: "Compartido igual") }
+    var assetSharedFormat: String  { s(en: "Shared",            nb: "Delt",              sv: "Delad",           da: "Delt",               fi: "Jaettu",              de: "Geteilt",            fr: "Partagé",              es: "Compartido") }
 
     // MARK: Agreement tab
 
@@ -934,8 +1199,61 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
     var agreementNoAgreement: String { s(en: "No agreement yet", nb: "Ingen avtale ennå", sv: "Inget avtal ännu", da: "Ingen aftale endnu", fi: "Ei sopimusta vielä", de: "Noch keine Vereinbarung", fr: "Pas encore d'accord", es: "Aún no hay acuerdo") }
     var agreementNoAgreementSub: String { s(en: "Generate and sign your cohabitation agreement", nb: "Generer og signer samboerkontrakten", sv: "Generera och underteckna samboavtalet", da: "Generér og underskriv samlivskontrakten", fi: "Luo ja allekirjoita avoliittosopimus", de: "Vereinbarung erstellen und unterzeichnen", fr: "Générez et signez votre accord de vie commune", es: "Genera y firma tu acuerdo de convivencia") }
     var agreementWhatsIn: String  { s(en: "What's in your agreement", nb: "Hva er i avtalen din", sv: "Vad finns i ditt avtal", da: "Hvad er i din aftale", fi: "Mitä sopimuksessasi on", de: "Was ist in Ihrer Vereinbarung", fr: "Ce que contient votre accord", es: "Qué incluye tu acuerdo") }
+    var agreementRentalDetailsTitle: String { s(en: "Rental details", nb: "Leiedetaljer", sv: "Hyresdetaljer", da: "Lejedetaljer", fi: "Vuokratiedot", de: "Mietdetails", fr: "Détails de la location", es: "Detalles del alquiler") }
+    var agreementRentalDetailsSub: String { s(en: "These appear in your rental arrangement clause.", nb: "Disse vises i leieavtale-paragrafen.", sv: "Dessa visas i hyresavtalsparagrafen.", da: "Disse vises i lejeaftaleparagraffen.", fi: "Nämä näkyvät vuokrasopimuslausekkeessa.", de: "Diese erscheinen in der Mietvereinbarungsklausel.", fr: "Ces informations apparaissent dans la clause de location.", es: "Estos datos aparecen en la cláusula del acuerdo de alquiler.") }
+    var agreementRentalWhoPays: String { s(en: "Who pays the rent?", nb: "Hvem betaler husleien?", sv: "Vem betalar hyran?", da: "Hvem betaler huslejen?", fi: "Kuka maksaa vuokran?", de: "Wer zahlt die Miete?", fr: "Qui paie le loyer ?", es: "¿Quién paga el alquiler?") }
+    var agreementRentalBothToLandlord: String { s(en: "Both of us, to the landlord", nb: "Begge betaler til utleier", sv: "Båda betalar till hyresvärden", da: "Begge betaler til udlejer", fi: "Molemmat maksavat vuokranantajalle", de: "Beide zahlen an den Vermieter", fr: "Nous deux, au propriétaire", es: "Los dos, al arrendador") }
+    var agreementRentalAmountLabel: String { s(en: "Monthly rent", nb: "Månedlig husleie", sv: "Månadshyra", da: "Månedlig husleje", fi: "Kuukausivuokra", de: "Monatliche Miete", fr: "Loyer mensuel", es: "Alquiler mensual") }
+    var agreementRentalPaymentDayLabel: String { s(en: "Due on day", nb: "Forfaller dag", sv: "Förfaller dag", da: "Forfalder dag", fi: "Eräpäivä", de: "Fällig am Tag", fr: "Échéance le", es: "Vence el día") }
     var agreementViewDownload: String { s(en: "View & download agreement", nb: "Se og last ned avtale", sv: "Visa och ladda ner avtal", da: "Se og download aftale", fi: "Näytä ja lataa sopimus", de: "Vereinbarung anzeigen und herunterladen", fr: "Voir et télécharger l'accord", es: "Ver y descargar el acuerdo") }
     var agreementViewSigning: String { s(en: "View signing links", nb: "Se signeringslenker", sv: "Visa signeringslänkar", da: "Se signeringslinks", fi: "Näytä allekirjoituslinkit", de: "Signierlinks anzeigen", fr: "Voir les liens de signature", es: "Ver enlaces de firma") }
+    // Wizard rebuild (review → send → track)
+    var agreementSetUp: String { s(en: "Set up agreement", nb: "Sett opp avtale", sv: "Konfigurera avtal", da: "Opsæt aftale", fi: "Määritä sopimus", de: "Vereinbarung einrichten", fr: "Configurer la convention", es: "Configurar el contrato") }
+    var agreementReviewAndSend: String { s(en: "Review & send", nb: "Se gjennom og send", sv: "Granska och skicka", da: "Gennemse og send", fi: "Tarkista ja lähetä", de: "Prüfen & senden", fr: "Vérifier et envoyer", es: "Revisar y enviar") }
+    var agreementReviewSendTitle: String { s(en: "Review & send", nb: "Se gjennom og send", sv: "Granska och skicka", da: "Gennemse og send", fi: "Tarkista ja lähetä", de: "Prüfen & senden", fr: "Vérifier et envoyer", es: "Revisar y enviar") }
+    var agreementSignTitle: String { s(en: "Sign agreement", nb: "Signer avtale", sv: "Signera avtal", da: "Underskriv aftale", fi: "Allekirjoita sopimus", de: "Vertrag unterzeichnen", fr: "Signer la convention", es: "Firmar el contrato") }
+    var agreementSignedTitle: String { s(en: "Agreement signed", nb: "Avtale signert", sv: "Avtal signerat", da: "Aftale underskrevet", fi: "Sopimus allekirjoitettu", de: "Vertrag unterzeichnet", fr: "Convention signée", es: "Contrato firmado") }
+    var agreementReviewSendHeading: String { s(en: "Review and send for signing", nb: "Se gjennom og send til signering", sv: "Granska och skicka för signering", da: "Gennemse og send til underskrift", fi: "Tarkista ja lähetä allekirjoitettavaksi", de: "Prüfen und zum Unterschreiben senden", fr: "Vérifier et envoyer pour signature", es: "Revisar y enviar para firmar") }
+    var agreementReviewSendSub: String { s(en: "Check the recipients and document below. Nothing is sent until you tap Send.", nb: "Sjekk mottakerne og dokumentet under. Ingenting sendes før du trykker Send.", sv: "Kontrollera mottagarna och dokumentet nedan. Inget skickas förrän du trycker på Skicka.", da: "Tjek modtagerne og dokumentet nedenfor. Intet sendes, før du trykker Send.", fi: "Tarkista vastaanottajat ja asiakirja alta. Mitään ei lähetetä ennen kuin painat Lähetä.", de: "Prüfen Sie unten die Empfänger und das Dokument. Es wird nichts gesendet, bis Sie auf Senden tippen.", fr: "Vérifiez les destinataires et le document ci-dessous. Rien n'est envoyé avant que vous n'appuyiez sur Envoyer.", es: "Revisa los destinatarios y el documento a continuación. No se envía nada hasta que pulses Enviar.") }
+    var agreementDocumentTitle: String { s(en: "DOCUMENT", nb: "DOKUMENT", sv: "DOKUMENT", da: "DOKUMENT", fi: "ASIAKIRJA", de: "DOKUMENT", fr: "DOCUMENT", es: "DOCUMENTO") }
+    var agreementRecipientsTitle: String { s(en: "RECIPIENTS", nb: "MOTTAKERE", sv: "MOTTAGARE", da: "MODTAGERE", fi: "VASTAANOTTAJAT", de: "EMPFÄNGER", fr: "DESTINATAIRES", es: "DESTINATARIOS") }
+    var agreementSendForSigning: String { s(en: "Send for signing", nb: "Send til signering", sv: "Skicka för signering", da: "Send til underskrift", fi: "Lähetä allekirjoitettavaksi", de: "Zum Unterschreiben senden", fr: "Envoyer pour signature", es: "Enviar para firmar") }
+    var agreementClausesSelected: String { s(en: "clauses selected", nb: "klausuler valgt", sv: "klausuler valda", da: "klausuler valgt", fi: "lauseketta valittu", de: "Klauseln ausgewählt", fr: "clauses sélectionnées", es: "cláusulas seleccionadas") }
+    var agreementCreateNewVersion: String { s(en: "Create new version", nb: "Lag ny versjon", sv: "Skapa ny version", da: "Opret ny version", fi: "Luo uusi versio", de: "Neue Version erstellen", fr: "Créer une nouvelle version", es: "Crear nueva versión") }
+    var agreementCreateNewVersionTitle: String { s(en: "Create a new version?", nb: "Lage en ny versjon?", sv: "Skapa en ny version?", da: "Opret en ny version?", fi: "Luodaanko uusi versio?", de: "Neue Version erstellen?", fr: "Créer une nouvelle version ?", es: "¿Crear una nueva versión?") }
+    var agreementCreateNewVersionMessage: String { s(en: "This replaces the current signed agreement with a new draft. Both partners will need to sign again.", nb: "Dette erstatter den signerte avtalen med et nytt utkast. Begge parter må signere på nytt.", sv: "Detta ersätter det signerade avtalet med ett nytt utkast. Båda parter måste signera igen.", da: "Dette erstatter den underskrevne aftale med et nyt udkast. Begge parter skal underskrive igen.", fi: "Tämä korvaa allekirjoitetun sopimuksen uudella luonnoksella. Molempien osapuolten on allekirjoitettava uudelleen.", de: "Dies ersetzt die unterzeichnete Vereinbarung durch einen neuen Entwurf. Beide Partner müssen erneut unterzeichnen.", fr: "Cela remplace la convention signée par un nouveau brouillon. Les deux partenaires devront signer à nouveau.", es: "Esto reemplaza el contrato firmado con un nuevo borrador. Ambas partes deberán firmar de nuevo.") }
+    var agreementPreparingTitle: String { s(en: "Preparing agreement…", nb: "Forbereder avtale…", sv: "Förbereder avtal…", da: "Forbereder aftale…", fi: "Valmistellaan sopimusta…", de: "Vereinbarung wird vorbereitet…", fr: "Préparation de la convention…", es: "Preparando el contrato…") }
+    var agreementPreparingSub: String { s(en: "Generating the PDF and creating the signing session.", nb: "Genererer PDF og oppretter signeringsøkt.", sv: "Genererar PDF och skapar signeringssession.", da: "Genererer PDF og opretter underskriftssession.", fi: "Luodaan PDF ja allekirjoitusistunto.", de: "PDF wird erstellt und die Signiersitzung vorbereitet.", fr: "Génération du PDF et création de la session de signature.", es: "Generando el PDF y creando la sesión de firma.") }
+    var agreementSomethingWrong: String { s(en: "Something went wrong", nb: "Noe gikk galt", sv: "Något gick fel", da: "Noget gik galt", fi: "Jokin meni pieleen", de: "Etwas ist schiefgelaufen", fr: "Une erreur s'est produite", es: "Algo salió mal") }
+    var agreementTryAgain: String { s(en: "Try again", nb: "Prøv igjen", sv: "Försök igen", da: "Prøv igen", fi: "Yritä uudelleen", de: "Erneut versuchen", fr: "Réessayer", es: "Intentar de nuevo") }
+    func agreementSendExplainer(_ partner: String) -> String { s(
+        en: "\(partner) will receive an email with a link to sign. You'll sign here on this device.",
+        nb: "\(partner) får en e-post med en lenke for å signere. Du signerer her på denne enheten.",
+        sv: "\(partner) får ett e-postmeddelande med en länk för att signera. Du signerar här på den här enheten.",
+        da: "\(partner) modtager en e-mail med et link til at underskrive. Du underskriver her på denne enhed.",
+        fi: "\(partner) saa sähköpostin, jossa on linkki allekirjoittamiseen. Sinä allekirjoitat tällä laitteella.",
+        de: "\(partner) erhält eine E-Mail mit einem Link zum Unterschreiben. Sie unterschreiben hier auf diesem Gerät.",
+        fr: "\(partner) recevra un e-mail avec un lien pour signer. Vous signerez ici sur cet appareil.",
+        es: "\(partner) recibirá un correo con un enlace para firmar. Tú firmarás aquí en este dispositivo.") }
+    func agreementYouSignHereNote(_ partner: String) -> String { s(
+        en: "This records your signature. \(partner) still needs to sign from their email.",
+        nb: "Dette registrerer din signatur. \(partner) må fortsatt signere fra sin e-post.",
+        sv: "Detta registrerar din signatur. \(partner) måste fortfarande signera från sin e-post.",
+        da: "Dette registrerer din underskrift. \(partner) skal stadig underskrive fra sin e-mail.",
+        fi: "Tämä tallentaa allekirjoituksesi. \(partner) täytyy vielä allekirjoittaa sähköpostistaan.",
+        de: "Dies erfasst Ihre Unterschrift. \(partner) muss noch per E-Mail unterschreiben.",
+        fr: "Ceci enregistre votre signature. \(partner) doit encore signer depuis son e-mail.",
+        es: "Esto registra tu firma. \(partner) todavía debe firmar desde su correo.") }
+    func agreementSignedBody(_ a: String, _ b: String) -> String { s(
+        en: "Both \(a) and \(b) have signed. Your agreement is now complete.",
+        nb: "Både \(a) og \(b) har signert. Avtalen din er nå fullført.",
+        sv: "Både \(a) och \(b) har signerat. Ditt avtal är nu klart.",
+        da: "Både \(a) og \(b) har underskrevet. Din aftale er nu fuldført.",
+        fi: "Sekä \(a) että \(b) ovat allekirjoittaneet. Sopimuksesi on nyt valmis.",
+        de: "Sowohl \(a) als auch \(b) haben unterschrieben. Ihre Vereinbarung ist nun abgeschlossen.",
+        fr: "\(a) et \(b) ont tous deux signé. Votre convention est maintenant complète.",
+        es: "Tanto \(a) como \(b) han firmado. Tu contrato ya está completo.") }
+
     var agreementNeedUpdate: String { s(en: "Need to update?", nb: "Trenger du å oppdatere?", sv: "Behöver du uppdatera?", da: "Skal du opdatere?", fi: "Tarvitsetko päivityksen?", de: "Aktualisierung erforderlich?", fr: "Besoin de mettre à jour?", es: "¿Necesitas actualizar?") }
     var agreementNeedUpdateSub: String { s(en: "Generate a new agreement above — both parties will need to sign again.", nb: "Generer en ny avtale ovenfor — begge parter må signere på nytt.", sv: "Generera ett nytt avtal ovan — båda parter måste underteckna igen.", da: "Generér en ny aftale ovenfor — begge parter skal underskrive igen.", fi: "Luo uusi sopimus yllä — molempien osapuolten on allekirjoitettava uudelleen.", de: "Oben eine neue Vereinbarung erstellen — beide Parteien müssen erneut unterzeichnen.", fr: "Générez un nouvel accord ci-dessus — les deux parties devront signer à nouveau.", es: "Genera un nuevo acuerdo arriba — ambas partes deberán firmar de nuevo.") }
     var agreementNoFormal: String { s(en: "No agreement set up", nb: "Ingen avtale satt opp", sv: "Inget avtal konfigurerat", da: "Ingen aftale konfigureret", fi: "Ei sopimusta määritetty", de: "Keine Vereinbarung eingerichtet", fr: "Aucun accord configuré", es: "Sin acuerdo configurado") }
@@ -1208,6 +1526,43 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
     var calcExpenseSub: String     { s(en: "Fairly divide monthly household costs.", nb: "Fordel månedlige husholdningsutgifter rettferdig.", sv: "Fördela månadsliga hushållskostnader rättvist.", da: "Fordel månedlige husholdningsudgifter rimeligt.", fi: "Jaa kuukausittaiset kotitalouskulut oikeudenmukaisesti.", de: "Monatliche Haushaltskosten fair aufteilen.", fr: "Répartir équitablement les charges mensuelles.", es: "Divide equitativamente los gastos mensuales del hogar.") }
     var calcRebalanceTitle: String { s(en: "Rebalance",         nb: "Rebalansering",            sv: "Ombalansering",         da: "Rebalancering",          fi: "Uudelleentasapainotus",    de: "Anteilsausgleich",        fr: "Rééquilibrage",             es: "Reequilibrio") }
     var calcRebalanceSub: String   { s(en: "See what it takes to reach 50/50 ownership.", nb: "Se hva som skal til for å nå 50/50 eierskap.", sv: "Se vad som krävs för att nå 50/50 ägarandel.", da: "Se hvad der skal til for at nå 50/50 ejerskab.", fi: "Näe mitä tarvitaan 50/50 omistukseen.", de: "Sehen Sie, was zum 50/50-Eigentum nötig ist.", fr: "Voyez ce qu'il faut pour atteindre 50/50.", es: "Descubre qué se necesita para llegar al 50/50.") }
+    // Ownership calculator body
+    var calcOwnPurchaseSection: String { s(en: "PURCHASE", nb: "KJØP", sv: "KÖP", da: "KØB", fi: "OSTO", de: "KAUF", fr: "ACHAT", es: "COMPRA") }
+    var calcOwnPurchasePrice: String { s(en: "Purchase price", nb: "Kjøpesum", sv: "Köpeskilling", da: "Købspris", fi: "Ostohinta", de: "Kaufpreis", fr: "Prix d'achat", es: "Precio de compra") }
+    var calcOwnPurchaseCosts: String { s(en: "Purchase costs (stamp duty, legal…)", nb: "Kjøpsomkostninger (dok.avgift, gebyrer…)", sv: "Köpkostnader (stämpelskatt, avgifter…)", da: "Købsomkostninger (tinglysning, gebyrer…)", fi: "Ostokulut (varainsiirtovero, palkkiot…)", de: "Kaufnebenkosten (Steuer, Gebühren…)", fr: "Frais d'achat (droits, notaire…)", es: "Gastos de compra (impuestos, notaría…)") }
+    var calcOwnDepositsSection: String { s(en: "DEPOSITS", nb: "EGENKAPITAL", sv: "KONTANTINSATS", da: "UDBETALING", fi: "KÄSIRAHA", de: "EIGENKAPITAL", fr: "APPORTS", es: "ENTRADAS") }
+    func calcOwnDeposit(_ name: String) -> String { s(en: "\(name) deposit", nb: "\(name) egenkapital", sv: "\(name) insats", da: "\(name) udbetaling", fi: "\(name) käsiraha", de: "Eigenkapital \(name)", fr: "Apport \(name)", es: "Entrada de \(name)") }
+    var calcOwnLoanSection: String { s(en: "LOAN RESPONSIBILITY", nb: "LÅNEANSVAR", sv: "LÅNEANSVAR", da: "LÅNEANSVAR", fi: "LAINAVASTUU", de: "DARLEHENSHAFTUNG", fr: "RESPONSABILITÉ DU PRÊT", es: "RESPONSABILIDAD DEL PRÉSTAMO") }
+    func calcOwnResponsibleFor(_ name: String) -> String { s(en: "\(name) responsible for", nb: "\(name) ansvarlig for", sv: "\(name) ansvarig för", da: "\(name) ansvarlig for", fi: "\(name) vastaa", de: "\(name) verantwortlich für", fr: "\(name) responsable de", es: "\(name) responsable de") }
+    func calcOwnLoanNote(_ amount: String) -> String { s(en: "Loan: \(amount) (price + costs − deposits)", nb: "Lån: \(amount) (pris + omkostninger − egenkapital)", sv: "Lån: \(amount) (pris + kostnader − insats)", da: "Lån: \(amount) (pris + omkostninger − udbetaling)", fi: "Laina: \(amount) (hinta + kulut − käsiraha)", de: "Darlehen: \(amount) (Preis + Kosten − Eigenkapital)", fr: "Prêt : \(amount) (prix + frais − apports)", es: "Préstamo: \(amount) (precio + gastos − entradas)") }
+    var calcOwnFairSplit: String { s(en: "Fair ownership split", nb: "Rettferdig eierfordeling", sv: "Rättvis ägarfördelning", da: "Retfærdig ejerfordeling", fi: "Reilu omistusjako", de: "Faire Eigentumsaufteilung", fr: "Répartition équitable de la propriété", es: "Distribución justa de la propiedad") }
+    var calcOwnEnterValues: String { s(en: "Enter values above to calculate your fair ownership split.", nb: "Fyll inn verdiene over for å beregne rettferdig eierfordeling.", sv: "Fyll i värdena ovan för att beräkna rättvis ägarfördelning.", da: "Indtast værdierne ovenfor for at beregne retfærdig ejerfordeling.", fi: "Syötä arvot yllä laskeaksesi reilun omistusjaon.", de: "Geben Sie oben die Werte ein, um die faire Aufteilung zu berechnen.", fr: "Saisissez les valeurs ci-dessus pour calculer la répartition équitable.", es: "Introduce los valores arriba para calcular la distribución justa.") }
+    func calcOwnTotalStake(_ name: String) -> String { s(en: "\(name) total stake", nb: "\(name) samlet andel", sv: "\(name) total andel", da: "\(name) samlet andel", fi: "\(name) osuus yhteensä", de: "Gesamtanteil \(name)", fr: "Part totale \(name)", es: "Participación total de \(name)") }
+    var calcOwnTotalToFinance: String { s(en: "Total to finance", nb: "Totalt å finansiere", sv: "Totalt att finansiera", da: "I alt at finansiere", fi: "Rahoitettava yhteensä", de: "Gesamt zu finanzieren", fr: "Total à financer", es: "Total a financiar") }
+    var calcOwnAutoLoan: String { s(en: "Auto-calculated loan", nb: "Automatisk beregnet lån", sv: "Automatiskt beräknat lån", da: "Automatisk beregnet lån", fi: "Automaattisesti laskettu laina", de: "Automatisch berechnetes Darlehen", fr: "Prêt calculé automatiquement", es: "Préstamo calculado automáticamente") }
+
+    // Rebalance calculator body
+    var calcRebPropertySection: String { s(en: "PROPERTY", nb: "EIENDOM", sv: "FASTIGHET", da: "EJENDOM", fi: "KIINTEISTÖ", de: "IMMOBILIE", fr: "BIEN", es: "PROPIEDAD") }
+    var calcRebCurrentValue: String { s(en: "Current market value", nb: "Nåværende markedsverdi", sv: "Nuvarande marknadsvärde", da: "Nuværende markedsværdi", fi: "Nykyinen markkina-arvo", de: "Aktueller Marktwert", fr: "Valeur marchande actuelle", es: "Valor de mercado actual") }
+    var calcRebRemainingLoan: String { s(en: "Remaining loan", nb: "Gjenstående lån", sv: "Återstående lån", da: "Resterende lån", fi: "Jäljellä oleva laina", de: "Restschuld", fr: "Emprunt restant", es: "Préstamo pendiente") }
+    var calcRebNetEquity: String { s(en: "Net equity", nb: "Netto egenkapital", sv: "Netto eget kapital", da: "Netto egenkapital", fi: "Netto oma pääoma", de: "Nettoeigenkapital", fr: "Fonds propres nets", es: "Patrimonio neto") }
+    var calcRebCurrentSection: String { s(en: "CURRENT REGISTERED OWNERSHIP", nb: "NÅVÆRENDE REGISTRERT EIERSKAP", sv: "NUVARANDE REGISTRERAT ÄGANDE", da: "NUVÆRENDE REGISTRERET EJERSKAB", fi: "NYKYINEN REKISTERÖITY OMISTUS", de: "AKTUELLES EINGETRAGENES EIGENTUM", fr: "PROPRIÉTÉ ENREGISTRÉE ACTUELLE", es: "PROPIEDAD REGISTRADA ACTUAL") }
+    func calcRebCurrentlyOwns(_ name: String) -> String { s(en: "\(name) currently owns", nb: "\(name) eier nå", sv: "\(name) äger nu", da: "\(name) ejer nu", fi: "\(name) omistaa nyt", de: "\(name) besitzt derzeit", fr: "\(name) possède actuellement", es: "\(name) posee actualmente") }
+    var calcRebTargetSection: String { s(en: "TARGET OWNERSHIP", nb: "ØNSKET EIERSKAP", sv: "MÅL FÖR ÄGANDE", da: "MÅL FOR EJERSKAB", fi: "TAVOITEOMISTUS", de: "ZIEL-EIGENTUM", fr: "PROPRIÉTÉ CIBLE", es: "PROPIEDAD OBJETIVO") }
+    func calcRebShouldOwn(_ name: String) -> String { s(en: "\(name) should own", nb: "\(name) bør eie", sv: "\(name) bör äga", da: "\(name) bør eje", fi: "\(name) tulisi omistaa", de: "\(name) sollte besitzen", fr: "\(name) devrait posséder", es: "\(name) debería poseer") }
+    var calcRebPaymentTitle: String { s(en: "Rebalancing payment", nb: "Utjevningsbetaling", sv: "Utjämningsbetalning", da: "Udligningsbetaling", fi: "Tasausmaksu", de: "Ausgleichszahlung", fr: "Paiement de rééquilibrage", es: "Pago de reequilibrio") }
+    func calcRebFromTo(_ from: String, _ to: String) -> String { s(en: "from \(from) to \(to)", nb: "fra \(from) til \(to)", sv: "från \(from) till \(to)", da: "fra \(from) til \(to)", fi: "\(from) → \(to)", de: "von \(from) an \(to)", fr: "de \(from) à \(to)", es: "de \(from) a \(to)") }
+    func calcRebMoves(_ a: Int, _ b: Int, _ c: Int, _ d: Int) -> String { s(en: "Moves ownership from \(a)%/\(b)% → \(c)%/\(d)%", nb: "Flytter eierskap fra \(a) %/\(b) % → \(c) %/\(d) %", sv: "Flyttar ägande från \(a) %/\(b) % → \(c) %/\(d) %", da: "Flytter ejerskab fra \(a) %/\(b) % → \(c) %/\(d) %", fi: "Siirtää omistuksen \(a) %/\(b) % → \(c) %/\(d) %", de: "Verschiebt Eigentum von \(a) %/\(b) % → \(c) %/\(d) %", fr: "Déplace la propriété de \(a) %/\(b) % → \(c) %/\(d) %", es: "Mueve la propiedad de \(a) %/\(b) % → \(c) %/\(d) %") }
+    var calcRebBalanced: String { s(en: "Ownership is already balanced — no payment needed.", nb: "Eierskapet er allerede i balanse — ingen betaling nødvendig.", sv: "Ägandet är redan balanserat — ingen betalning behövs.", da: "Ejerskabet er allerede i balance — ingen betaling nødvendig.", fi: "Omistus on jo tasapainossa — maksua ei tarvita.", de: "Das Eigentum ist bereits ausgeglichen — keine Zahlung nötig.", fr: "La propriété est déjà équilibrée — aucun paiement nécessaire.", es: "La propiedad ya está equilibrada — no se necesita pago.") }
+    var calcRebEnterValue: String { s(en: "Enter a property value and adjust the sliders to see how much a rebalancing payment would be.", nb: "Fyll inn en eiendomsverdi og juster glidebryterne for å se hvor stor utjevningsbetalingen blir.", sv: "Ange ett fastighetsvärde och justera reglagen för att se utjämningsbetalningen.", da: "Indtast en ejendomsværdi og justér skyderne for at se udligningsbetalingen.", fi: "Syötä kiinteistön arvo ja säädä liukusäätimiä nähdäksesi tasausmaksun.", de: "Geben Sie einen Immobilienwert ein und passen Sie die Regler an, um die Ausgleichszahlung zu sehen.", fr: "Saisissez une valeur immobilière et ajustez les curseurs pour voir le paiement de rééquilibrage.", es: "Introduce un valor de la propiedad y ajusta los controles para ver el pago de reequilibrio.") }
+    var calcRebPaymentPlan: String { s(en: "PAYMENT PLAN", nb: "BETALINGSPLAN", sv: "BETALNINGSPLAN", da: "BETALINGSPLAN", fi: "MAKSUSUUNNITELMA", de: "ZAHLUNGSPLAN", fr: "PLAN DE PAIEMENT", es: "PLAN DE PAGO") }
+    var calcRebSpread: String { s(en: "Spread the payment over time", nb: "Fordel betalingen over tid", sv: "Sprid betalningen över tid", da: "Fordel betalingen over tid", fi: "Jaa maksu ajan kuluessa", de: "Zahlung über die Zeit verteilen", fr: "Étaler le paiement dans le temps", es: "Reparte el pago en el tiempo") }
+    var calcRebAnnualRate: String { s(en: "Annual rate (%)", nb: "Årlig rente (%)", sv: "Årlig ränta (%)", da: "Årlig rente (%)", fi: "Vuosikorko (%)", de: "Jahreszins (%)", fr: "Taux annuel (%)", es: "Tasa anual (%)") }
+    var calcRebYears: String { s(en: "Years", nb: "År", sv: "År", da: "År", fi: "Vuodet", de: "Jahre", fr: "Années", es: "Años") }
+    var calcRebMonthlyPayment: String { s(en: "Monthly payment", nb: "Månedlig betaling", sv: "Månadsbetalning", da: "Månedlig betaling", fi: "Kuukausimaksu", de: "Monatliche Zahlung", fr: "Paiement mensuel", es: "Pago mensual") }
+    var calcRebTotalPaid: String { s(en: "Total paid", nb: "Totalt betalt", sv: "Totalt betalt", da: "Betalt i alt", fi: "Maksettu yhteensä", de: "Insgesamt gezahlt", fr: "Total payé", es: "Total pagado") }
+    var calcRebTotalInterest: String { s(en: "Total interest", nb: "Totale renter", sv: "Total ränta", da: "Renter i alt", fi: "Korot yhteensä", de: "Zinsen gesamt", fr: "Intérêts totaux", es: "Intereses totales") }
+
     var calcSavingsTitle: String   { s(en: "Savings planner",   nb: "Sparekalkulator",          sv: "Sparekalkylator",       da: "Sparekalkulator",        fi: "Säästösuunnittelija",      de: "Sparrechner",             fr: "Calculateur d'épargne",     es: "Calculadora de ahorro") }
     var calcSavingsSub: String     { s(en: "Compare mortgage paydown vs. investing — see which grows your wealth faster.", nb: "Sammenlign nedbetaling av boliglån med fondssparing.", sv: "Jämför amortering med fondsparande — se vad som lönar sig.", da: "Sammenlign afdrag og investering — se hvad der vokser hurtigst.", fi: "Vertaa asuntolainan lyhentämistä sijoittamiseen.", de: "Tilgung vs. Investieren — was vermehrt Ihr Vermögen schneller?", fr: "Comparez remboursement et investissement — lequel croît plus vite?", es: "Compara amortización e inversión — ¿cuál hace crecer más tu patrimonio?") }
 
@@ -1435,6 +1790,272 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
         es: "Las proyecciones son orientativas. La rentabilidad real puede variar.") }
 
     // MARK: Expense split
+
+    var expenseIncomeTitle: String { s(
+        en: "MONTHLY NET INCOME",
+        nb: "MÅNEDLIG NETTOINNTEKT",
+        sv: "MÅNATLIG NETTOINKOMST",
+        da: "MÅNEDLIG NETTOINDKOMST",
+        fi: "KUUKAUSITTAINEN NETTOTULO",
+        de: "MONATLICHES NETTOEINKOMMEN",
+        fr: "REVENU NET MENSUEL",
+        es: "INGRESO NETO MENSUAL") }
+
+    var expenseIncomeSubtitle: String { s(
+        en: "After tax — what actually lands in your account each month.",
+        nb: "Etter skatt — det som faktisk kommer inn på kontoen hver måned.",
+        sv: "Efter skatt — det som faktiskt landar på ditt konto varje månad.",
+        da: "Efter skat — det, der faktisk lander på din konto hver måned.",
+        fi: "Verojen jälkeen — se, mikä todella tulee tilillesi joka kuukausi.",
+        de: "Nach Steuern — was monatlich tatsächlich auf Ihrem Konto ankommt.",
+        fr: "Après impôts — ce qui arrive réellement sur votre compte chaque mois.",
+        es: "Después de impuestos — lo que realmente llega a tu cuenta cada mes.") }
+
+    var expenseExpensesTitle: String { s(
+        en: "MONTHLY EXPENSES",
+        nb: "MÅNEDLIGE UTGIFTER",
+        sv: "MÅNATLIGA UTGIFTER",
+        da: "MÅNEDLIGE UDGIFTER",
+        fi: "KUUKAUSITTAISET KULUT",
+        de: "MONATLICHE AUSGABEN",
+        fr: "DÉPENSES MENSUELLES",
+        es: "GASTOS MENSUALES") }
+
+    var expenseAddExpense: String { s(
+        en: "Add expense",
+        nb: "Legg til utgift",
+        sv: "Lägg till utgift",
+        da: "Tilføj udgift",
+        fi: "Lisää kulu",
+        de: "Ausgabe hinzufügen",
+        fr: "Ajouter une dépense",
+        es: "Añadir gasto") }
+
+    var expensePaidByLabel: String { s(
+        en: "Paid by",
+        nb: "Betalt av",
+        sv: "Betald av",
+        da: "Betalt af",
+        fi: "Maksaja",
+        de: "Bezahlt von",
+        fr: "Payé par",
+        es: "Pagado por") }
+
+    var expenseBoth: String { s(
+        en: "Both",
+        nb: "Begge",
+        sv: "Båda",
+        da: "Begge",
+        fi: "Molemmat",
+        de: "Beide",
+        fr: "Les deux",
+        es: "Ambos") }
+
+    var expenseSplitLabel: String { s(
+        en: "Split",
+        nb: "Fordeling",
+        sv: "Fördelning",
+        da: "Fordeling",
+        fi: "Jako",
+        de: "Aufteilung",
+        fr: "Répartition",
+        es: "División") }
+
+    var expenseBalanced: String { s(
+        en: "Balanced — no transfer needed",
+        nb: "I balanse — ingen overføring nødvendig",
+        sv: "Balanserat — ingen överföring behövs",
+        da: "I balance — ingen overførsel nødvendig",
+        fi: "Tasapainossa — siirtoa ei tarvita",
+        de: "Ausgeglichen — keine Überweisung nötig",
+        fr: "Équilibré — aucun transfert nécessaire",
+        es: "Equilibrado — no se necesita transferencia") }
+
+    func expenseOwes(_ who: String, _ amount: String) -> String { s(
+        en: "\(who) owes \(amount)/month",
+        nb: "\(who) skylder \(amount)/mnd",
+        sv: "\(who) är skyldig \(amount)/mån",
+        da: "\(who) skylder \(amount)/md",
+        fi: "\(who) on velkaa \(amount)/kk",
+        de: "\(who) schuldet \(amount)/Monat",
+        fr: "\(who) doit \(amount)/mois",
+        es: "\(who) debe \(amount)/mes") }
+
+    var expenseFairSplitTitle: String { s(
+        en: "INCOME-BASED FAIR SPLIT",
+        nb: "RETTFERDIG FORDELING ETTER INNTEKT",
+        sv: "RÄTTVIS FÖRDELNING EFTER INKOMST",
+        da: "RETFÆRDIG FORDELING EFTER INDKOMST",
+        fi: "TULOIHIN PERUSTUVA REILU JAKO",
+        de: "FAIRE AUFTEILUNG NACH EINKOMMEN",
+        fr: "RÉPARTITION ÉQUITABLE SELON LE REVENU",
+        es: "DIVISIÓN JUSTA SEGÚN INGRESOS") }
+
+    func expensePctOfIncome(_ pct: Int) -> String { s(
+        en: "\(pct)% of income",
+        nb: "\(pct) % av inntekt",
+        sv: "\(pct) % av inkomst",
+        da: "\(pct) % af indkomst",
+        fi: "\(pct) % tuloista",
+        de: "\(pct) % des Einkommens",
+        fr: "\(pct) % du revenu",
+        es: "\(pct) % de ingresos") }
+
+    func expensePaysMoreThanFair(_ who: String, _ amount: String) -> String { s(
+        en: "\(who) pays \(amount)/month more than income-fair",
+        nb: "\(who) betaler \(amount)/mnd mer enn inntektsrettferdig",
+        sv: "\(who) betalar \(amount)/mån mer än inkomsträttvist",
+        da: "\(who) betaler \(amount)/md mere end indkomstretfærdigt",
+        fi: "\(who) maksaa \(amount)/kk enemmän kuin tuloihin nähden reilua",
+        de: "\(who) zahlt \(amount)/Monat mehr als einkommensgerecht",
+        fr: "\(who) paie \(amount)/mois de plus que la part équitable",
+        es: "\(who) paga \(amount)/mes más de lo justo según ingresos") }
+
+    var expensePaysOut: String { s(
+        en: "Pays out",
+        nb: "Betaler ut",
+        sv: "Betalar ut",
+        da: "Betaler ud",
+        fi: "Maksaa",
+        de: "Zahlt aus",
+        fr: "Décaisse",
+        es: "Paga") }
+
+    func expenseLeftOver(_ who: String) -> String { s(
+        en: "\(who) left over",
+        nb: "\(who) til overs",
+        sv: "\(who) kvar",
+        da: "\(who) tilbage",
+        fi: "\(who) jäljellä",
+        de: "\(who) übrig",
+        fr: "\(who) restant",
+        es: "\(who) restante") }
+
+    var budgetOverviewTitle: String { s(
+        en: "MONTHLY BUDGET",
+        nb: "MÅNEDSBUDSJETT",
+        sv: "MÅNADSBUDGET",
+        da: "MÅNEDSBUDGET",
+        fi: "KUUKAUSIBUDJETTI",
+        de: "MONATSBUDGET",
+        fr: "BUDGET MENSUEL",
+        es: "PRESUPUESTO MENSUAL") }
+
+    func budgetTransfer(_ from: String, _ amount: String, _ to: String) -> String { s(
+        en: "\(from) transfers \(amount) to \(to) each month",
+        nb: "\(from) overfører \(amount) til \(to) hver måned",
+        sv: "\(from) överför \(amount) till \(to) varje månad",
+        da: "\(from) overfører \(amount) til \(to) hver måned",
+        fi: "\(from) siirtää \(amount) henkilölle \(to) joka kuukausi",
+        de: "\(from) überweist \(to) monatlich \(amount)",
+        fr: "\(from) verse \(amount) à \(to) chaque mois",
+        es: "\(from) transfiere \(amount) a \(to) cada mes") }
+
+    var budgetNetIncomeLabel: String { s(
+        en: "Net income",
+        nb: "Nettoinntekt",
+        sv: "Nettoinkomst",
+        da: "Nettoindkomst",
+        fi: "Nettotulo",
+        de: "Nettoeinkommen",
+        fr: "Revenu net",
+        es: "Ingreso neto") }
+
+    // MARK: Expense categories
+
+    var expenseCatHousing: String { s(en: "Housing", nb: "Bolig", sv: "Boende", da: "Bolig", fi: "Asuminen", de: "Wohnen", fr: "Logement", es: "Vivienda") }
+    var expenseCatCar: String { s(en: "Car", nb: "Bil", sv: "Bil", da: "Bil", fi: "Auto", de: "Auto", fr: "Voiture", es: "Coche") }
+    var expenseCatFood: String { s(en: "Food", nb: "Mat", sv: "Mat", da: "Mad", fi: "Ruoka", de: "Essen", fr: "Nourriture", es: "Comida") }
+    var expenseCatElectricity: String { s(en: "Electricity", nb: "Strøm", sv: "El", da: "Strøm", fi: "Sähkö", de: "Strom", fr: "Électricité", es: "Electricidad") }
+    var expenseCatInternet: String { s(en: "Internet", nb: "Internett", sv: "Internet", da: "Internet", fi: "Internet", de: "Internet", fr: "Internet", es: "Internet") }
+    var expenseCatRent: String { s(en: "Rent", nb: "Husleie", sv: "Hyra", da: "Husleje", fi: "Vuokra", de: "Miete", fr: "Loyer", es: "Alquiler") }
+    var expenseCatGroceries: String { s(en: "Groceries", nb: "Dagligvarer", sv: "Matvaror", da: "Dagligvarer", fi: "Ruokaostokset", de: "Lebensmittel", fr: "Courses", es: "Compras") }
+    var expenseCatStreaming: String { s(en: "Streaming", nb: "Strømming", sv: "Streaming", da: "Streaming", fi: "Suoratoisto", de: "Streaming", fr: "Streaming", es: "Streaming") }
+    var expenseCatTransport: String { s(en: "Transport", nb: "Transport", sv: "Transport", da: "Transport", fi: "Liikenne", de: "Transport", fr: "Transport", es: "Transporte") }
+    var expenseCatInsurance: String { s(en: "Insurance", nb: "Forsikring", sv: "Försäkring", da: "Forsikring", fi: "Vakuutus", de: "Versicherung", fr: "Assurance", es: "Seguro") }
+    var expenseCatCustom: String { s(en: "Custom", nb: "Egendefinert", sv: "Anpassad", da: "Tilpasset", fi: "Mukautettu", de: "Benutzerdefiniert", fr: "Personnalisé", es: "Personalizado") }
+
+    // MARK: Add expense sheet
+
+    var expenseAddTitle: String { s(
+        en: "Add expense",
+        nb: "Legg til utgift",
+        sv: "Lägg till utgift",
+        da: "Tilføj udgift",
+        fi: "Lisää kulu",
+        de: "Ausgabe hinzufügen",
+        fr: "Ajouter une dépense",
+        es: "Añadir gasto") }
+
+    var expenseWhatIsIt: String { s(
+        en: "WHAT IS IT?",
+        nb: "HVA ER DET?",
+        sv: "VAD ÄR DET?",
+        da: "HVAD ER DET?",
+        fi: "MIKÄ SE ON?",
+        de: "WAS IST ES?",
+        fr: "DE QUOI S'AGIT-IL ?",
+        es: "¿QUÉ ES?") }
+
+    var expenseWhatPlaceholder: String { s(
+        en: "e.g. Rent, Netflix, Car insurance",
+        nb: "f.eks. Husleie, Netflix, Bilforsikring",
+        sv: "t.ex. Hyra, Netflix, Bilförsäkring",
+        da: "f.eks. Husleje, Netflix, Bilforsikring",
+        fi: "esim. Vuokra, Netflix, Autovakuutus",
+        de: "z. B. Miete, Netflix, Kfz-Versicherung",
+        fr: "ex. Loyer, Netflix, Assurance auto",
+        es: "p. ej. Alquiler, Netflix, Seguro del coche") }
+
+    var expenseAmountTitle: String { s(
+        en: "AMOUNT",
+        nb: "BELØP",
+        sv: "BELOPP",
+        da: "BELØB",
+        fi: "MÄÄRÄ",
+        de: "BETRAG",
+        fr: "MONTANT",
+        es: "IMPORTE") }
+
+    var expenseWhoPays: String { s(
+        en: "WHO PAYS?",
+        nb: "HVEM BETALER?",
+        sv: "VEM BETALAR?",
+        da: "HVEM BETALER?",
+        fi: "KUKA MAKSAA?",
+        de: "WER ZAHLT?",
+        fr: "QUI PAIE ?",
+        es: "¿QUIÉN PAGA?") }
+
+    var expenseRecurringTitle: String { s(
+        en: "RECURRING",
+        nb: "GJENTAKENDE",
+        sv: "ÅTERKOMMANDE",
+        da: "TILBAGEVENDENDE",
+        fi: "TOISTUVA",
+        de: "WIEDERKEHREND",
+        fr: "RÉCURRENT",
+        es: "RECURRENTE") }
+
+    var expenseRecurringToggle: String { s(
+        en: "Monthly recurring expense",
+        nb: "Månedlig gjentakende utgift",
+        sv: "Månatlig återkommande utgift",
+        da: "Månedlig tilbagevendende udgift",
+        fi: "Kuukausittain toistuva kulu",
+        de: "Monatlich wiederkehrende Ausgabe",
+        fr: "Dépense récurrente mensuelle",
+        es: "Gasto recurrente mensual") }
+
+    var expenseSplitBetween: String { s(
+        en: "SPLIT BETWEEN YOU",
+        nb: "FORDELING MELLOM DERE",
+        sv: "FÖRDELNING MELLAN ER",
+        da: "FORDELING MELLEM JER",
+        fi: "JAKO TEIDÄN VÄLILLÄNNE",
+        de: "AUFTEILUNG ZWISCHEN EUCH",
+        fr: "RÉPARTITION ENTRE VOUS",
+        es: "DIVISIÓN ENTRE USTEDES") }
 
     var expenseSaveToOverview: String { s(
         en: "Save to Overview",
@@ -1983,6 +2604,12 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
         es: "Ambos socios firman digitalmente por correo. Los enlaces se envían automáticamente tras la generación.") }
 
     // MARK: Helper
+
+    /// For short view-specific strings not yet represented by a named catalog key.
+    func localized(en: String, nb: String, sv: String, da: String, fi: String,
+                   de: String, fr: String, es: String) -> String {
+        s(en: en, nb: nb, sv: sv, da: da, fi: fi, de: de, fr: fr, es: es)
+    }
 
     private func s(en: String, nb: String, sv: String = "", da: String = "", fi: String = "", de: String = "", fr: String = "", es: String = "") -> String {
         switch language {

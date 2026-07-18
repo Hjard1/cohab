@@ -32,16 +32,19 @@ struct DocuSealSigningView: UIViewRepresentable {
         <!DOCTYPE html>
         <html>
           <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <script src="https://cdn.docuseal.com/js/form.js"></script>
             <style>
               * { box-sizing: border-box; }
-              body { margin: 0; padding: 0; background: #F2F2F7; }
-              docuseal-form { display: block; width: 100%; }
+              html, body { margin: 0; padding: 0; height: 100%; background: #FAF9F6; }
+              docuseal-form { display: block; width: 100%; min-height: 100vh; }
             </style>
           </head>
           <body>
-            <docuseal-form data-src="\(signingURL)"></docuseal-form>
+            <docuseal-form
+              data-src="\(signingURL)"
+              data-expand="true"
+            ></docuseal-form>
           </body>
         </html>
         """

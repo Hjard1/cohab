@@ -19,6 +19,17 @@ struct ExpenseSplitView: View {
     @State private var savedBudget = false
     @State private var deleteError: String?
 
+    // Preset amounts, payers & split — loaded from / saved to UserDefaults
+    @State private var presetAmts: [String] = ["", "", "", "", ""]
+    @State private var presetPays: [String] = ["a", "a", "a", "a", "a"]     // "a" | "b" | "both"
+    @State private var presetSplits: [Double] = [0.5, 0.5, 0.5, 0.5, 0.5]   // A's share when "both"
+
+    private var presetNames: [String] {
+        [strings.expenseCatHousing, strings.expenseCatCar, strings.expenseCatFood,
+         strings.expenseCatElectricity, strings.expenseCatInternet]
+    }
+    private let presetIcons = ["house.fill", "car.fill", "cart.fill", "bolt.fill", "wifi"]
+
     init(nameA: String = "Partner A", nameB: String = "Partner B", symbol: String = "£") {
         self.nameA = nameA; self.nameB = nameB; self.symbol = symbol
     }
@@ -37,17 +48,40 @@ struct ExpenseSplitView: View {
     private var totals: Totals {
         var t = Totals(paysA: 0, paysB: 0, netAtoB: 0, netBtoA: 0)
         for e in store.expenses {
-            let shareA = e.amount * e.splitRatioA
-            let shareB = e.amount * (1 - e.splitRatioA)
-            if e.paidByKey == "a" {
-                t.paysA += e.amount
-                t.netBtoA += shareB      // B owes A for B's share of an A-paid expense
-            } else {
-                t.paysB += e.amount
-                t.netAtoB += shareA      // A owes B for A's share of a B-paid expense
-            }
+            accumulate(into: &t, amount: e.amount, splitA: e.splitRatioA, payer: e.paidByKey)
+        }
+        for i in 0..<5 {
+            let amt = Double(presetAmts[i].replacingOccurrences(of: ",", with: "")) ?? 0
+            guard amt > 0 else { continue }
+            accumulate(into: &t, amount: amt, splitA: presetSplits[i], payer: presetPays[i])
         }
         return t
+    }
+
+    /// Applies one expense to the running totals. `splitA` is A's share of the cost.
+    /// - payer "a": A fronts it, B owes their share.
+    /// - payer "b": B fronts it, A owes their share.
+    /// - payer "both": each pays their own share directly, so no transfer arises.
+    private func accumulate(into t: inout Totals, amount: Double, splitA: Double, payer: String) {
+        let shareA = amount * splitA
+        let shareB = amount * (1 - splitA)
+        switch payer {
+        case "a":
+            t.paysA += amount
+            t.netBtoA += shareB      // B owes A for B's share of an A-paid expense
+        case "b":
+            t.paysB += amount
+            t.netAtoB += shareA      // A owes B for A's share of a B-paid expense
+        default:                     // "both" — each pays their own share, no debt
+            t.paysA += shareA
+            t.paysB += shareB
+        }
+    }
+
+    private var hasAnyExpense: Bool {
+        !store.expenses.isEmpty || presetAmts.contains {
+            (Double($0.replacingOccurrences(of: ",", with: "")) ?? 0) > 0
+        }
     }
 
     // MARK: Body
@@ -57,10 +91,15 @@ struct ExpenseSplitView: View {
             VStack(spacing: 20) {
                 incomeCard
                 expensesCard
-                if !store.expenses.isEmpty { resultCard }
+                if hasAnyExpense { resultCard }
             }
             .padding(20)
             .animation(.spring(duration: 0.35), value: store.expenses.count)
+            .onChange(of: presetAmts) { _, _ in savePresets() }
+            .onChange(of: presetPays) { _, _ in savePresets() }
+            .onChange(of: presetSplits) { _, _ in savePresets() }
+            .onChange(of: incomeAText) { _, _ in UserDefaults.standard.set(incomeAText, forKey: "cohab.income.a") }
+            .onChange(of: incomeBText) { _, _ in UserDefaults.standard.set(incomeBText, forKey: "cohab.income.b") }
         }
         .background(Color.cohBg.ignoresSafeArea())
         .navigationTitle(strings.calcExpenseTitle)
@@ -77,18 +116,47 @@ struct ExpenseSplitView: View {
             }
         }
         .onAppear {
-            if let h = household {
-                if h.budgetIncomeA > 0 { incomeAText = fmtInc(h.budgetIncomeA * 12) }
-                if h.budgetIncomeB > 0 { incomeBText = fmtInc(h.budgetIncomeB * 12) }
+            loadPresets()
+            // Restore incomes: prefer the last typed value (persisted like presets),
+            // else fall back to the saved budget. budgetIncome* is MONTHLY net income.
+            let savedA = UserDefaults.standard.string(forKey: "cohab.income.a") ?? ""
+            let savedB = UserDefaults.standard.string(forKey: "cohab.income.b") ?? ""
+            if !savedA.isEmpty { incomeAText = savedA }
+            else if let h = household, h.budgetIncomeA > 0 { incomeAText = fmtInc(h.budgetIncomeA) }
+            if !savedB.isEmpty { incomeBText = savedB }
+            else if let h = household, h.budgetIncomeB > 0 { incomeBText = fmtInc(h.budgetIncomeB) }
+        }
+    }
+
+    // MARK: Preset persistence
+
+    private func loadPresets() {
+        for i in 0..<5 {
+            presetAmts[i] = UserDefaults.standard.string(forKey: "cohab.p\(i).amt") ?? ""
+            presetPays[i] = UserDefaults.standard.string(forKey: "cohab.p\(i).pay") ?? "a"
+            if UserDefaults.standard.object(forKey: "cohab.p\(i).split") != nil {
+                presetSplits[i] = UserDefaults.standard.double(forKey: "cohab.p\(i).split")
             }
+        }
+    }
+
+    private func savePresets() {
+        for i in 0..<5 {
+            UserDefaults.standard.set(presetAmts[i], forKey: "cohab.p\(i).amt")
+            UserDefaults.standard.set(presetPays[i], forKey: "cohab.p\(i).pay")
+            UserDefaults.standard.set(presetSplits[i], forKey: "cohab.p\(i).split")
         }
     }
 
     // MARK: Income card
 
     private var incomeCard: some View {
-        cardShell("MONTHLY NET INCOME") {
-            VStack(spacing: 12) {
+        cardShell(strings.expenseIncomeTitle) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(strings.expenseIncomeSubtitle)
+                    .font(.caption2)
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .fixedSize(horizontal: false, vertical: true)
                 incomeRow(nameA, color: Color.cohGreen, text: $incomeAText)
                 incomeRow(nameB, color: Color(red: 0.20, green: 0.49, blue: 0.96), text: $incomeBText)
             }
@@ -114,11 +182,17 @@ struct ExpenseSplitView: View {
     // MARK: Expenses card
 
     private var expensesCard: some View {
-        cardShell("MONTHLY EXPENSES") {
+        cardShell(strings.expenseExpensesTitle) {
             VStack(spacing: 0) {
-                if store.expenses.isEmpty {
-                    emptyExpenses
-                } else {
+                // Preset rows
+                ForEach(0..<5, id: \.self) { i in
+                    presetRow(index: i)
+                    if i < 4 { Divider().padding(.leading, 40) }
+                }
+
+                // Custom DB expenses
+                if !store.expenses.isEmpty {
+                    Divider().padding(.vertical, 8)
                     ForEach(store.expenses) { exp in
                         expenseRow(exp)
                         if exp.id != store.expenses.last?.id {
@@ -127,12 +201,11 @@ struct ExpenseSplitView: View {
                     }
                 }
 
-                Button {
-                    showAdd = true
-                } label: {
+                // Add custom expense button
+                Button { showAdd = true } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "plus.circle.fill").foregroundStyle(Color.cohGreen)
-                        Text("Add expense")
+                        Text(strings.expenseAddExpense)
                             .font(.subheadline.weight(.medium)).foregroundStyle(Color.cohGreen)
                     }
                     .frame(maxWidth: .infinity)
@@ -143,22 +216,97 @@ struct ExpenseSplitView: View {
                                           style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
                     )
                 }
-                .padding(.top, store.expenses.isEmpty ? 0 : 12)
+                .padding(.top, 12)
             }
         }
     }
 
-    private var emptyExpenses: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "list.bullet.rectangle")
-                .font(.system(size: 28, weight: .light))
-                .foregroundStyle(Color(.tertiaryLabel))
-            Text("Add your shared monthly costs — rent, utilities, subscriptions…")
-                .font(.caption).foregroundStyle(Color(.secondaryLabel))
-                .multilineTextAlignment(.center)
+    // MARK: Preset row
+
+    private func presetRow(index i: Int) -> some View {
+        let blueColor = Color(red: 0.20, green: 0.49, blue: 0.96)
+        return VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                // Icon
+                ZStack {
+                    Circle().fill(Color.cohGreen.opacity(0.10)).frame(width: 34, height: 34)
+                    Image(systemName: presetIcons[i])
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Color.cohGreen)
+                }
+                // Name
+                Text(presetNames[i])
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.cohInk)
+                    .frame(width: 72, alignment: .leading)
+                // Amount field
+                HStack(spacing: 2) {
+                    Text(symbol).font(.caption).foregroundStyle(.secondary)
+                    TextField("0", text: Binding(
+                        get: { presetAmts[i] },
+                        set: { presetAmts[i] = $0; savePresets() }
+                    ))
+                    .keyboardType(.decimalPad)
+                    .font(.subheadline.monospacedDigit())
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, 10).padding(.vertical, 7)
+                .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 8))
+                // Payer toggle — A / Both / B
+                HStack(spacing: 4) {
+                    payerPill(nameA, key: "a", current: presetPays[i], color: Color.cohGreen) {
+                        presetPays[i] = "a"; savePresets()
+                    }
+                    payerPill(strings.expenseBoth, key: "both", current: presetPays[i], color: Color.cohInk) {
+                        presetPays[i] = "both"; savePresets()
+                    }
+                    payerPill(nameB, key: "b", current: presetPays[i], color: blueColor) {
+                        presetPays[i] = "b"; savePresets()
+                    }
+                }
+            }
+            // Split slider — only when "both" pays
+            if presetPays[i] == "both" {
+                splitSlider(
+                    ratioA: Binding(
+                        get: { presetSplits[i] },
+                        set: { presetSplits[i] = $0; savePresets() }
+                    ),
+                    colorA: Color.cohGreen, colorB: blueColor
+                )
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
+        .padding(.vertical, 10)
+        .animation(.spring(duration: 0.3), value: presetPays[i])
+    }
+
+    private func payerPill(_ name: String, key: String, current: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(String(name.prefix(1)).uppercased())
+                .font(.caption2.bold())
+                .foregroundStyle(current == key ? .white : color)
+                .frame(width: 24, height: 24)
+                .background(current == key ? color : color.opacity(0.12), in: Circle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Reusable A%/B% split slider. `ratioA` is Partner A's fraction (0…1).
+    private func splitSlider(ratioA: Binding<Double>, colorA: Color, colorB: Color) -> some View {
+        let pctA = Int((ratioA.wrappedValue * 100).rounded())
+        return VStack(spacing: 4) {
+            HStack {
+                Text("\(nameA) \(pctA)%")
+                    .font(.caption2.weight(.semibold)).foregroundStyle(colorA)
+                Spacer()
+                Text("\(nameB) \(100 - pctA)%")
+                    .font(.caption2.weight(.semibold)).foregroundStyle(colorB)
+            }
+            Slider(value: ratioA, in: 0...1, step: 0.05)
+                .tint(colorA)
+        }
+        .padding(.leading, 46)
     }
 
     private func expenseRow(_ exp: DBExpense) -> some View {
@@ -171,7 +319,7 @@ struct ExpenseSplitView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(exp.label).font(.subheadline.weight(.medium)).lineLimit(1)
                 HStack(spacing: 4) {
-                    Text("Paid by \(exp.paidByKey == "a" ? nameA : nameB)")
+                    Text("\(strings.expensePaidByLabel) \(payerName(exp.paidByKey))")
                     Text("·")
                     let pA = Int((exp.splitRatioA * 100).rounded())
                     Text("\(pA)% / \(100 - pA)%")
@@ -217,28 +365,83 @@ struct ExpenseSplitView: View {
                 let amount  = abs(net)
                 HStack {
                     Image(systemName: "arrow.right.circle.fill").foregroundStyle(Color.cohGreen)
-                    Text("\(debtor) owes \(symbol)\(fmt(amount))/month")
+                    Text(strings.expenseOwes(debtor, symbol + fmt(amount)))
                         .font(.subheadline.weight(.semibold))
                     Spacer()
                 }
             } else {
                 HStack {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.cohGreen)
-                    Text("Balanced — no transfer needed")
+                    Text(strings.expenseBalanced)
                         .font(.subheadline.weight(.semibold))
                     Spacer()
                 }
             }
 
-            // Left over (only when incomes are entered)
+            // Income-based fair split (only when both incomes are entered)
             if totalIncome > 0 {
                 Divider()
-                let effectivePayA = t.paysA - t.netBtoA + t.netAtoB  // what A actually ends up paying
+                let totalExp = t.paysA + t.paysB
+                let incomeShareA = iA / totalIncome
+                let fairA = totalExp * incomeShareA
+                let fairB = totalExp * (1 - incomeShareA)
+                let effectivePayA = t.paysA - t.netBtoA + t.netAtoB
+                let adjustment = effectivePayA - fairA
+                let pctA = Int((incomeShareA * 100).rounded())
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "chart.bar.fill")
+                            .font(.caption2).foregroundStyle(Color.cohGreen)
+                        Text(strings.expenseFairSplitTitle)
+                            .font(.caption2.bold()).tracking(0.8).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 4) {
+                                Circle().fill(Color.cohGreen).frame(width: 6, height: 6)
+                                Text(nameA).font(.caption2).foregroundStyle(.secondary)
+                            }
+                            Text(symbol + fmt(fairA))
+                                .font(.subheadline.bold().monospacedDigit())
+                                .foregroundStyle(Color.cohGreen)
+                            Text(strings.expensePctOfIncome(pctA))
+                                .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 4) {
+                                Circle().fill(blueColor).frame(width: 6, height: 6)
+                                Text(nameB).font(.caption2).foregroundStyle(.secondary)
+                            }
+                            Text(symbol + fmt(fairB))
+                                .font(.subheadline.bold().monospacedDigit())
+                                .foregroundStyle(blueColor)
+                            Text(strings.expensePctOfIncome(100 - pctA))
+                                .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    if abs(adjustment) >= 1 {
+                        let over = adjustment > 0 ? nameA : nameB
+                        HStack(spacing: 5) {
+                            Image(systemName: "info.circle").font(.caption2).foregroundStyle(.secondary)
+                            Text(strings.expensePaysMoreThanFair(over, symbol + fmt(abs(adjustment))))
+                                .font(.caption2).foregroundStyle(Color(.secondaryLabel))
+                        }
+                    }
+                }
+            }
+
+            // Left over after bills
+            if totalIncome > 0 {
+                Divider()
+                let effectivePayA = t.paysA - t.netBtoA + t.netAtoB
                 let effectivePayB = t.paysB - t.netAtoB + t.netBtoA
                 HStack {
-                    leftoverView(nameA, income: iA / 12, effectivePay: effectivePayA, color: Color.cohGreen)
+                    leftoverView(nameA, income: iA, effectivePay: effectivePayA, color: Color.cohGreen)
                     Spacer()
-                    leftoverView(nameB, income: iB / 12, effectivePay: effectivePayB, color: blueColor)
+                    leftoverView(nameB, income: iB, effectivePay: effectivePayB, color: blueColor)
                 }
             }
 
@@ -270,7 +473,7 @@ struct ExpenseSplitView: View {
     private func payoutPanel(_ name: String, amount: Double, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(name).font(.caption.weight(.semibold)).foregroundStyle(color)
-            Text("Pays out").font(.caption2).foregroundStyle(.secondary)
+            Text(strings.expensePaysOut).font(.caption2).foregroundStyle(.secondary)
             Text(symbol + fmt(amount))
                 .font(.title3.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
         }
@@ -282,7 +485,7 @@ struct ExpenseSplitView: View {
     private func leftoverView(_ name: String, income: Double, effectivePay: Double, color: Color) -> some View {
         let left = income - effectivePay
         return VStack(alignment: .leading, spacing: 3) {
-            Text("\(name) left over").font(.caption2).foregroundStyle(.secondary)
+            Text(strings.expenseLeftOver(name)).font(.caption2).foregroundStyle(.secondary)
             Text(symbol + fmt(max(0, left)))
                 .font(.subheadline.bold().monospacedDigit())
                 .foregroundStyle(left >= 0 ? color : Color.red)
@@ -295,10 +498,13 @@ struct ExpenseSplitView: View {
         guard let h = household else { return }
         let t = totals
         let total = t.paysA + t.paysB
-        h.budgetIncomeA     = iA / 12
-        h.budgetIncomeB     = iB / 12
+        h.budgetIncomeA     = iA          // stored as MONTHLY net income
+        h.budgetIncomeB     = iB
         h.budgetTotalExpenses = total
         h.budgetSplitA      = total > 0 ? t.paysA / total : 0.5
+        h.budgetPaysA       = t.paysA
+        h.budgetPaysB       = t.paysB
+        h.budgetNetTransfer = t.netTransfer   // + = B owes A, − = A owes B
         h.budgetFairnessMode = "custom"
         h.budgetSavedAt     = Date()
         withAnimation { savedBudget = true }
@@ -315,6 +521,14 @@ struct ExpenseSplitView: View {
         .padding(18)
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
         .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    private func payerName(_ key: String) -> String {
+        switch key {
+        case "a": return nameA
+        case "b": return nameB
+        default:  return strings.expenseBoth
+        }
     }
 
     private func parse(_ s: String) -> Double { Double(s.replacingOccurrences(of: ",", with: "")) ?? 0 }
@@ -334,89 +548,201 @@ struct AddExpenseSheet: View {
     let onSave: (String, Double, String, Double, Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var strings = AppStrings.shared
+    @State private var selectedCategory: String? = nil   // holds preset.key
     @State private var label = ""
     @State private var amountText = ""
-    @State private var paidByKey = "a"
-    @State private var splitA: Double = 0.5
+    @State private var paidByKey = "a"                    // "a" | "b" | "both"
+    @State private var splitA: Double = 0.5               // A's share when "both"
     @State private var isRecurring = true
 
-    private var blueColor: Color { Color(red: 0.20, green: 0.49, blue: 0.96) }
-    private var pctA: Int { Int((splitA * 100).rounded()) }
-    private var canSave: Bool {
-        !label.trimmingCharacters(in: .whitespaces).isEmpty &&
-        (Double(amountText.replacingOccurrences(of: ",", with: ".")) ?? 0) > 0
+    private struct ExpensePreset {
+        let key: String          // stable identity, language-independent
+        let icon: String
+        let title: String        // localized display name
     }
+
+    private var presets: [ExpensePreset] {
+        [
+            .init(key: "rent",        icon: "house.fill",  title: strings.expenseCatRent),
+            .init(key: "electricity", icon: "bolt.fill",   title: strings.expenseCatElectricity),
+            .init(key: "internet",    icon: "wifi",        title: strings.expenseCatInternet),
+            .init(key: "groceries",   icon: "cart.fill",   title: strings.expenseCatGroceries),
+            .init(key: "streaming",   icon: "play.tv.fill",title: strings.expenseCatStreaming),
+            .init(key: "transport",   icon: "car.fill",    title: strings.expenseCatTransport),
+            .init(key: "insurance",   icon: "heart.fill",  title: strings.expenseCatInsurance),
+            .init(key: "custom",      icon: "pencil",      title: strings.expenseCatCustom),
+        ]
+    }
+
+    private var blueColor: Color { Color(red: 0.20, green: 0.49, blue: 0.96) }
+    private var amount: Double { Double(amountText.replacingOccurrences(of: ",", with: "")) ?? 0 }
+    private var canSave: Bool { !label.trimmingCharacters(in: .whitespaces).isEmpty && amount > 0 }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField("e.g. Rent, Utilities, Netflix", text: $label)
-                    HStack {
-                        Text(symbol).foregroundStyle(.secondary)
-                        TextField("Amount", text: $amountText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    // Category chips
+                    categoryPicker
+                    // Label field — always visible
+                    labelCard
+                    // Amount — appears once label non-empty
+                    if !label.trimmingCharacters(in: .whitespaces).isEmpty {
+                        amountCard
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                } header: { Text("EXPENSE") }
-
-                Section {
-                    Picker("Who pays it?", selection: $paidByKey) {
-                        Text(nameA).tag("a")
-                        Text(nameB).tag("b")
+                    // Who pays + recurring — appears once amount > 0
+                    if amount > 0 {
+                        whoPaysCard
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        recurringCard
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    .pickerStyle(.segmented)
-                    Text("The person who physically pays the bill.")
-                        .font(.caption).foregroundStyle(.secondary)
-                } header: { Text("WHO PAYS IT?") }
-
-                Section {
-                    VStack(spacing: 10) {
-                        HStack {
-                            HStack(spacing: 5) {
-                                Circle().fill(Color.cohGreen).frame(width: 7, height: 7)
-                                Text(nameA).font(.subheadline.weight(.medium))
-                            }
-                            Spacer()
-                            Text("\(pctA)%")
-                                .font(.subheadline.bold().monospacedDigit())
-                                .foregroundStyle(Color.cohGreen)
-                        }
-                        Slider(value: $splitA, in: 0...1, step: 0.05).tint(Color.cohGreen)
-                        HStack {
-                            HStack(spacing: 5) {
-                                Circle().fill(blueColor).frame(width: 7, height: 7)
-                                Text(nameB).font(.subheadline.weight(.medium))
-                            }
-                            Spacer()
-                            Text("\(100 - pctA)%")
-                                .font(.subheadline.bold().monospacedDigit())
-                                .foregroundStyle(blueColor)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                } header: { Text("COST SPLIT") }
-
-                Section {
-                    Toggle("Recurring monthly expense", isOn: $isRecurring)
                 }
+                .padding(20)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: label.isEmpty)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: amount > 0)
             }
-            .navigationTitle("Add expense")
+            .background(Color.cohBg.ignoresSafeArea())
+            .navigationTitle(strings.expenseAddTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button(strings.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Add") {
-                        let amount = Double(amountText.replacingOccurrences(of: ",", with: ".")) ?? 0
-                        onSave(label.trimmingCharacters(in: .whitespaces), amount, paidByKey, splitA, isRecurring)
+                    Button(strings.add) {
+                        onSave(label.trimmingCharacters(in: .whitespaces), amount,
+                               paidByKey, paidByKey == "both" ? splitA : 0.5, isRecurring)
                         dismiss()
                     }
-                    .bold().disabled(!canSave)
+                    .bold()
+                    .disabled(!canSave)
                 }
             }
         }
+    }
+
+    // MARK: Category picker
+
+    private var categoryPicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(presets, id: \.key) { preset in
+                    let selected = selectedCategory == preset.key
+                    Button {
+                        selectedCategory = preset.key
+                        label = preset.key == "custom" ? "" : preset.title
+                    } label: {
+                        VStack(spacing: 6) {
+                            ZStack {
+                                Circle()
+                                    .fill(selected ? Color.cohGreen : Color.cohCard)
+                                    .frame(width: 48, height: 48)
+                                    .shadow(color: .black.opacity(selected ? 0 : 0.05), radius: 4, y: 2)
+                                Image(systemName: preset.icon)
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundStyle(selected ? .white : Color.cohGreen)
+                            }
+                            Text(preset.title)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(selected ? Color.cohGreen : Color.cohInk)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 2)
+            .padding(.vertical, 4)
+        }
+    }
+
+    // MARK: Cards
+
+    private var labelCard: some View {
+        cardShell(strings.expenseWhatIsIt) {
+            TextField(strings.expenseWhatPlaceholder, text: $label)
+                .font(.body)
+                .padding(.horizontal, 14).padding(.vertical, 12)
+                .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private var amountCard: some View {
+        cardShell(strings.expenseAmountTitle) {
+            HStack {
+                Text(symbol).foregroundStyle(.secondary).font(.body)
+                TextField("0", text: $amountText)
+                    .keyboardType(.decimalPad)
+                    .font(.title3.weight(.semibold).monospacedDigit())
+            }
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private var whoPaysCard: some View {
+        cardShell(strings.expenseWhoPays) {
+            VStack(spacing: 14) {
+                HStack(spacing: 8) {
+                    payerButton(name: nameA, key: "a", color: Color.cohGreen)
+                    payerButton(name: strings.expenseBoth, key: "both", color: Color.cohInk)
+                    payerButton(name: nameB, key: "b", color: blueColor)
+                }
+                if paidByKey == "both" {
+                    splitControl
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .animation(.spring(duration: 0.3), value: paidByKey)
+        }
+    }
+
+    private var splitControl: some View {
+        let pctA = Int((splitA * 100).rounded())
+        return VStack(spacing: 6) {
+            HStack {
+                Text("\(nameA) \(pctA)%")
+                    .font(.caption.weight(.semibold)).foregroundStyle(Color.cohGreen)
+                Spacer()
+                Text("\(nameB) \(100 - pctA)%")
+                    .font(.caption.weight(.semibold)).foregroundStyle(blueColor)
+            }
+            Slider(value: $splitA, in: 0...1, step: 0.05).tint(Color.cohGreen)
+        }
+    }
+
+    private var recurringCard: some View {
+        cardShell(strings.expenseRecurringTitle) {
+            Toggle(strings.expenseRecurringToggle, isOn: $isRecurring)
+                .font(.subheadline)
+        }
+    }
+
+    // MARK: Helpers
+
+    private func payerButton(name: String, key: String, color: Color) -> some View {
+        Button { paidByKey = key } label: {
+            Text(name)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(paidByKey == key ? .white : color)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(paidByKey == key ? color : color.opacity(0.1),
+                             in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func cardShell<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+            content()
+        }
+        .padding(18)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
     }
 }
 
