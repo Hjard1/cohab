@@ -1066,17 +1066,17 @@ struct AssetCard: View {
 
     private var netProceedsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            sectionLabel("NET PROCEEDS")
-            calcRow("Current value", fmt(asset.currentValue))
+            sectionLabel(strings.assetNetProceedsSection)
+            calcRow(strings.calcCurrentValue, fmt(asset.currentValue))
             if asset.remainingLoan > 0 {
-                calcRow("Remaining loan", "−" + fmt(asset.remainingLoan), dim: true)
+                calcRow(strings.calcRemainingLoan, "−" + fmt(asset.remainingLoan), dim: true)
             }
             if asset.estimatedSalesCost > 0 {
                 let pct = Int(asset.salesCostFraction * 100)
-                calcRow("Sale costs (\(pct)%)", "−" + fmt(asset.estimatedSalesCost), dim: true)
+                calcRow("\(strings.calcSaleCosts) (\(pct)%)", "−" + fmt(asset.estimatedSalesCost), dim: true)
             }
             Divider()
-            calcRow("Net proceeds", fmt(result.netProceeds), bold: true)
+            calcRow(strings.calcNetProceeds, fmt(result.netProceeds), bold: true)
         }
     }
 
@@ -1087,7 +1087,7 @@ struct AssetCard: View {
         let total = result.accrued[partner] ?? 0
         guard !rows.isEmpty else { return AnyView(EmptyView()) }
         return AnyView(VStack(alignment: .leading, spacing: 6) {
-            sectionLabel(name.uppercased() + "'S CONTRIBUTIONS")
+            sectionLabel(String(format: strings.contribSectionTitle, name.uppercased()))
             ForEach(rows, id: \.id) { row in
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -1100,14 +1100,14 @@ struct AssetCard: View {
                             .font(.caption.monospacedDigit().weight(.medium))
                             .foregroundStyle(color)
                         if row.interest > 1 {
-                            Text("+\(household.currencySymbol)\(fmt(row.interest)) interest")
+                            Text("+\(household.currencySymbol)\(fmt(row.interest)) \(strings.interestWord)")
                                 .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
                         }
                     }
                 }
             }
             if rows.count > 1 { Divider() }
-            if rows.count > 1 { calcRow("Total returned", fmt(total), bold: true, tint: color) }
+            if rows.count > 1 { calcRow(strings.calcTotalReturned, fmt(total), bold: true, tint: color) }
         })
     }
 
@@ -1117,8 +1117,10 @@ struct AssetCard: View {
         let totalAccrued = (result.accrued[.a] ?? 0) + (result.accrued[.b] ?? 0)
         return VStack(alignment: .leading, spacing: 6) {
             if result.shortfall {
-                sectionLabel("SHORTFALL")
-                Text("Net proceeds (\(household.currencySymbol)\(fmt(result.netProceeds))) are below total contributions (\(household.currencySymbol)\(fmt(totalAccrued))). Each partner receives a proportional share of available funds.")
+                sectionLabel(strings.shortfallSection)
+                Text(String(format: strings.shortfallExplanation,
+                            household.currencySymbol + fmt(result.netProceeds),
+                            household.currencySymbol + fmt(totalAccrued)))
                     .font(.caption2).foregroundStyle(.secondary)
             } else {
                 let surplus = result.netProceeds - totalAccrued
@@ -1365,7 +1367,7 @@ extension DashboardView {
                 HStack(spacing: 8) {
                     Image(systemName: "doc.badge.checkmark.fill")
                         .foregroundStyle(Color.cohGreen)
-                    Text("Ownership Agreement")
+                    Text(strings.agreementCardTitle)
                         .font(.headline)
                 }
                 Spacer()
@@ -1376,8 +1378,8 @@ extension DashboardView {
 
             // ── Scope description ─────────────────────────────────────
             Text(h.includeDissolutionClause
-                 ? "Covers: ownership, contributions & dissolution clause"
-                 : "Covers: ownership & contributions")
+                 ? strings.agreementCoversFull
+                 : strings.agreementCoversBasic)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -1387,7 +1389,7 @@ extension DashboardView {
                     Image(systemName: "exclamationmark.circle.fill")
                         .foregroundStyle(.orange)
                         .font(.subheadline)
-                    Text(h.changesSinceSigning + " since last agreement.")
+                    Text(h.changesSinceSigning + strings.agreementSinceLastSuffix)
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
@@ -1399,7 +1401,7 @@ extension DashboardView {
 
             // ── Signed state ──────────────────────────────────────────
             if h.agreementStatus == "signed" && !h.agreementNeedsUpdate {
-                Label("Signed by both parties", systemImage: "checkmark.seal.fill")
+                Label(strings.agreementSigned, systemImage: "checkmark.seal.fill")
                     .font(.subheadline)
                     .foregroundStyle(Color.cohGreen)
             }
@@ -1430,18 +1432,18 @@ extension DashboardView {
     }
 
     private func buttonText(for h: Household) -> String {
-        if h.agreementNeedsUpdate    { return "Update & resend agreement" }
-        if h.agreementStatus == "pending" { return "View signing links" }
-        return "Generate & sign agreement"
+        if h.agreementNeedsUpdate    { return strings.agreementUpdateResend }
+        if h.agreementStatus == "pending" { return strings.agreementViewSigningLinks }
+        return strings.agreementGenerateSign
     }
 
     private func statusBadge(_ status: String, needsUpdate: Bool) -> some View {
         let (label, color): (String, Color) = {
-            if needsUpdate && status != "none" { return ("Update needed", .orange) }
+            if needsUpdate && status != "none" { return (strings.agreementUpdateNeeded, .orange) }
             switch status {
-            case "pending": return ("Pending signatures", .orange)
-            case "signed":  return ("Signed ✓", .cohGreen)
-            default:        return ("Not signed yet", Color(.systemGray))
+            case "pending": return (strings.agreementPendingSignatures, .orange)
+            case "signed":  return (strings.agreementSignedShort, .cohGreen)
+            default:        return (strings.agreementNotSigned, Color(.systemGray))
             }
         }()
         return Text(label)
@@ -1798,11 +1800,11 @@ struct HouseholdSetupView: View {
                 } header: { Text(strings.onboardingWhoDoYouShare) }
 
                 Section {
-                    Picker("Currency", selection: $currency) {
+                    Picker(strings.settingsCurrency, selection: $currency) {
                         ForEach(currencies, id: \.self) { Text($0) }
                     }
                     HStack {
-                        Text(s(en: "Interest rate", nb: "Rente"))
+                        Text(strings.settingsInterestRate)
                         Spacer()
                         TextField("5.0", text: $rateText)
                             .keyboardType(.decimalPad)
@@ -1810,11 +1812,10 @@ struct HouseholdSetupView: View {
                             .frame(width: 60)
                         Text("%").foregroundStyle(.secondary)
                     }
-                } header: { Text(s(en: "Settings", nb: "Innstillinger")) }
+                } header: { Text(strings.settingsTitle) }
 
                 Section {
-                    Text(s(en: "The interest rate determines how much each contribution grows over time. 5% is a sensible default.",
-                           nb: "Renten bestemmer hvor mye hvert bidrag vokser over tid. 5 % er et fornuftig utgangspunkt."))
+                    Text(strings.settingsInterestRateFooter)
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
@@ -1825,77 +1826,73 @@ struct HouseholdSetupView: View {
                                 UIApplication.shared.open(url)
                             }
                         } label: {
-                            Label(s(en: "Contact support", nb: "Kontakt support"),
+                            Label(strings.settingsContactSupport,
                                   systemImage: "envelope.fill")
                         }
                         Button {
                             exportURL = generateExportCSV(household: h)
                             showExportSheet = exportURL != nil
                         } label: {
-                            Label(s(en: "Export to Excel / CSV", nb: "Eksporter til Excel / CSV"),
+                            Label(strings.settingsExportCSV,
                                   systemImage: "arrow.up.doc.fill")
                         }
                     } footer: {
-                        Text(s(en: "Exports all assets, contributions and expenses as a .csv file (Excel, Numbers, Google Sheets).",
-                               nb: "Eksporterer alle eiendeler, bidrag og utgifter som en .csv-fil (Excel, Numbers, Google Sheets)."))
+                        Text(strings.settingsExportFooter)
                     }
                 }
 
                 if household != nil {
                     Section {
                         Button(role: .destructive) { signOut() } label: {
-                            Label(s(en: "Sign out", nb: "Logg ut"),
+                            Label(strings.settingsSignOut,
                                   systemImage: "rectangle.portrait.and.arrow.right")
                         }
                     }
 
                     Section {
                         Button(role: .destructive) { showDeleteConfirm = true } label: {
-                            Label(s(en: "Delete all local data", nb: "Slett alle lokale data"),
+                            Label(strings.settingsDeleteLocal,
                                   systemImage: "trash")
                         }
                         Button(role: .destructive) { showDeleteAccountConfirm = true } label: {
-                            Label(s(en: "Delete account", nb: "Slett konto"),
+                            Label(strings.settingsDeleteAccount,
                                   systemImage: "person.crop.circle.badge.minus")
                         }
                     } footer: {
-                        Text(s(en: "\"Delete account\" permanently removes your account and all data from our servers. This cannot be undone.",
-                               nb: "\"Slett konto\" sletter kontoen din og alle data fra serverne våre permanent. Dette kan ikke angres."))
+                        Text(strings.settingsDeleteAccountFooter)
                     }
                 }
             }
-            .navigationTitle(household == nil ? s(en: "Set up household", nb: "Sett opp husholdning") : s(en: "Settings", nb: "Innstillinger"))
+            .navigationTitle(household == nil ? strings.settingsSetupHousehold : strings.settingsTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(s(en: "Cancel", nb: "Avbryt")) { dismiss() }
+                    Button(strings.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(s(en: "Save", nb: "Lagre")) { save() }.bold().disabled(!canSave)
+                    Button(strings.save) { save() }.bold().disabled(!canSave)
                 }
             }
-            .confirmationDialog(s(en: "Delete all local data?", nb: "Slette alle lokale data?"),
+            .confirmationDialog(strings.settingsDeleteLocalTitle,
                                 isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-                Button(s(en: "Delete everything", nb: "Slett alt"), role: .destructive) { deleteAll() }
-                Button(s(en: "Cancel", nb: "Avbryt"), role: .cancel) {}
+                Button(strings.settingsDeleteEverything, role: .destructive) { deleteAll() }
+                Button(strings.cancel, role: .cancel) {}
             } message: {
-                Text(s(en: "Assets, contributions, and your agreement will be removed from this device.",
-                       nb: "Eiendeler, bidrag og avtalen din fjernes fra denne enheten."))
+                Text(strings.settingsDeleteLocalMessage)
             }
-            .confirmationDialog(s(en: "Delete account?", nb: "Slette konto?"),
+            .confirmationDialog(strings.settingsDeleteAccountTitle,
                                 isPresented: $showDeleteAccountConfirm, titleVisibility: .visible) {
-                Button(s(en: "Delete my account", nb: "Slett kontoen min"), role: .destructive) {
+                Button(strings.settingsDeleteMyAccount, role: .destructive) {
                     deleteAccount()
                 }
-                Button(s(en: "Cancel", nb: "Avbryt"), role: .cancel) {}
+                Button(strings.cancel, role: .cancel) {}
             } message: {
-                Text(s(en: "Your account and all data will be permanently deleted from our servers. This cannot be undone.",
-                       nb: "Kontoen din og alle data slettes permanent fra serverne våre. Dette kan ikke angres."))
+                Text(strings.settingsDeleteAccountMessage)
             }
-            .alert(s(en: "Could not delete account", nb: "Kunne ikke slette konto"),
+            .alert(strings.settingsDeleteAccountError,
                    isPresented: Binding(get: { deleteAccountError != nil },
                                         set: { if !$0 { deleteAccountError = nil } })) {
-                Button(s(en: "OK", nb: "OK"), role: .cancel) {}
+                Button(strings.ok, role: .cancel) {}
             } message: {
                 Text(deleteAccountError ?? "")
             }

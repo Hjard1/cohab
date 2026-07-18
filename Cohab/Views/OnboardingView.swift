@@ -861,7 +861,7 @@ struct OnboardingView: View {
                         }
                         VStack(alignment: .leading, spacing: 3) {
                             Text(s.disclaimerTitle).font(.headline)
-                            Text("cohab · Legal notice").font(.caption).foregroundStyle(.secondary)
+                            Text("cohab · \(AppStrings.shared.disclaimerTitle)").font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     Text(s.disclaimerBody)

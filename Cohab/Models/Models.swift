@@ -259,22 +259,22 @@ enum AssetType: String, CaseIterable {
     }
 
     var contributionSubtitle: String {
-        let nb = AppStrings.shared.language == .nb
+        let s = AppStrings.shared
         switch self {
         case .home, .cabin:
-            return nb ? "Innskudd, oppussing, ekstra nedbetalinger…" : "Deposits, renovations, extra mortgage payments…"
+            return s.localized(en: "Deposits, renovations, extra mortgage payments…", nb: "Innskudd, oppussing, ekstra nedbetalinger…", sv: "Insatser, renoveringar, extra amorteringar…", da: "Udbetalinger, renoveringer, ekstra afdrag…", fi: "Käsirahat, remontit, ylimääräiset lyhennykset…", de: "Anzahlungen, Renovierungen, zusätzliche Tilgungen…", fr: "Apports, rénovations, remboursements supplémentaires…", es: "Depósitos, reformas, pagos hipotecarios extra…")
         case .car:
-            return nb ? "Kjøpsbetaling, engangsbetalinger…" : "Initial deposit, lump-sum payments…"
+            return s.localized(en: "Initial deposit, lump-sum payments…", nb: "Kjøpsbetaling, engangsbetalinger…", sv: "Köpsbetalning, engångsbetalningar…", da: "Købsbetaling, engangsbetalinger…", fi: "Ostomaksu, kertamaksut…", de: "Kaufzahlung, Einmalzahlungen…", fr: "Paiement initial, paiements uniques…", es: "Pago inicial, pagos únicos…")
         case .investment:
-            return nb ? "Startinnskudd, tilleggsbetalinger…" : "Initial contributions, additional deposits…"
+            return s.localized(en: "Initial contributions, additional deposits…", nb: "Startinnskudd, tilleggsbetalinger…", sv: "Startinsats, tilläggsbetalningar…", da: "Startindskud, tillægsbetalinger…", fi: "Alkumaksu, lisämaksut…", de: "Anfangsbeiträge, zusätzliche Einzahlungen…", fr: "Contributions initiales, versements supplémentaires…", es: "Aportaciones iniciales, depósitos adicionales…")
         case .savings:
-            return nb ? "Overføringer, innskudd…" : "Transfers in, lump-sum deposits…"
+            return s.localized(en: "Transfers in, lump-sum deposits…", nb: "Overføringer, innskudd…", sv: "Överföringar, insättningar…", da: "Overførsler, indskud…", fi: "Siirrot, talletukset…", de: "Überweisungen, Einzahlungen…", fr: "Virements, versements uniques…", es: "Transferencias, depósitos…")
         case .furniture:
-            return nb ? "Administrer enkeltgjenstander i møbellisten" : "Manage individual items in the furniture list"
+            return s.localized(en: "Manage individual items in the furniture list", nb: "Administrer enkeltgjenstander i møbellisten", sv: "Hantera enskilda föremål i möbellistan", da: "Administrér enkelte genstande i møbellisten", fi: "Hallitse yksittäisiä esineitä huonekaluluettelossa", de: "Einzelne Gegenstände in der Möbelliste verwalten", fr: "Gérer les objets individuels dans la liste de mobilier", es: "Gestiona artículos individuales en la lista de muebles")
         case .pet:
-            return nb ? "Kjøpspris, veterinærkostnader, andre utgifter…" : "Purchase price, vet bills, other costs…"
+            return s.localized(en: "Purchase price, vet bills, other costs…", nb: "Kjøpspris, veterinærkostnader, andre utgifter…", sv: "Köppris, veterinärkostnader, andra utgifter…", da: "Købspris, dyrlægeudgifter, andre omkostninger…", fi: "Ostohinta, eläinlääkärikulut, muut kulut…", de: "Kaufpreis, Tierarztkosten, andere Ausgaben…", fr: "Prix d'achat, frais vétérinaires, autres coûts…", es: "Precio de compra, gastos veterinarios, otros costes…")
         case .other:
-            return nb ? "Bidrag og forbedringer…" : "Contributions and improvements…"
+            return s.localized(en: "Contributions and improvements…", nb: "Bidrag og forbedringer…", sv: "Bidrag och förbättringar…", da: "Bidrag og forbedringer…", fi: "Maksut ja parannukset…", de: "Beiträge und Verbesserungen…", fr: "Contributions et améliorations…", es: "Aportaciones y mejoras…")
         }
     }
 
@@ -440,15 +440,23 @@ final class Household {
 
     /// Human-readable summary of what changed since last signing.
     var changesSinceSigning: String {
+        let s = AppStrings.shared
         let assetDiff   = assets.count - signedAssetCount
         let contribDiff = assets.reduce(0) { $0 + $1.contributions.count } - signedContribCount
         var parts: [String] = []
-        if assetDiff == 1   { parts.append("1 new asset") }
-        if assetDiff > 1    { parts.append("\(assetDiff) new assets") }
-        if assetDiff < 0    { parts.append("\(-assetDiff) asset\(-assetDiff == 1 ? "" : "s") removed") }
-        if contribDiff == 1 { parts.append("1 new contribution") }
-        if contribDiff > 1  { parts.append("\(contribDiff) new contributions") }
-        if parts.isEmpty && agreementNeedsUpdate { parts.append("values updated") }
+        if assetDiff == 1   { parts.append("1 " + s.localized(en: "new asset", nb: "ny eiendel", sv: "ny tillgång", da: "nyt aktiv", fi: "uusi kohde", de: "neuer Vermögenswert", fr: "nouvel actif", es: "nuevo activo")) }
+        if assetDiff > 1    { parts.append("\(assetDiff) " + s.localized(en: "new assets", nb: "nye eiendeler", sv: "nya tillgångar", da: "nye aktiver", fi: "uutta kohdetta", de: "neue Vermögenswerte", fr: "nouveaux actifs", es: "nuevos activos")) }
+        if assetDiff < 0 {
+            let n = -assetDiff
+            parts.append("\(n) " + (n == 1
+                ? s.localized(en: "asset removed", nb: "eiendel fjernet", sv: "tillgång borttagen", da: "aktiv fjernet", fi: "kohde poistettu", de: "Vermögenswert entfernt", fr: "actif supprimé", es: "activo eliminado")
+                : s.localized(en: "assets removed", nb: "eiendeler fjernet", sv: "tillgångar borttagna", da: "aktiver fjernet", fi: "kohdetta poistettu", de: "Vermögenswerte entfernt", fr: "actifs supprimés", es: "activos eliminados")))
+        }
+        if contribDiff == 1 { parts.append("1 " + s.localized(en: "new contribution", nb: "nytt bidrag", sv: "nytt bidrag", da: "nyt bidrag", fi: "uusi maksu", de: "neuer Beitrag", fr: "nouvelle contribution", es: "nueva aportación")) }
+        if contribDiff > 1  { parts.append("\(contribDiff) " + s.localized(en: "new contributions", nb: "nye bidrag", sv: "nya bidrag", da: "nye bidrag", fi: "uutta maksua", de: "neue Beiträge", fr: "nouvelles contributions", es: "nuevas aportaciones")) }
+        if parts.isEmpty && agreementNeedsUpdate {
+            parts.append(s.localized(en: "values updated", nb: "verdier oppdatert", sv: "värden uppdaterade", da: "værdier opdateret", fi: "arvot päivitetty", de: "Werte aktualisiert", fr: "valeurs mises à jour", es: "valores actualizados"))
+        }
         return parts.joined(separator: " · ")
     }
 

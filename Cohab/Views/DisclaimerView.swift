@@ -21,7 +21,7 @@ struct DisclaimerView: View {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(strings.disclaimerTitle)
                                 .font(.headline)
-                            Text("cohab · Legal notice")
+                            Text("cohab · \(strings.disclaimerTitle)")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
@@ -38,7 +38,7 @@ struct DisclaimerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Close") { dismiss() }
+                    Button(strings.disclaimerClose) { dismiss() }
                 }
             }
         }
