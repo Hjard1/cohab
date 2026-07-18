@@ -18,7 +18,7 @@ struct ExpenseSplitView: View {
     @State private var incomeBText = ""
     @State private var showAdd = false
     @State private var savedBudget = false
-    @State private var deleteError: String?
+    @State private var expenseError: String?
 
     // Preset amounts, payers & split — mirrored to the Household model and
     // pushed to Supabase (debounced) so both partners edit the same numbers.
@@ -114,13 +114,25 @@ struct ExpenseSplitView: View {
         .sheet(isPresented: $showAdd) {
             AddExpenseSheet(nameA: nameA, nameB: nameB, symbol: symbol) { label, amount, paidBy, splitA, recurring in
                 Task {
-                    try? await store.addExpense(
-                        label: label, amount: amount, paidByKey: paidBy,
-                        splitRatioA: splitA, date: Date(),
-                        category: "other", isRecurring: recurring
-                    )
+                    do {
+                        try await store.addExpense(
+                            label: label, amount: amount, paidByKey: paidBy,
+                            splitRatioA: splitA, date: Date(),
+                            category: "other", isRecurring: recurring
+                        )
+                    } catch {
+                        expenseError = error.localizedDescription
+                    }
                 }
             }
+        }
+        .alert(strings.error, isPresented: Binding(
+            get: { expenseError != nil },
+            set: { if !$0 { expenseError = nil } }
+        )) {
+            Button(strings.ok, role: .cancel) { expenseError = nil }
+        } message: {
+            Text(expenseError ?? "")
         }
         .onAppear {
             if let h = household, h.expensesUpdatedAt != nil {
@@ -387,7 +399,10 @@ struct ExpenseSplitView: View {
                 .font(.subheadline.bold().monospacedDigit())
 
             Button {
-                Task { try? await store.deleteExpense(exp.id) }
+                Task {
+                    do { try await store.deleteExpense(exp.id) }
+                    catch { expenseError = error.localizedDescription }
+                }
             } label: {
                 Image(systemName: "trash")
                     .font(.caption).foregroundStyle(Color(.tertiaryLabel))
