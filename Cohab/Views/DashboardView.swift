@@ -1325,6 +1325,15 @@ extension DashboardView {
             } else {
                 Button(strings.update) {
                     household.annualInterestRate = rate.rate
+                    let householdId = store.household?.id ?? household.id
+                    let nameA = household.partnerAName, nameB = household.partnerBName
+                    let cur = household.currency
+                    Task {
+                        try? await SupabaseService.updateHousehold(
+                            householdId: householdId, partnerALabel: nameA,
+                            partnerBLabel: nameB, currency: cur,
+                            annualInterestRate: rate.rate)
+                    }
                     showRateSaved = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         availableRate = nil
@@ -1750,6 +1759,7 @@ struct HouseholdSetupView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var auth: AuthManager
+    @Environment(HouseholdStore.self) private var store
     @AppStorage("onboardingComplete") private var onboardingComplete = false
     @AppStorage("wasSignedOut") private var wasSignedOut = false
     @ObservedObject private var strings = AppStrings.shared
@@ -1910,6 +1920,12 @@ struct HouseholdSetupView: View {
         if let h = household {
             h.partnerAName = a; h.partnerBName = b
             h.currency = currency; h.annualInterestRate = rate
+            let householdId = store.household?.id ?? h.id
+            Task {
+                try? await SupabaseService.updateHousehold(
+                    householdId: householdId, partnerALabel: a, partnerBLabel: b,
+                    currency: currency, annualInterestRate: rate)
+            }
         } else {
             modelContext.insert(
                 Household(partnerAName: a, partnerBName: b, currency: currency, annualInterestRate: rate)
@@ -2049,6 +2065,7 @@ struct AddAssetView: View {
     var existingAsset: Asset? = nil          // nil = new asset, non-nil = configure blank
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(HouseholdStore.self) private var store
     @ObservedObject private var strings = AppStrings.shared
 
     @State private var step = 0
@@ -2358,28 +2375,54 @@ struct AddAssetView: View {
         let loan  = selectedType.showLoan
             ? (Double(loanText.replacingOccurrences(of: ",", with: ".")) ?? 0)
             : 0
+        let trimmedLabel   = label.trimmingCharacters(in: .whitespaces)
+        let trimmedAddress = address.trimmingCharacters(in: .whitespaces)
+        let type   = selectedType.rawValue
+        let salesCost = selectedType.defaultSalesCostFraction
 
         if let existing = existingAsset {
-            existing.assetType               = selectedType.rawValue
-            existing.label                   = label.trimmingCharacters(in: .whitespaces)
-            existing.address                 = address.trimmingCharacters(in: .whitespaces)
+            existing.assetType               = type
+            existing.label                   = trimmedLabel
+            existing.address                 = trimmedAddress
             existing.currentValue            = value
             existing.remainingLoan           = loan
-            existing.salesCostFraction       = selectedType.defaultSalesCostFraction
+            existing.salesCostFraction       = salesCost
             existing.ownershipShareA         = shareA
             existing.isOwnershipRegistered   = canBeRegistered && isRegistered
+            let id = existing.id
+            Task {
+                try? await store.updateAsset(
+                    id, assetType: type, label: trimmedLabel, address: trimmedAddress,
+                    currentValue: value, remainingLoan: loan,
+                    salesCostFraction: salesCost, ownershipShareA: shareA)
+            }
         } else {
             let asset = Asset(
-                assetType: selectedType.rawValue,
-                label: label.trimmingCharacters(in: .whitespaces),
-                address: address.trimmingCharacters(in: .whitespaces),
+                assetType: type,
+                label: trimmedLabel,
+                address: trimmedAddress,
                 currentValue: value,
                 remainingLoan: loan,
-                salesCostFraction: selectedType.defaultSalesCostFraction,
+                salesCostFraction: salesCost,
                 ownershipShareA: shareA,
                 isOwnershipRegistered: canBeRegistered && isRegistered
             )
             household.assets.append(asset)
+            // Insert remotely preserving the local id, so the next sync adopts
+            // this row instead of recreating a duplicate from the server.
+            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+            let assetId = asset.id
+            let householdId = store.household?.id ?? household.id
+            let sortOrder = household.assets.count - 1
+            Task {
+                try? await SupabaseService.insertAssetPreservingId(
+                    id: assetId, householdId: householdId,
+                    assetType: type, label: trimmedLabel, address: trimmedAddress,
+                    currentValue: value, remainingLoan: loan,
+                    salesCostFraction: salesCost,
+                    ownershipShareA: min(max(shareA, 0), 1),
+                    sortOrder: sortOrder, purchaseDate: f.string(from: Date()))
+            }
         }
         dismiss()
     }
@@ -2392,6 +2435,7 @@ struct EditAssetView: View {
     let household: Household
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(HouseholdStore.self) private var store
     @ObservedObject private var strings = AppStrings.shared
 
     @State private var selectedType: AssetType = .home
@@ -2564,7 +2608,9 @@ struct EditAssetView: View {
                 VStack(spacing: 0) {
                     ForEach(sorted) { c in
                         ContributionRow(c: c, household: household) {
+                            let id = c.id
                             modelContext.delete(c)
+                            Task { try? await SupabaseService.deleteContribution(id) }
                         }
                         if c.id != sorted.last?.id {
                             Divider().padding(.vertical, 4)
@@ -2639,11 +2685,23 @@ struct EditAssetView: View {
             : 0
         asset.salesCostFraction = selectedType.defaultSalesCostFraction
         asset.ownershipShareA   = min(1, max(0, (Double(shareAText) ?? 50) / 100))
+        let id = asset.id
+        let type = asset.assetType, lbl = asset.label, addr = asset.address
+        let val = asset.currentValue, loan = asset.remainingLoan
+        let salesCost = asset.salesCostFraction, share = asset.ownershipShareA
+        Task {
+            try? await store.updateAsset(
+                id, assetType: type, label: lbl, address: addr,
+                currentValue: val, remainingLoan: loan,
+                salesCostFraction: salesCost, ownershipShareA: share)
+        }
         dismiss()
     }
 
     private func deleteAsset() {
+        let id = asset.id
         modelContext.delete(asset)
+        Task { try? await store.deleteAsset(id) }
         dismiss()
     }
 }
@@ -2977,27 +3035,54 @@ struct AddContributionView: View {
         let displayLabel = label.trimmingCharacters(in: .whitespaces).isEmpty
             ? (categories.first { $0.key == category }?.label ?? "Contribution")
             : label.trimmingCharacters(in: .whitespaces)
+        var created: [ContributionRecord] = []
         if ownerKey == "BOTH" {
             if amount > 0 {
-                asset.contributions.append(
-                    ContributionRecord(ownerKey: "A", amount: amount, date: date,
-                                       label: displayLabel, category: category)
-                )
+                let r = ContributionRecord(ownerKey: "A", amount: amount, date: date,
+                                           label: displayLabel, category: category)
+                asset.contributions.append(r)
+                created.append(r)
             }
             if amountB > 0 {
-                asset.contributions.append(
-                    ContributionRecord(ownerKey: "B", amount: amountB, date: date,
-                                       label: displayLabel, category: category)
-                )
+                let r = ContributionRecord(ownerKey: "B", amount: amountB, date: date,
+                                           label: displayLabel, category: category)
+                asset.contributions.append(r)
+                created.append(r)
             }
         } else {
-            asset.contributions.append(
-                ContributionRecord(ownerKey: ownerKey, amount: amount, date: date,
-                                   label: displayLabel, category: category)
-            )
+            let r = ContributionRecord(ownerKey: ownerKey, amount: amount, date: date,
+                                       label: displayLabel, category: category)
+            asset.contributions.append(r)
+            created.append(r)
         }
         if adjustOwnership {
             asset.ownershipShareA = ownershipShareA
+        }
+
+        // Push remotely (preserving local ids) so the partner sees the same
+        // contributions and the next sync doesn't recreate duplicates.
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        let assetId = asset.id
+        for r in created {
+            let rid = r.id, key = r.ownerKey.lowercased(), amt = r.amount
+            let dt = f.string(from: r.date), lbl = r.label, cat = r.category
+            Task {
+                try? await SupabaseService.insertContributionPreservingId(
+                    id: rid, assetId: assetId, ownerKey: key, amount: amt,
+                    date: dt, label: lbl, category: cat)
+            }
+        }
+        if adjustOwnership {
+            let share = ownershipShareA
+            let type = asset.assetType, lbl = asset.label, addr = asset.address
+            let val = asset.currentValue, loan = asset.remainingLoan
+            let salesCost = asset.salesCostFraction
+            Task {
+                try? await SupabaseService.updateAsset(
+                    assetId, assetType: type, label: lbl, address: addr,
+                    currentValue: val, remainingLoan: loan,
+                    salesCostFraction: salesCost, ownershipShareA: share)
+            }
         }
         dismiss()
         DispatchQueue.main.async { onComplete?() }

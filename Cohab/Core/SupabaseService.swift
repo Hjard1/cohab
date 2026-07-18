@@ -345,18 +345,23 @@ enum SupabaseService {
     }
 
     static func updateAsset(
-        _ id: UUID, label: String, address: String,
-        currentValue: Double, remainingLoan: Double, ownershipShareA: Double
+        _ id: UUID, assetType: String, label: String, address: String,
+        currentValue: Double, remainingLoan: Double,
+        salesCostFraction: Double, ownershipShareA: Double
     ) async throws {
         struct Update: Encodable {
+            let asset_type: String
             let label: String; let address: String
             let current_value: Double; let remaining_loan: Double
+            let sales_cost_fraction: Double
             let ownership_share_a: Double
         }
         try await supabase
             .from("assets")
-            .update(Update(label: label, address: address, current_value: currentValue,
-                           remaining_loan: remainingLoan, ownership_share_a: ownershipShareA))
+            .update(Update(asset_type: assetType, label: label, address: address,
+                           current_value: currentValue, remaining_loan: remainingLoan,
+                           sales_cost_fraction: salesCostFraction,
+                           ownership_share_a: ownershipShareA))
             .eq("id", value: id.uuidString).execute()
     }
 

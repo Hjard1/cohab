@@ -506,16 +506,19 @@ final class HouseholdStore {
         return row
     }
 
-    func updateAsset(_ id: UUID, label: String, address: String,
+    func updateAsset(_ id: UUID, assetType: String, label: String, address: String,
                      currentValue: Double, remainingLoan: Double,
-                     ownershipShareA: Double) async throws {
-        try await SupabaseService.updateAsset(id, label: label, address: address,
-                                               currentValue: currentValue,
+                     salesCostFraction: Double, ownershipShareA: Double) async throws {
+        try await SupabaseService.updateAsset(id, assetType: assetType, label: label,
+                                               address: address, currentValue: currentValue,
                                                remainingLoan: remainingLoan,
+                                               salesCostFraction: salesCostFraction,
                                                ownershipShareA: ownershipShareA)
         if let i = assets.firstIndex(where: { $0.id == id }) {
+            assets[i].assetType = assetType
             assets[i].label = label; assets[i].address = address
             assets[i].currentValue = currentValue; assets[i].remainingLoan = remainingLoan
+            assets[i].salesCostFraction = salesCostFraction
             assets[i].ownershipShareA = ownershipShareA
         }
     }
