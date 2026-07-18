@@ -2598,7 +2598,7 @@ struct EditAssetView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "tray")
                         .foregroundStyle(Color(.tertiaryLabel))
-                    Text("No contributions yet")
+                    Text(strings.noContribsYet)
                         .font(.subheadline).foregroundStyle(Color(.tertiaryLabel))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -2626,7 +2626,7 @@ struct EditAssetView: View {
 
     private var deleteSection: some View {
         Button { showDeleteConfirm = true } label: {
-            Label("Delete asset", systemImage: "trash")
+            Label(strings.deleteAsset, systemImage: "trash")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.red)
                 .frame(maxWidth: .infinity)
@@ -2752,6 +2752,7 @@ struct ContributionRow: View {
 struct ContribAssetPickerView: View {
     let household: Household
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var strings = AppStrings.shared
     @State private var selectedAsset: Asset?
 
     private var sortedAssets: [Asset] {
@@ -2808,13 +2809,13 @@ struct ContribAssetPickerView: View {
                 .padding(.vertical, 16)
             }
             .background(Color.cohBg.ignoresSafeArea())
-            .navigationTitle("Add contribution")
+            .navigationTitle(strings.addContribTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button(strings.cancel) { dismiss() }
                 }
             }
         }
