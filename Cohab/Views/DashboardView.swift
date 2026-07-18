@@ -16,6 +16,8 @@ struct DashboardView: View {
     @State private var navigatingToAsset: Asset?
     @State private var showContribPicker = false
     @State private var showInvitePartner = false
+    @State private var showSignInSheet = false
+    @EnvironmentObject private var auth: AuthManager
 
     private var household: Household? { households.first }
 
@@ -117,6 +119,11 @@ struct DashboardView: View {
 
                             // CREAM CONTENT — rounded top overlaps header
                             VStack(spacing: 0) {
+                                if !auth.isSignedIn {
+                                    signInBanner
+                                        .padding(.horizontal, 20)
+                                        .padding(.top, 16)
+                                }
                                 if let rate = availableRate {
                                     rateUpdateBanner(household: h, rate: rate)
                                         .padding(.horizontal, 20)
@@ -197,6 +204,9 @@ struct DashboardView: View {
             if let h = household {
                 ContribAssetPickerView(household: h)
             }
+        }
+        .sheet(isPresented: $showSignInSheet) {
+            SignInView(presentedAsSheet: true)
         }
         .sheet(isPresented: $showInvitePartner) {
             if let h = household {
@@ -1219,6 +1229,60 @@ struct AssetCard: View {
 // MARK: - Rate update banner
 
 extension DashboardView {
+    /// Shown while the user has no Supabase session. Signing in claims the local
+    /// household to the cloud (see HouseholdStore.claimLocalHouseholdIfNeeded) and
+    /// enables partner sync, shared expenses and the agreement flow.
+    var signInBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "person.2.fill")
+                .font(.subheadline)
+                .foregroundStyle(Color.cohGreen)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(strings.localized(
+                    en: "Sign in to sync",
+                    nb: "Logg inn for å synkronisere",
+                    sv: "Logga in för att synkronisera",
+                    da: "Log ind for at synkronisere",
+                    fi: "Kirjaudu sisään synkronoidaksesi",
+                    de: "Zum Synchronisieren anmelden",
+                    fr: "Connectez-vous pour synchroniser",
+                    es: "Inicia sesión para sincronizar"))
+                    .font(.caption.weight(.semibold))
+                Text(strings.localized(
+                    en: "Back up your data and share everything with your partner.",
+                    nb: "Sikre dataene dine og del alt med partneren din.",
+                    sv: "Säkra dina data och dela allt med din partner.",
+                    da: "Sikr dine data, og del alt med din partner.",
+                    fi: "Varmuuskopioi tietosi ja jaa kaikki kumppanisi kanssa.",
+                    de: "Sichern Sie Ihre Daten und teilen Sie alles mit Ihrem Partner.",
+                    fr: "Sauvegardez vos données et partagez tout avec votre partenaire.",
+                    es: "Protege tus datos y comparte todo con tu pareja."))
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Button {
+                showSignInSheet = true
+            } label: {
+                Text(strings.localized(
+                    en: "Sign in",
+                    nb: "Logg inn",
+                    sv: "Logga in",
+                    da: "Log ind",
+                    fi: "Kirjaudu",
+                    de: "Anmelden",
+                    fr: "Connexion",
+                    es: "Entrar"))
+                    .font(.caption.weight(.semibold)).foregroundStyle(.white)
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(Color.cohGreen, in: Capsule())
+            }
+        }
+        .padding(14)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
     func rateUpdateBanner(household: Household, rate: CentralBankRate) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")

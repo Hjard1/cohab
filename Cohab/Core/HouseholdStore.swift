@@ -30,6 +30,9 @@ final class HouseholdStore {
     // Realtime channel — retained so it is not deallocated
     private var realtimeChannel: RealtimeChannelV2?
 
+    // Guard against re-entrant claims (realtime events firing during a claim)
+    private var isClaiming = false
+
     // MARK: Convenience
     var partnerAName: String   { household?.partnerALabel    ?? "Partner A" }
     var partnerBName: String   { household?.partnerBLabel    ?? "Partner B" }
@@ -79,7 +82,14 @@ final class HouseholdStore {
     /// upserts everything into the local SwiftData store.
     func sync(modelContext: ModelContext) async {
         do {
-            guard let dbHousehold = try await SupabaseService.fetchHousehold() else { return }
+            guard let dbHousehold = try await SupabaseService.fetchHousehold() else {
+                // Nothing on the server for this user. If they are signed in and
+                // have a local household (created while signed out, possible before
+                // sign-in was mandatory), claim it to the cloud so expenses,
+                // agreement and partner sync work.
+                await claimLocalHouseholdIfNeeded(modelContext: modelContext)
+                return
+            }
 
             // --- Upsert Household ---
             let householdId = dbHousehold.id
@@ -253,6 +263,91 @@ final class HouseholdStore {
             }
 
             try? modelContext.save()
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// One-time migration for households created locally while signed out.
+    /// Pushes the local SwiftData graph to Supabase — preserving ids so nothing
+    /// needs remapping — then re-runs sync to adopt the canonical remote state.
+    private func claimLocalHouseholdIfNeeded(modelContext: ModelContext) async {
+        guard !isClaiming else { return }
+        // Claiming requires an authenticated session (RLS).
+        guard (try? await supabase.auth.session.user.id) != nil else { return }
+        let locals = (try? modelContext.fetch(FetchDescriptor<Household>())) ?? []
+        guard let local = locals.first else { return }
+
+        isClaiming = true
+        defer { isClaiming = false }
+
+        do {
+            try await SupabaseService.upsertHouseholdPreservingId(
+                id: local.id,
+                partnerALabel: local.partnerAName, partnerBLabel: local.partnerBName,
+                currency: local.currency, country: local.country,
+                annualInterestRate: local.annualInterestRate,
+                setupMode: local.setupMode, relationshipType: local.relationshipType,
+                agreementType: local.agreementType,
+                emailA: local.emailA, emailB: local.emailB)
+            try await SupabaseService.upsertMembership(householdId: local.id)
+
+            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+            for asset in local.assets {
+                try await SupabaseService.upsertAssetPreservingId(
+                    id: asset.id, householdId: local.id,
+                    assetType: asset.assetType, label: asset.label, address: asset.address,
+                    currentValue: asset.currentValue, remainingLoan: asset.remainingLoan,
+                    salesCostFraction: asset.salesCostFraction,
+                    ownershipShareA: min(max(asset.ownershipShareA, 0), 1),
+                    sortOrder: asset.sortOrder, purchaseDate: f.string(from: asset.purchaseDate))
+                // The DB requires amount > 0 — skip empty rows rather than fail the claim.
+                for c in asset.contributions where c.amount > 0 {
+                    try await SupabaseService.upsertContributionPreservingId(
+                        id: c.id, assetId: asset.id,
+                        ownerKey: c.ownerKey.lowercased(), amount: c.amount,
+                        date: f.string(from: c.date), label: c.label, category: c.category)
+                }
+            }
+
+            // Extended household state lives in separate columns — reuse the
+            // existing update methods rather than widening the upsert row.
+            try await SupabaseService.updateAgreementConfig(
+                householdId: local.id,
+                rentAmount: local.rentAmount, rentPayerKey: local.rentPayerKey,
+                rentPaymentDay: local.rentPaymentDay,
+                includeDissolutionClause: local.includeDissolutionClause,
+                includeSeparatePropertyClause: local.includeSeparatePropertyClause,
+                includeBuyoutRightsClause: local.includeBuyoutRightsClause,
+                includeDisposalConsentClause: local.includeDisposalConsentClause,
+                includeDisputeResolutionClause: local.includeDisputeResolutionClause,
+                includeDebtClause: local.includeDebtClause)
+
+            if local.hasBudget, let savedAt = local.budgetSavedAt {
+                try await SupabaseService.updateHouseholdBudget(
+                    householdId: local.id,
+                    incomeA: local.budgetIncomeA, incomeB: local.budgetIncomeB,
+                    totalExpenses: local.budgetTotalExpenses, splitA: local.budgetSplitA,
+                    paysA: local.budgetPaysA, paysB: local.budgetPaysB,
+                    netTransfer: local.budgetNetTransfer, savedAt: savedAt)
+            }
+
+            if let updatedAt = local.expensesUpdatedAt,
+               local.presetAmounts.count == 5, local.presetPayers.count == 5,
+               local.presetSplits.count == 5 {
+                let presets = (0..<5).map {
+                    DBExpensePreset(amount: local.presetAmounts[$0],
+                                    payer: local.presetPayers[$0],
+                                    splitA: local.presetSplits[$0])
+                }
+                try await SupabaseService.updateExpensePresets(
+                    householdId: local.id, presets: presets,
+                    incomeA: local.expenseIncomeA, incomeB: local.expenseIncomeB,
+                    updatedAt: updatedAt)
+            }
+
+            // Adopt the canonical remote state (sets household, assets, expenses…).
+            await sync(modelContext: modelContext)
         } catch {
             self.error = error.localizedDescription
         }

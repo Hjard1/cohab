@@ -2,6 +2,11 @@ import SwiftUI
 import SwiftData
 
 struct SignInView: View {
+    /// True when presented as a sheet from inside the app (e.g. the dashboard
+    /// sign-in banner) rather than as the root post-logout screen. Hides the
+    /// destructive "start fresh" option and always shows a close button.
+    var presentedAsSheet = false
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @AppStorage("onboardingComplete") private var onboardingComplete = false
@@ -81,7 +86,7 @@ struct SignInView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .padding(.bottom, 40)
-                    } else {
+                    } else if !presentedAsSheet {
                         // Shown as root after logout — offer clean slate
                         Button { showResetConfirm = true } label: {
                             Text(strings.signInStartFresh)
@@ -109,7 +114,7 @@ struct SignInView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if households.isEmpty {
+                if households.isEmpty || presentedAsSheet {
                     ToolbarItem(placement: .topBarLeading) {
                         Button { dismiss() } label: {
                             Image(systemName: "xmark")
