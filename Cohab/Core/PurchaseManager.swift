@@ -7,7 +7,7 @@ final class PurchaseManager: ObservableObject {
 
     @Published private(set) var hasFormalAccess: Bool
     @Published private(set) var isLoading = false
-    @Published private(set) var priceDisplay: String = "$39"
+    @Published private(set) var priceDisplay: String = "$49"
 
     private var product: Product?
 
