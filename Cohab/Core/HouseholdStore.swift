@@ -270,6 +270,26 @@ final class HouseholdStore {
                         }
                     }
                 }
+
+                // Reconcile: remove local contributions the server no longer
+                // has (deleted by either partner, or a local delete whose
+                // autosave was lost). Our own pushes preserve ids and realtime
+                // re-fires sync after each commit, so a just-added row is
+                // already present in dbContribs at this point.
+                let remoteContribIds = Set(dbContribs.map { $0.id })
+                let staleContribs = localAsset.contributions.filter { !remoteContribIds.contains($0.id) }
+                for stale in staleContribs {
+                    modelContext.delete(stale)
+                }
+            }
+
+            // Reconcile assets: drop local assets of the canonical household
+            // that no longer exist remotely (deleted by either partner).
+            // Their contributions cascade-delete with them.
+            let remoteAssetIds = Set(dbAssets.map { $0.id })
+            let staleAssets = localHousehold.assets.filter { !remoteAssetIds.contains($0.id) }
+            for stale in staleAssets {
+                modelContext.delete(stale)
             }
 
             // Remove leftover local households that don't match the canonical

@@ -318,6 +318,25 @@ struct AssetDetailView: View {
                             Text("\(household.currencySymbol)\(Int(contrib.amount).formatted())")
                                 .font(.subheadline.bold())
                                 .foregroundStyle(contribColor)
+                            Button {
+                                let id = contrib.id
+                                // Remote-first delete: the local row is removed
+                                // only on success, otherwise the next sync would
+                                // resurrect it (looking like "cannot delete").
+                                Task { @MainActor in
+                                    do {
+                                        try await SupabaseService.deleteContribution(id)
+                                        modelContext.delete(contrib)
+                                    } catch {
+                                        print("[Cohab] Delete contribution failed: \(error.localizedDescription)")
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(Color(.quaternaryLabel))
+                            }
+                            .buttonStyle(.plain)
                         }
                         .padding(.vertical, 12)
 

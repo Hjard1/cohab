@@ -2606,8 +2606,17 @@ struct EditAssetView: View {
                     ForEach(sorted) { c in
                         ContributionRow(c: c, household: household) {
                             let id = c.id
-                            modelContext.delete(c)
-                            Task { try? await SupabaseService.deleteContribution(id) }
+                            // Delete remotely first; remove the local row only on
+                            // success. The old fire-and-forget order let a failed
+                            // remote delete resurrect the row on the next sync.
+                            Task { @MainActor in
+                                do {
+                                    try await SupabaseService.deleteContribution(id)
+                                    modelContext.delete(c)
+                                } catch {
+                                    print("[Cohab] Delete contribution failed: \(error.localizedDescription)")
+                                }
+                            }
                         }
                         if c.id != sorted.last?.id {
                             Divider().padding(.vertical, 4)
@@ -2883,11 +2892,28 @@ struct AddContributionView: View {
         }
     }
 
+    /// Tolerant parser for Norwegian amounts: accepts "10 000", "10.000,50",
+    /// "10000,50" and "10000.50". (The old code stripped commas, so "10,5"
+    /// silently became 105 and "10 000" failed to parse at all.)
+    private func parseAmount(_ text: String) -> Double {
+        var t = text.trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: "\u{00A0}", with: "")
+            .replacingOccurrences(of: "\u{202F}", with: "")
+            .replacingOccurrences(of: " ", with: "")
+        if t.contains(",") && t.contains(".") {
+            // Norwegian convention: dot = thousands separator, comma = decimal
+            t = t.replacingOccurrences(of: ".", with: "")
+                .replacingOccurrences(of: ",", with: ".")
+        } else if t.contains(",") {
+            t = t.replacingOccurrences(of: ",", with: ".")
+        }
+        return Double(t) ?? 0
+    }
+
     private var canAdd: Bool {
-        let a = Double(amountText.replacingOccurrences(of: ",", with: "")) ?? 0
+        let a = parseAmount(amountText)
         if ownerKey == "BOTH" {
-            let b = Double(amountTextB.replacingOccurrences(of: ",", with: "")) ?? 0
-            return a > 0 || b > 0
+            return a > 0 || parseAmount(amountTextB) > 0
         }
         return a > 0
     }
@@ -3028,8 +3054,8 @@ struct AddContributionView: View {
     }
 
     private func add() {
-        let amount = Double(amountText.replacingOccurrences(of: ",", with: "")) ?? 0
-        let amountB = Double(amountTextB.replacingOccurrences(of: ",", with: "")) ?? 0
+        let amount = parseAmount(amountText)
+        let amountB = parseAmount(amountTextB)
         let displayLabel = label.trimmingCharacters(in: .whitespaces).isEmpty
             ? (categories.first { $0.key == category }?.label ?? "Contribution")
             : label.trimmingCharacters(in: .whitespaces)
@@ -3065,9 +3091,16 @@ struct AddContributionView: View {
             let rid = r.id, key = r.ownerKey.lowercased(), amt = r.amount
             let dt = f.string(from: r.date), lbl = r.label, cat = r.category
             Task {
-                try? await SupabaseService.insertContributionPreservingId(
-                    id: rid, assetId: assetId, ownerKey: key, amount: amt,
-                    date: dt, label: lbl, category: cat)
+                do {
+                    try await SupabaseService.insertContributionPreservingId(
+                        id: rid, assetId: assetId, ownerKey: key, amount: amt,
+                        date: dt, label: lbl, category: cat)
+                } catch {
+                    // Sync reconciles against the server, so a row whose push
+                    // failed is removed locally on the next sync — log the
+                    // failure so it is at least visible in the console.
+                    print("[Cohab] Contribution push failed: \(error.localizedDescription)")
+                }
             }
         }
         if adjustOwnership {
