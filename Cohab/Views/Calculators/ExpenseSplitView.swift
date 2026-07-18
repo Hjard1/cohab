@@ -45,12 +45,14 @@ struct ExpenseSplitView: View {
     private var totalIncome: Double { iA + iB }
 
     private struct Totals {
-        var paysA, paysB, netAtoB, netBtoA: Double
-        var netTransfer: Double { netBtoA - netAtoB }   // + = B owes A, - = A owes B
+        var paysA, paysB, shareA, shareB, netAtoB, netBtoA: Double
+        // Kept for the budget snapshot payload — never shown to the user as a
+        // transfer instruction (how partners settle up is their own business).
+        var netTransfer: Double { netBtoA - netAtoB }
     }
 
     private var totals: Totals {
-        var t = Totals(paysA: 0, paysB: 0, netAtoB: 0, netBtoA: 0)
+        var t = Totals(paysA: 0, paysB: 0, shareA: 0, shareB: 0, netAtoB: 0, netBtoA: 0)
         for e in store.expenses {
             accumulate(into: &t, amount: e.amount, splitA: e.splitRatioA, payer: e.paidByKey)
         }
@@ -63,20 +65,22 @@ struct ExpenseSplitView: View {
     }
 
     /// Applies one expense to the running totals. `splitA` is A's share of the cost.
-    /// - payer "a": A fronts it, B owes their share.
-    /// - payer "b": B fronts it, A owes their share.
-    /// - payer "both": each pays their own share directly, so no transfer arises.
+    /// `shareA/shareB` track what each partner bears; `paysA/paysB` what each
+    /// physically pays. The difference (netAtoB/netBtoA) is only persisted in the
+    /// budget snapshot — the app does not suggest any transfer.
     private func accumulate(into t: inout Totals, amount: Double, splitA: Double, payer: String) {
         let shareA = amount * splitA
         let shareB = amount * (1 - splitA)
+        t.shareA += shareA
+        t.shareB += shareB
         switch payer {
         case "a":
             t.paysA += amount
-            t.netBtoA += shareB      // B owes A for B's share of an A-paid expense
+            t.netBtoA += shareB
         case "b":
             t.paysB += amount
-            t.netAtoB += shareA      // A owes B for A's share of a B-paid expense
-        default:                     // "both" — each pays their own share, no debt
+            t.netAtoB += shareA
+        default:                     // "both" — each pays their own share
             t.paysA += shareA
             t.paysB += shareB
         }
@@ -416,7 +420,6 @@ struct ExpenseSplitView: View {
 
     private var resultCard: some View {
         let t = totals
-        let net = t.netTransfer   // + = B owes A, - = A owes B
         let blueColor = Color(red: 0.20, green: 0.49, blue: 0.96)
 
         return VStack(spacing: 14) {
@@ -426,27 +429,6 @@ struct ExpenseSplitView: View {
                 payoutPanel(nameB, amount: t.paysB, color: blueColor)
             }
 
-            Divider()
-
-            // Net transfer
-            if abs(net) >= 0.5 {
-                let debtor  = net > 0 ? nameB : nameA
-                let amount  = abs(net)
-                HStack {
-                    Image(systemName: "arrow.right.circle.fill").foregroundStyle(Color.cohGreen)
-                    Text(strings.expenseOwes(debtor, symbol + fmt(amount)))
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                }
-            } else {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.cohGreen)
-                    Text(strings.expenseBalanced)
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                }
-            }
-
             // Income-based fair split (only when both incomes are entered)
             if totalIncome > 0 {
                 Divider()
@@ -454,8 +436,7 @@ struct ExpenseSplitView: View {
                 let incomeShareA = iA / totalIncome
                 let fairA = totalExp * incomeShareA
                 let fairB = totalExp * (1 - incomeShareA)
-                let effectivePayA = t.paysA - t.netBtoA + t.netAtoB
-                let adjustment = effectivePayA - fairA
+                let adjustment = t.shareA - fairA
                 let pctA = Int((incomeShareA * 100).rounded())
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -502,15 +483,13 @@ struct ExpenseSplitView: View {
                 }
             }
 
-            // Left over after bills
+            // Left over after bills — income minus each partner's borne share
             if totalIncome > 0 {
                 Divider()
-                let effectivePayA = t.paysA - t.netBtoA + t.netAtoB
-                let effectivePayB = t.paysB - t.netAtoB + t.netBtoA
                 HStack {
-                    leftoverView(nameA, income: iA, effectivePay: effectivePayA, color: Color.cohGreen)
+                    leftoverView(nameA, income: iA, share: t.shareA, color: Color.cohGreen)
                     Spacer()
-                    leftoverView(nameB, income: iB, effectivePay: effectivePayB, color: blueColor)
+                    leftoverView(nameB, income: iB, share: t.shareB, color: blueColor)
                 }
             }
 
@@ -551,8 +530,8 @@ struct ExpenseSplitView: View {
         .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
     }
 
-    private func leftoverView(_ name: String, income: Double, effectivePay: Double, color: Color) -> some View {
-        let left = income - effectivePay
+    private func leftoverView(_ name: String, income: Double, share: Double, color: Color) -> some View {
+        let left = income - share
         return VStack(alignment: .leading, spacing: 3) {
             Text(strings.expenseLeftOver(name)).font(.caption2).foregroundStyle(.secondary)
             Text(symbol + fmt(max(0, left)))

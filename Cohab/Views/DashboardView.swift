@@ -334,8 +334,9 @@ struct DashboardView: View {
         let hasDetail = (h.budgetPaysA + h.budgetPaysB) > 0
         let paysA = hasDetail ? h.budgetPaysA : total * h.budgetSplitA
         let paysB = hasDetail ? h.budgetPaysB : total * (1 - h.budgetSplitA)
-        let net = hasDetail ? h.budgetNetTransfer : 0   // + = B owes A, − = A owes B
-        // Effective share each partner bears after the settling transfer.
+        let net = hasDetail ? h.budgetNetTransfer : 0
+        // "Left over" uses each partner's borne share (= pays − net). The net
+        // itself is never displayed — we don't suggest how partners settle up.
         let leftA = h.budgetIncomeA - (paysA - net)
         let leftB = h.budgetIncomeB - (paysB + net)
         let hasIncome = h.budgetIncomeA > 0 || h.budgetIncomeB > 0
@@ -368,28 +369,6 @@ struct DashboardView: View {
                     }
 
                     Divider()
-                }
-
-                // The settling transfer — the key result of the expense split.
-                if abs(net) >= 0.5 {
-                    let debtor  = net > 0 ? h.partnerBName : h.partnerAName
-                    let creditor = net > 0 ? h.partnerAName : h.partnerBName
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.left.arrow.right.circle.fill")
-                            .font(.subheadline).foregroundStyle(Color.cohGreen)
-                        Text(strings.budgetTransfer(debtor, money(abs(net)), creditor))
-                            .font(.caption.weight(.semibold)).foregroundStyle(Color.cohInk)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer()
-                    }
-                } else {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.subheadline).foregroundStyle(Color.cohGreen)
-                        Text(strings.expenseBalanced)
-                            .font(.caption.weight(.semibold)).foregroundStyle(Color.cohInk)
-                        Spacer()
-                    }
                 }
 
                 if !hasIncome {
