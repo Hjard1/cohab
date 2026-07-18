@@ -322,56 +322,74 @@ struct DashboardView: View {
         // Effective share each partner bears after the settling transfer.
         let leftA = h.budgetIncomeA - (paysA - net)
         let leftB = h.budgetIncomeB - (paysB + net)
+        let hasIncome = h.budgetIncomeA > 0 || h.budgetIncomeB > 0
+        let partnerB = h.partnerBName.isEmpty ? "Partner" : h.partnerBName
 
         func money(_ v: Double) -> String {
             let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
             return sym + (f.string(from: NSNumber(value: v)) ?? "0")
         }
 
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 5) {
-                Image(systemName: "chart.pie.fill").font(.caption2).foregroundStyle(Color.cohGreen)
-                Text(strings.budgetOverviewTitle)
-                    .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
-                Spacer()
-                Text(money(total)).font(.subheadline.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
-            }
+        return NavigationLink(destination: ExpenseSplitView(nameA: h.partnerAName, nameB: partnerB, symbol: sym)) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 5) {
+                    Image(systemName: "chart.pie.fill").font(.caption2).foregroundStyle(Color.cohGreen)
+                    Text(strings.budgetOverviewTitle)
+                        .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                    Spacer()
+                    Text(money(total)).font(.subheadline.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.bold()).foregroundStyle(Color.cohTertiary)
+                }
 
-            HStack(spacing: 12) {
-                budgetPartnerColumn(name: h.partnerAName, income: h.budgetIncomeA,
-                                    pays: paysA, left: leftA, color: Color.cohGreen, money: money)
-                Divider().frame(height: 54)
-                budgetPartnerColumn(name: h.partnerBName, income: h.budgetIncomeB,
-                                    pays: paysB, left: leftB, color: blue, money: money)
-            }
+                if hasIncome {
+                    HStack(spacing: 12) {
+                        budgetPartnerColumn(name: h.partnerAName, income: h.budgetIncomeA,
+                                            pays: paysA, left: leftA, color: Color.cohGreen, money: money)
+                        Divider().frame(height: 54)
+                        budgetPartnerColumn(name: h.partnerBName, income: h.budgetIncomeB,
+                                            pays: paysB, left: leftB, color: blue, money: money)
+                    }
 
-            Divider()
+                    Divider()
+                }
 
-            // The settling transfer — the key result of the expense split.
-            if abs(net) >= 0.5 {
-                let debtor  = net > 0 ? h.partnerBName : h.partnerAName
-                let creditor = net > 0 ? h.partnerAName : h.partnerBName
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.left.arrow.right.circle.fill")
-                        .font(.subheadline).foregroundStyle(Color.cohGreen)
-                    Text(strings.budgetTransfer(debtor, money(abs(net)), creditor))
-                        .font(.caption.weight(.semibold)).foregroundStyle(Color.cohInk)
+                // The settling transfer — the key result of the expense split.
+                if abs(net) >= 0.5 {
+                    let debtor  = net > 0 ? h.partnerBName : h.partnerAName
+                    let creditor = net > 0 ? h.partnerAName : h.partnerBName
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.left.arrow.right.circle.fill")
+                            .font(.subheadline).foregroundStyle(Color.cohGreen)
+                        Text(strings.budgetTransfer(debtor, money(abs(net)), creditor))
+                            .font(.caption.weight(.semibold)).foregroundStyle(Color.cohInk)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.subheadline).foregroundStyle(Color.cohGreen)
+                        Text(strings.expenseBalanced)
+                            .font(.caption.weight(.semibold)).foregroundStyle(Color.cohInk)
+                        Spacer()
+                    }
+                }
+
+                if !hasIncome {
+                    Text(strings.budgetNoIncomeNote)
+                        .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
                         .fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                }
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.subheadline).foregroundStyle(Color.cohGreen)
-                    Text(strings.expenseBalanced)
-                        .font(.caption.weight(.semibold)).foregroundStyle(Color.cohInk)
-                    Spacer()
+                } else if let saved = h.budgetSavedAt {
+                    Text(strings.budgetUpdated(saved.formatted(date: .abbreviated, time: .omitted)))
+                        .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
                 }
             }
+            .padding(18)
+            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
         }
-        .padding(18)
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
-        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+        .buttonStyle(.plain)
     }
 
     private func budgetPartnerColumn(name: String, income: Double, pays: Double,

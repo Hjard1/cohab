@@ -47,6 +47,16 @@ struct DBHousehold: Codable, Identifiable {
     var includeDisposalConsentClause: Bool?
     var includeDisputeResolutionClause: Bool?
     var includeDebtClause: Bool?
+    // Budget snapshot from the expense-split calculator (optional so rows
+    // created before the migration still decode)
+    var budgetIncomeA: Double?
+    var budgetIncomeB: Double?
+    var budgetTotalExpenses: Double?
+    var budgetSplitA: Double?
+    var budgetPaysA: Double?
+    var budgetPaysB: Double?
+    var budgetNetTransfer: Double?
+    var budgetSavedAt: Date?
     let createdAt: Date
 
     var isFormalMode: Bool { setupMode == "formal" }
@@ -90,6 +100,14 @@ struct DBHousehold: Codable, Identifiable {
         case includeDisposalConsentClause = "include_disposal_consent_clause"
         case includeDisputeResolutionClause = "include_dispute_resolution_clause"
         case includeDebtClause = "include_debt_clause"
+        case budgetIncomeA = "budget_income_a"
+        case budgetIncomeB = "budget_income_b"
+        case budgetTotalExpenses = "budget_total_expenses"
+        case budgetSplitA = "budget_split_a"
+        case budgetPaysA = "budget_pays_a"
+        case budgetPaysB = "budget_pays_b"
+        case budgetNetTransfer = "budget_net_transfer"
+        case budgetSavedAt = "budget_saved_at"
         case createdAt = "created_at"
     }
 }

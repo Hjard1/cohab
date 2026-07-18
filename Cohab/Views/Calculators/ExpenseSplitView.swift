@@ -11,6 +11,7 @@ struct ExpenseSplitView: View {
     @Query private var households: [Household]
     private var household: Household? { households.first }
     @Environment(HouseholdStore.self) private var store
+    @Environment(\.modelContext) private var modelContext
     @ObservedObject private var strings = AppStrings.shared
 
     @State private var incomeAText = ""
@@ -498,6 +499,7 @@ struct ExpenseSplitView: View {
         guard let h = household else { return }
         let t = totals
         let total = t.paysA + t.paysB
+        let now = Date()
         h.budgetIncomeA     = iA          // stored as MONTHLY net income
         h.budgetIncomeB     = iB
         h.budgetTotalExpenses = total
@@ -506,7 +508,17 @@ struct ExpenseSplitView: View {
         h.budgetPaysB       = t.paysB
         h.budgetNetTransfer = t.netTransfer   // + = B owes A, − = A owes B
         h.budgetFairnessMode = "custom"
-        h.budgetSavedAt     = Date()
+        h.budgetSavedAt     = now
+        try? modelContext.save()
+        // Push the snapshot to Supabase so the partner's dashboard matches.
+        Task {
+            try? await SupabaseService.updateHouseholdBudget(
+                householdId: h.id,
+                incomeA: iA, incomeB: iB, totalExpenses: total,
+                splitA: h.budgetSplitA, paysA: t.paysA, paysB: t.paysB,
+                netTransfer: t.netTransfer, savedAt: now
+            )
+        }
         withAnimation { savedBudget = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             withAnimation { savedBudget = false }

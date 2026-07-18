@@ -384,7 +384,7 @@ final class Household {
     var budgetIncomeB: Double = 0
     var budgetTotalExpenses: Double = 0
     var budgetSplitA: Double = 0.5     // Partner A's fraction of shared costs
-    var budgetFairnessMode: String = "" // "byIncome" | "equalLeft"
+    var budgetFairnessMode: String = "" // currently always "custom" (manual split)
     var budgetSavedAt: Date? = nil
     // Physical amount each partner pays out, and the net settling transfer.
     var budgetPaysA: Double = 0

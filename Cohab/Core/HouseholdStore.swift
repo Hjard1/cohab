@@ -138,6 +138,16 @@ final class HouseholdStore {
             if let v = dbHousehold.includeDisputeResolutionClause { localHousehold.includeDisputeResolutionClause = v }
             if let v = dbHousehold.includeDebtClause              { localHousehold.includeDebtClause = v }
 
+            // Budget snapshot — keep both partners' dashboards identical.
+            if let v = dbHousehold.budgetIncomeA       { localHousehold.budgetIncomeA = v }
+            if let v = dbHousehold.budgetIncomeB       { localHousehold.budgetIncomeB = v }
+            if let v = dbHousehold.budgetTotalExpenses { localHousehold.budgetTotalExpenses = v }
+            if let v = dbHousehold.budgetSplitA        { localHousehold.budgetSplitA = v }
+            if let v = dbHousehold.budgetPaysA         { localHousehold.budgetPaysA = v }
+            if let v = dbHousehold.budgetPaysB         { localHousehold.budgetPaysB = v }
+            if let v = dbHousehold.budgetNetTransfer   { localHousehold.budgetNetTransfer = v }
+            if let v = dbHousehold.budgetSavedAt       { localHousehold.budgetSavedAt = v }
+
             // Update in-memory state
             household = dbHousehold
 

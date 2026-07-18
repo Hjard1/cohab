@@ -79,6 +79,37 @@ enum SupabaseService {
             .execute()
     }
 
+    /// Persists the monthly budget snapshot saved from the expense-split
+    /// calculator, so both partners see the same overview on the dashboard.
+    static func updateHouseholdBudget(
+        householdId: UUID,
+        incomeA: Double, incomeB: Double, totalExpenses: Double,
+        splitA: Double, paysA: Double, paysB: Double,
+        netTransfer: Double, savedAt: Date
+    ) async throws {
+        struct Update: Encodable {
+            let budget_income_a: Double
+            let budget_income_b: Double
+            let budget_total_expenses: Double
+            let budget_split_a: Double
+            let budget_pays_a: Double
+            let budget_pays_b: Double
+            let budget_net_transfer: Double
+            let budget_saved_at: String
+        }
+        let iso = ISO8601DateFormatter()
+        try await supabase
+            .from("households")
+            .update(Update(
+                budget_income_a: incomeA, budget_income_b: incomeB,
+                budget_total_expenses: totalExpenses, budget_split_a: splitA,
+                budget_pays_a: paysA, budget_pays_b: paysB,
+                budget_net_transfer: netTransfer,
+                budget_saved_at: iso.string(from: savedAt)))
+            .eq("id", value: householdId.uuidString)
+            .execute()
+    }
+
     /// Persists the agreement configuration that drives the contract text, so
     /// both partners generate an identical document.
     static func updateAgreementConfig(

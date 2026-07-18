@@ -1961,6 +1961,26 @@ y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
         fr: "Revenu net",
         es: "Ingreso neto") }
 
+    func budgetUpdated(_ date: String) -> String { s(
+        en: "Updated \(date)",
+        nb: "Oppdatert \(date)",
+        sv: "Uppdaterad \(date)",
+        da: "Opdateret \(date)",
+        fi: "Päivitetty \(date)",
+        de: "Aktualisiert \(date)",
+        fr: "Mis à jour \(date)",
+        es: "Actualizado \(date)") }
+
+    var budgetNoIncomeNote: String { s(
+        en: "Add incomes in the calculator to see what's left over.",
+        nb: "Legg inn inntekter i kalkulatoren for å se hva som er igjen.",
+        sv: "Lägg till inkomster i kalkylatorn för att se vad som blir kvar.",
+        da: "Tilføj indkomster i beregneren for at se, hvad der er tilbage.",
+        fi: "Lisää tulot laskurissa nähdäksesi, mitä jää jäljelle.",
+        de: "Einkommen im Rechner eingeben, um zu sehen, was übrig bleibt.",
+        fr: "Ajoutez les revenus dans le calculateur pour voir ce qu'il reste.",
+        es: "Añade los ingresos en la calculadora para ver lo que queda.") }
+
     // MARK: Expense categories
 
     var expenseCatHousing: String { s(en: "Housing", nb: "Bolig", sv: "Boende", da: "Bolig", fi: "Asuminen", de: "Wohnen", fr: "Logement", es: "Vivienda") }
