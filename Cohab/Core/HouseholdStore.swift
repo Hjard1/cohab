@@ -24,6 +24,7 @@ final class HouseholdStore {
     private(set) var assets: [DBAsset] = []
     private(set) var contributions: [UUID: [DBContribution]] = [:]
     private(set) var expenses: [DBExpense] = []
+    private(set) var memberCount = 0
     private(set) var isLoading = false
     private(set) var error: String?
 
@@ -73,6 +74,7 @@ final class HouseholdStore {
                 for await (id, c) in group { contributions[id] = c }
             }
             expenses = (try? await SupabaseService.fetchExpenses(householdId: householdId)) ?? []
+            memberCount = (try? await SupabaseService.fetchMemberCount(householdId: householdId)) ?? 0
         } catch { self.error = error.localizedDescription }
     }
 
@@ -170,6 +172,7 @@ final class HouseholdStore {
 
             // Update in-memory state
             household = dbHousehold
+            memberCount = (try? await SupabaseService.fetchMemberCount(householdId: householdId)) ?? memberCount
 
             // --- Fetch remote assets ---
             let dbAssets = try await SupabaseService.fetchAssets(householdId: householdId)
@@ -410,6 +413,12 @@ final class HouseholdStore {
         }
 
         _ = channel.onPostgresChange(AnyAction.self, schema: "public", table: "shared_expenses") { [weak self] _ in
+            guard let self else { return }
+            Task { await self.sync(modelContext: capturedModelContext.value) }
+        }
+
+        // Membership changes (partner joined) — updates the invite card visibility
+        _ = channel.onPostgresChange(AnyAction.self, schema: "public", table: "household_members") { [weak self] _ in
             guard let self else { return }
             Task { await self.sync(modelContext: capturedModelContext.value) }
         }

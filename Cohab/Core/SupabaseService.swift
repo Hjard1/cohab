@@ -282,6 +282,16 @@ enum SupabaseService {
 
     // MARK: - Invite
 
+    /// Number of members in the household (1 = only you, 2 = partner joined).
+    static func fetchMemberCount(householdId: UUID) async throws -> Int {
+        struct Row: Decodable { let user_id: UUID }
+        let rows: [Row] = try await supabase
+            .from("household_members").select("user_id")
+            .eq("household_id", value: householdId.uuidString)
+            .execute().value
+        return rows.count
+    }
+
     static func createInviteToken(householdId: UUID) async throws -> UUID {
         struct Row: Encodable { let household_id: String; let created_by: String }
         let uid = try await supabase.auth.session.user.id

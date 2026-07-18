@@ -18,6 +18,7 @@ struct DashboardView: View {
     @State private var showInvitePartner = false
     @State private var showSignInSheet = false
     @EnvironmentObject private var auth: AuthManager
+    @Environment(HouseholdStore.self) private var store
 
     private var household: Household? { households.first }
 
@@ -121,6 +122,11 @@ struct DashboardView: View {
                             VStack(spacing: 0) {
                                 if !auth.isSignedIn {
                                     signInBanner
+                                        .padding(.horizontal, 20)
+                                        .padding(.top, 16)
+                                }
+                                if auth.isSignedIn, store.memberCount < 2 {
+                                    invitePartnerBanner(h)
                                         .padding(.horizontal, 20)
                                         .padding(.top, 16)
                                 }
@@ -1273,6 +1279,45 @@ extension DashboardView {
                     de: "Anmelden",
                     fr: "Connexion",
                     es: "Entrar"))
+                    .font(.caption.weight(.semibold)).foregroundStyle(.white)
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(Color.cohGreen, in: Capsule())
+            }
+        }
+        .padding(14)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    /// Persistent invite entry point — shown until the partner has joined
+    /// (household has fewer than 2 members).
+    func invitePartnerBanner(_ h: Household) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "envelope.badge.fill")
+                .font(.subheadline)
+                .foregroundStyle(Color.cohGreen)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(h.partnerBName.isEmpty
+                     ? strings.inviteTitle
+                     : "\(strings.inviteTitle) \(h.partnerBName)")
+                    .font(.caption.weight(.semibold))
+                Text(strings.localized(
+                    en: "Share a link so you both see the same numbers.",
+                    nb: "Del en lenke, så ser dere de samme tallene.",
+                    sv: "Dela en länk så ser ni samma siffror.",
+                    da: "Del et link, så I ser de samme tal.",
+                    fi: "Jaa linkki, jotta näette samat luvut.",
+                    de: "Teilen Sie einen Link, damit beide dieselben Zahlen sehen.",
+                    fr: "Partagez un lien pour voir les mêmes chiffres.",
+                    es: "Comparte un enlace para ver los mismos números."))
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Button {
+                showInvitePartner = true
+            } label: {
+                Text(strings.inviteTitle)
                     .font(.caption.weight(.semibold)).foregroundStyle(.white)
                     .padding(.horizontal, 12).padding(.vertical, 6)
                     .background(Color.cohGreen, in: Capsule())
