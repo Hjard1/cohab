@@ -262,6 +262,20 @@ final class HouseholdStore {
                 }
             }
 
+            // Remove leftover local households that don't match the canonical
+            // remote one (e.g. from a repeated onboarding). Only empty shells
+            // are touched — a local household holding real data is kept so it
+            // can still be claimed later.
+            let allLocal = (try? modelContext.fetch(FetchDescriptor<Household>())) ?? []
+            for extra in allLocal where extra.id != householdId {
+                let hasContent = extra.assets.contains {
+                    $0.currentValue != 0 || $0.remainingLoan != 0 || !$0.contributions.isEmpty
+                } || !extra.expenses.isEmpty
+                if !hasContent {
+                    modelContext.delete(extra)
+                }
+            }
+
             try? modelContext.save()
         } catch {
             self.error = error.localizedDescription
