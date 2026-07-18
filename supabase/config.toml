@@ -20,6 +20,9 @@ enabled = true
 # this as a comma-separated list of acceptable audiences for the id_token.
 client_id = "202318303891-mqkbc0pdtd3kk1h2jaosbvbh3lkg8rph.apps.googleusercontent.com,202318303891-bk19jn92jfdg01t6r3p7v6nqp53gk9ai.apps.googleusercontent.com"
 secret = "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"
+# The GoogleSignIn iOS SDK embeds a nonce in the id_token but never exposes it,
+# so the app cannot echo it back to GoTrue — skip the nonce comparison.
+skip_nonce_check = true
 
 # Native Sign in with Apple — the id_token audience is the app bundle id.
 [auth.external.apple]
