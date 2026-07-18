@@ -7,6 +7,7 @@ struct SettlementView: View {
     @State private var salePriceText: String
     @State private var loanText: String
     @State private var costsText: String
+    @State private var showCalculation = false
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var strings = AppStrings.shared
 
@@ -72,8 +73,8 @@ struct SettlementView: View {
                 VStack(spacing: 20) {
                     inputCard
                     if result.shortfall { shortfallBanner }
-                    waterfallCard
                     payoutCard
+                    calculationDisclosure
                     if showTransfer { transferCard }
                     rateNote
                     Spacer(minLength: 60)
@@ -179,6 +180,21 @@ struct SettlementView: View {
     }
 
     // MARK: - Waterfall card
+
+    /// The step-by-step breakdown, collapsed by default — the payout card
+    /// above is the answer; this is the derivation for those who want it.
+    private var calculationDisclosure: some View {
+        DisclosureGroup(isExpanded: $showCalculation) {
+            waterfallCard
+                .padding(.top, 12)
+        } label: {
+            Text(strings.settlementShowCalculation)
+                .font(.subheadline.bold())
+                .foregroundStyle(Color.cohInk)
+        }
+        .tint(Color.cohGreen)
+        .padding(.horizontal, 4)
+    }
 
     private var waterfallCard: some View {
         let sym = household.currencySymbol

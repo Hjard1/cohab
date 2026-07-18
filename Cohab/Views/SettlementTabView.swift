@@ -14,11 +14,14 @@ struct SettlementTabView: View {
         return assets.sorted { (order.firstIndex(of: $0.type) ?? 99) < (order.firstIndex(of: $1.type) ?? 99) }
     }
 
+    /// Same default assumptions as the per-asset detail view (SettlementView):
+    /// sale at current value, loan repaid, sale costs = salesCostFraction.
     private func computeTotals(_ h: Household) -> (a: Double, b: Double) {
         h.assets.reduce((a: 0.0, b: 0.0)) { acc, asset in
             let r = SettlementEngine.settle(SettlementInput(
                 salePrice: asset.currentValue, remainingLoan: asset.remainingLoan,
-                salesCosts: 0, ownershipShareA: asset.ownershipShareA,
+                salesCosts: asset.currentValue * asset.salesCostFraction,
+                ownershipShareA: asset.ownershipShareA,
                 annualRate: h.annualInterestRate,
                 contributions: asset.contributions.map {
                     Contribution(owner: $0.ownerKey == "A" ? .a : .b,
@@ -45,6 +48,12 @@ struct SettlementTabView: View {
                                 .padding(.horizontal, 20)
                                 .padding(.bottom, 24)
                             assetBreakdown(h)
+                            Text(strings.settlementEstimateNote)
+                                .font(.caption2)
+                                .foregroundStyle(Color.cohTertiary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                                .padding(.top, 20)
                         }
                         .padding(.bottom, 40)
                     }
@@ -78,6 +87,9 @@ struct SettlementTabView: View {
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                 }
             }
+            Text(strings.settlementTabSub)
+                .font(.caption)
+                .foregroundStyle(Color.cohTertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
@@ -97,7 +109,7 @@ struct SettlementTabView: View {
                 Text(strings.settlementTotalEquity)
                     .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
                 Spacer()
-                Text(strings.noSaleCosts)
+                Text(strings.settlementIfSoldToday)
                     .font(.caption2).foregroundStyle(Color.cohTertiary)
             }
             .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 14)
@@ -187,10 +199,14 @@ struct SettlementRowCard: View {
     let household: Household
     let strings: AppStrings
 
+    // Same default assumptions as SettlementView (sale at current value,
+    // loan repaid, sale costs = salesCostFraction) so the row and the
+    // detail view always agree.
     private var result: SettlementResult {
         SettlementEngine.settle(SettlementInput(
             salePrice: asset.currentValue, remainingLoan: asset.remainingLoan,
-            salesCosts: 0, ownershipShareA: asset.ownershipShareA,
+            salesCosts: asset.currentValue * asset.salesCostFraction,
+            ownershipShareA: asset.ownershipShareA,
             annualRate: household.annualInterestRate,
             contributions: asset.contributions.map {
                 Contribution(owner: $0.ownerKey == "A" ? .a : .b,
@@ -217,14 +233,26 @@ struct SettlementRowCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(asset.label)
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.cohInk)
+                // What each partner is entitled to — labelled with names, not
+                // just colours, so the two numbers can't be misread.
                 HStack(spacing: 8) {
                     partnerLine(household.partnerAName, amount: payoutA, color: .cohGreen)
                     Text("·").font(.caption).foregroundStyle(Color.cohTertiary)
                     partnerLine(household.partnerBName, amount: payoutB, color: Color.cohBlue)
                 }
+                .minimumScaleFactor(0.75)
+                .lineLimit(1)
             }
 
             Spacer()
+
+            // One headline number per asset: net proceeds if sold today.
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(sym + Int(result.netProceeds).formatted())
+                    .font(.subheadline.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
+                Text(strings.settlementNetProceeds)
+                    .font(.caption2).foregroundStyle(Color.cohTertiary)
+            }
 
             Image(systemName: "chevron.right")
                 .font(.caption.bold()).foregroundStyle(Color.cohTertiary)
@@ -237,8 +265,8 @@ struct SettlementRowCard: View {
     private func partnerLine(_ name: String, amount: Double, color: Color) -> some View {
         HStack(spacing: 3) {
             Circle().fill(color).frame(width: 6, height: 6)
-            Text(sym + Int(amount).formatted())
-                .font(.caption.bold().monospacedDigit()).foregroundStyle(color)
+            Text("\(name) \(Int(amount).formatted())")
+                .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
         }
     }
 }

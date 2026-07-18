@@ -16,6 +16,11 @@ final class PurchaseManager: ObservableObject {
     }
 
     func load() async {
+        // Never trust the persisted flag blindly — it may be a leftover from a
+        // dev build that granted free access. Re-verify with StoreKit on every
+        // launch and grant only on a verified, unrevoked entitlement.
+        hasFormalAccess = false
+        UserDefaults.standard.set(false, forKey: "formalUnlocked")
         // Verify any existing entitlement with StoreKit
         for await result in Transaction.currentEntitlements {
             guard case .verified(let tx) = result else { continue }
