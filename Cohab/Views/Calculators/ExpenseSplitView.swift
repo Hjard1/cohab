@@ -260,13 +260,14 @@ struct ExpenseSplitView: View {
                     if i < 4 { Divider().padding(.leading, 40) }
                 }
 
-                // Custom DB expenses
+                // Custom DB expenses — same row design as the preset rows
                 if !store.expenses.isEmpty {
                     Divider().padding(.vertical, 8)
                     ForEach(store.expenses) { exp in
-                        expenseRow(exp)
+                        CustomExpenseRow(exp: exp, nameA: nameA, nameB: nameB,
+                                         symbol: symbol, store: store) { expenseError = $0 }
                         if exp.id != store.expenses.last?.id {
-                            Divider().padding(.leading, 4)
+                            Divider().padding(.leading, 40)
                         }
                     }
                 }
@@ -367,56 +368,8 @@ struct ExpenseSplitView: View {
 
     /// Reusable A%/B% split slider. `ratioA` is Partner A's fraction (0…1).
     private func splitSlider(ratioA: Binding<Double>, colorA: Color, colorB: Color) -> some View {
-        let pctA = Int((ratioA.wrappedValue * 100).rounded())
-        return VStack(spacing: 4) {
-            HStack {
-                Text("\(nameA) \(pctA)%")
-                    .font(.caption2.weight(.semibold)).foregroundStyle(colorA)
-                Spacer()
-                Text("\(nameB) \(100 - pctA)%")
-                    .font(.caption2.weight(.semibold)).foregroundStyle(colorB)
-            }
-            Slider(value: ratioA, in: 0...1, step: 0.05)
-                .tint(colorA)
-        }
-        .padding(.leading, 46)
-    }
-
-    private func expenseRow(_ exp: DBExpense) -> some View {
-        HStack(spacing: 10) {
-            if exp.isRecurring {
-                Image(systemName: "arrow.clockwise")
-                    .font(.caption2).foregroundStyle(Color.cohGreen)
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(exp.label).font(.subheadline.weight(.medium)).lineLimit(1)
-                HStack(spacing: 4) {
-                    Text("\(strings.expensePaidByLabel) \(payerName(exp.paidByKey))")
-                    Text("·")
-                    let pA = Int((exp.splitRatioA * 100).rounded())
-                    Text("\(pA)% / \(100 - pA)%")
-                }
-                .font(.caption2).foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Text(symbol + fmt(exp.amount))
-                .font(.subheadline.bold().monospacedDigit())
-
-            Button {
-                Task {
-                    do { try await store.deleteExpense(exp.id) }
-                    catch { expenseError = error.localizedDescription }
-                }
-            } label: {
-                Image(systemName: "trash")
-                    .font(.caption).foregroundStyle(Color(.tertiaryLabel))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.vertical, 10)
+        expenseSplitSlider(ratioA: ratioA, colorA: colorA, colorB: colorB,
+                           nameA: nameA, nameB: nameB)
     }
 
     // MARK: Result card
@@ -596,18 +549,183 @@ struct ExpenseSplitView: View {
     /// Parses a typed/formatted amount. Strips grouping separators — commas
     /// (en) and spaces incl. non-breaking (nb/sv) — so locale-formatted values
     /// round-trip correctly (e.g. "12,000" and "12 000" both parse to 12000).
-    private func parse(_ s: String) -> Double {
-        let cleaned = s
-            .replacingOccurrences(of: ",", with: "")
-            .replacingOccurrences(of: " ", with: "")
-            .replacingOccurrences(of: "\u{00A0}", with: "")
-        return Double(cleaned) ?? 0
-    }
+    private func parse(_ s: String) -> Double { parseExpenseAmount(s) }
     private func fmt(_ v: Double) -> String {
         let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
         return f.string(from: NSNumber(value: v)) ?? "0"
     }
     private func fmtInc(_ v: Double) -> String { v == 0 ? "" : fmt(v) }
+}
+
+// MARK: - Shared amount helpers (Norwegian-tolerant)
+
+/// Accepts "10 000", "10.000,50", "10000,50" and "10000.50".
+private func parseExpenseAmount(_ s: String) -> Double {
+    var t = s.trimmingCharacters(in: .whitespaces)
+        .replacingOccurrences(of: "\u{00A0}", with: "")
+        .replacingOccurrences(of: "\u{202F}", with: "")
+        .replacingOccurrences(of: " ", with: "")
+    if t.contains(",") && t.contains(".") {
+        t = t.replacingOccurrences(of: ".", with: "")
+            .replacingOccurrences(of: ",", with: ".")
+    } else if t.contains(",") {
+        t = t.replacingOccurrences(of: ",", with: ".")
+    }
+    return Double(t) ?? 0
+}
+
+/// Formats for an editable amount field — round-trips through parseExpenseAmount.
+private func fmtExpenseAmount(_ v: Double) -> String {
+    let f = NumberFormatter(); f.numberStyle = .decimal
+    f.maximumFractionDigits = 2; f.minimumFractionDigits = 0
+    return f.string(from: NSNumber(value: v)) ?? "0"
+}
+
+/// Reusable A%/B% split slider shared by preset and custom expense rows.
+private func expenseSplitSlider(ratioA: Binding<Double>, colorA: Color, colorB: Color,
+                                nameA: String, nameB: String) -> some View {
+    let pctA = Int((ratioA.wrappedValue * 100).rounded())
+    return VStack(spacing: 4) {
+        HStack {
+            Text("\(nameA) \(pctA)%")
+                .font(.caption2.weight(.semibold)).foregroundStyle(colorA)
+            Spacer()
+            Text("\(nameB) \(100 - pctA)%")
+                .font(.caption2.weight(.semibold)).foregroundStyle(colorB)
+        }
+        Slider(value: ratioA, in: 0...1, step: 0.05)
+            .tint(colorA)
+    }
+    .padding(.leading, 46)
+}
+
+// MARK: - Custom expense row (DB-backed, preset-styled)
+
+/// Same visual language as the preset rows: icon circle, label, amount
+/// capsule, payer pills and split slider. Edits are debounced and pushed to
+/// Supabase so both partners always see identical numbers.
+private struct CustomExpenseRow: View {
+    let exp: DBExpense
+    let nameA: String
+    let nameB: String
+    let symbol: String
+    let store: HouseholdStore
+    let onError: (String) -> Void
+
+    @ObservedObject private var strings = AppStrings.shared
+    @State private var amountText = ""
+    @State private var pays = "a"
+    @State private var splitA = 0.5
+    @State private var lastLocalEdit = Date.distantPast
+    @State private var pushTask: Task<Void, Never>?
+
+    var body: some View {
+        let blueColor = Color(red: 0.20, green: 0.49, blue: 0.96)
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                // Icon — same size/style as presets
+                ZStack {
+                    Circle().fill(Color.cohGreen.opacity(0.10)).frame(width: 34, height: 34)
+                    Image(systemName: exp.isRecurring ? "arrow.clockwise" : "banknote.fill")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Color.cohGreen)
+                }
+                // Label — same width as preset names
+                Text(exp.label)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.cohInk)
+                    .lineLimit(1)
+                    .frame(width: 72, alignment: .leading)
+                // Amount capsule
+                HStack(spacing: 2) {
+                    Text(symbol).font(.caption).foregroundStyle(.secondary)
+                    TextField("0", text: $amountText)
+                        .keyboardType(.decimalPad)
+                        .font(.subheadline.monospacedDigit())
+                        .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, 10).padding(.vertical, 7)
+                .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 8))
+                // Payer pills — A / Both / B
+                HStack(spacing: 4) {
+                    pill(nameA, key: "a", color: Color.cohGreen)
+                    pill(strings.expenseBoth, key: "both", color: Color.cohInk)
+                    pill(nameB, key: "b", color: blueColor)
+                }
+                // Delete — subtle, same tertiary tone as the rest of the app
+                Button {
+                    Task {
+                        do { try await store.deleteExpense(exp.id) }
+                        catch { onError(error.localizedDescription) }
+                    }
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.caption).foregroundStyle(Color(.tertiaryLabel))
+                }
+                .buttonStyle(.plain)
+            }
+            if pays == "both" {
+                expenseSplitSlider(ratioA: $splitA, colorA: Color.cohGreen, colorB: blueColor,
+                                   nameA: nameA, nameB: nameB)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(.vertical, 10)
+        .animation(.spring(duration: 0.3), value: pays)
+        .onAppear { apply(exp) }
+        .onChange(of: exp.amount) { _, _ in refreshIfRemote(exp) }
+        .onChange(of: exp.paidByKey) { _, _ in refreshIfRemote(exp) }
+        .onChange(of: exp.splitRatioA) { _, _ in refreshIfRemote(exp) }
+        .onChange(of: amountText) { _, _ in schedulePush() }
+        .onChange(of: pays) { _, _ in schedulePush() }
+        .onChange(of: splitA) { _, _ in schedulePush() }
+    }
+
+    private func pill(_ name: String, key: String, color: Color) -> some View {
+        Button {
+            pays = key
+        } label: {
+            Text(String(name.prefix(1)).uppercased())
+                .font(.caption2.bold())
+                .foregroundStyle(pays == key ? .white : color)
+                .frame(width: 24, height: 24)
+                .background(pays == key ? color : color.opacity(0.12), in: Circle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func apply(_ e: DBExpense) {
+        amountText = e.amount > 0 ? fmtExpenseAmount(e.amount) : ""
+        pays = e.paidByKey
+        splitA = e.splitRatioA
+    }
+
+    /// Remote edit from the partner — adopt unless we typed more recently.
+    private func refreshIfRemote(_ e: DBExpense) {
+        guard Date().timeIntervalSince(lastLocalEdit) > 2 else { return }
+        apply(e)
+    }
+
+    /// Debounced push; no-ops when the fields still match the server row
+    /// (e.g. the assignments in apply() re-triggering onChange).
+    private func schedulePush() {
+        let amount = parseExpenseAmount(amountText)
+        guard amount != exp.amount || pays != exp.paidByKey || splitA != exp.splitRatioA
+        else { return }
+        lastLocalEdit = Date()
+        pushTask?.cancel()
+        let payer = pays, split = splitA, id = exp.id
+        pushTask = Task {
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            guard !Task.isCancelled else { return }
+            do {
+                try await store.updateExpense(id, amount: amount,
+                                              paidByKey: payer, splitRatioA: split)
+            } catch {
+                onError(error.localizedDescription)
+            }
+        }
+    }
 }
 
 // MARK: - Add Expense Sheet

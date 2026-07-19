@@ -174,6 +174,9 @@ final class HouseholdStore {
             // Update in-memory state
             household = dbHousehold
             memberCount = (try? await SupabaseService.fetchMemberCount(householdId: householdId)) ?? memberCount
+            // Custom-expense mirror for ExpenseSplitView — without this the
+            // list was empty at every launch, looking like adds never saved.
+            expenses = (try? await SupabaseService.fetchExpenses(householdId: householdId)) ?? []
 
             // --- Fetch remote assets ---
             let dbAssets = try await SupabaseService.fetchAssets(householdId: householdId)
@@ -583,6 +586,17 @@ final class HouseholdStore {
     func deleteExpense(_ id: UUID) async throws {
         try await SupabaseService.deleteExpense(id)
         expenses.removeAll { $0.id == id }
+    }
+
+    func updateExpense(_ id: UUID, amount: Double, paidByKey: String,
+                       splitRatioA: Double) async throws {
+        try await SupabaseService.updateExpense(id: id, amount: amount,
+                                                paidByKey: paidByKey, splitRatioA: splitRatioA)
+        if let i = expenses.firstIndex(where: { $0.id == id }) {
+            expenses[i].amount = amount
+            expenses[i].paidByKey = paidByKey
+            expenses[i].splitRatioA = splitRatioA
+        }
     }
 
     // MARK: - Invite

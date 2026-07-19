@@ -469,6 +469,22 @@ enum SupabaseService {
             .select().single().execute().value
     }
 
+    static func updateExpense(
+        id: UUID, amount: Double, paidByKey: String, splitRatioA: Double
+    ) async throws {
+        struct Update: Encodable {
+            let amount: Double
+            let paid_by_key: String
+            let split_ratio_a: Double
+        }
+        try await supabase
+            .from("shared_expenses")
+            .update(Update(amount: amount, paid_by_key: paidByKey,
+                           split_ratio_a: splitRatioA))
+            .eq("id", value: id.uuidString)
+            .execute()
+    }
+
     static func deleteExpense(_ id: UUID) async throws {
         try await supabase.from("shared_expenses").delete()
             .eq("id", value: id.uuidString).execute()
