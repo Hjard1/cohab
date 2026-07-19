@@ -222,23 +222,32 @@ struct SettlementRowCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
+            // Ownership square: split green/blue by ownership share —
+            // half each at 50/50, fully one colour for sole ownership.
             ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(asset.type.color.opacity(0.12))
-                    .frame(width: 42, height: 42)
+                GeometryReader { g in
+                    HStack(spacing: 0) {
+                        Color.cohGreen
+                            .frame(width: g.size.width * asset.ownershipShareA)
+                        Color.cohBlue
+                            .frame(width: g.size.width * (1 - asset.ownershipShareA))
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .frame(width: 42, height: 42)
                 Image(systemName: asset.type.icon)
-                    .font(.subheadline).foregroundStyle(asset.type.color)
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(asset.label)
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.cohInk)
-                // What each partner is entitled to — labelled with names, not
-                // just colours, so the two numbers can't be misread.
+                // What each partner is entitled to — the coloured dots map to
+                // the ownership square (green = partner A, blue = partner B).
                 HStack(spacing: 8) {
-                    partnerLine(household.partnerAName, amount: payoutA, color: .cohGreen)
+                    partnerLine(amount: payoutA, color: .cohGreen)
                     Text("·").font(.caption).foregroundStyle(Color.cohTertiary)
-                    partnerLine(household.partnerBName, amount: payoutB, color: Color.cohBlue)
+                    partnerLine(amount: payoutB, color: Color.cohBlue)
                 }
                 .minimumScaleFactor(0.75)
                 .lineLimit(1)
@@ -262,10 +271,10 @@ struct SettlementRowCard: View {
         .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
     }
 
-    private func partnerLine(_ name: String, amount: Double, color: Color) -> some View {
-        HStack(spacing: 3) {
+    private func partnerLine(amount: Double, color: Color) -> some View {
+        HStack(spacing: 4) {
             Circle().fill(color).frame(width: 6, height: 6)
-            Text("\(name) \(Int(amount).formatted())")
+            Text(Int(amount).formatted())
                 .font(.caption.monospacedDigit()).foregroundStyle(Color.cohSecondary)
         }
     }
