@@ -66,9 +66,23 @@ struct DashboardView: View {
 
                                 assetsList(h).padding(.top, 20)
                                 if h.hasBudget {
-                                    monthlyBudgetCard(h)
-                                        .padding(.horizontal, 20)
-                                        .padding(.top, 12)
+                                    // Budget is its own section — same header
+                                    // style as "Eiendeler" so it doesn't read
+                                    // as part of the assets list.
+                                    VStack(spacing: 0) {
+                                        HStack {
+                                            Text(strings.budgetOverviewTitle)
+                                                .font(.headline)
+                                                .foregroundStyle(.primary)
+                                            Spacer()
+                                        }
+                                        .padding(.horizontal, 24)
+
+                                        monthlyBudgetCard(h)
+                                            .padding(.horizontal, 20)
+                                            .padding(.top, 16)
+                                    }
+                                    .padding(.top, 28)
                                 }
                                 if h.isFormalMode {
                                     agreementStatusRow(h)
@@ -292,9 +306,7 @@ struct DashboardView: View {
         return NavigationLink(destination: ExpenseSplitView(nameA: h.partnerAName, nameB: partnerB, symbol: sym)) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 5) {
-                    Image(systemName: "chart.pie.fill").font(.caption2).foregroundStyle(Color.cohGreen)
-                    Text(strings.budgetOverviewTitle)
-                        .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
+                    Image(systemName: "chart.pie.fill").font(.subheadline).foregroundStyle(Color.cohGreen)
                     Spacer()
                     Text(money(total)).font(.subheadline.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
                     Image(systemName: "chevron.right")
