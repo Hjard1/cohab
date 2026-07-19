@@ -134,6 +134,23 @@ enum SupabaseService {
             .execute()
     }
 
+    /// Records the onboarding disclaimer acceptance on the user's profile —
+    /// a legal trail of who accepted what, and when.
+    static func recordDisclaimerAcceptance(version: String) async throws {
+        guard let uid = try? await supabase.auth.session.user.id else { return }
+        struct Update: Encodable {
+            let disclaimer_accepted_at: String
+            let disclaimer_version: String
+        }
+        let iso = ISO8601DateFormatter()
+        try await supabase
+            .from("profiles")
+            .update(Update(disclaimer_accepted_at: iso.string(from: Date()),
+                           disclaimer_version: version))
+            .eq("user_id", value: uid.uuidString)
+            .execute()
+    }
+
     static func updateAgreementStatus(
         householdId: UUID, status: String, signedAt: Date?
     ) async throws {
