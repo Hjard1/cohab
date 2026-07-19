@@ -4,12 +4,17 @@ import Foundation
 @MainActor
 final class PurchaseManager: ObservableObject {
     static let formalProductID = "com.hjard.cohab.formal"
+    /// Consumable: one extra BankID signing (125 NOK). The first BankID
+    /// signing per household is included; every further one costs a credit.
+    static let bankIDExtraProductID = "com.hjard.cohab.bankid_extra"
 
     @Published private(set) var hasFormalAccess: Bool
     @Published private(set) var isLoading = false
     @Published private(set) var priceDisplay: String = "$49"
+    @Published private(set) var bankIDPriceDisplay: String = "125 kr"
 
     private var product: Product?
+    private var bankIDProduct: Product?
 
     init() {
         self.hasFormalAccess = UserDefaults.standard.bool(forKey: "formalUnlocked")
@@ -29,11 +34,17 @@ final class PurchaseManager: ObservableObject {
                 return
             }
         }
-        // Load product for price display
-        if let products = try? await Product.products(for: [Self.formalProductID]),
-           let p = products.first {
-            product = p
-            priceDisplay = p.displayPrice
+        // Load products for price display
+        if let products = try? await Product.products(for: [Self.formalProductID, Self.bankIDExtraProductID]) {
+            for p in products {
+                if p.id == Self.formalProductID {
+                    product = p
+                    priceDisplay = p.displayPrice
+                } else if p.id == Self.bankIDExtraProductID {
+                    bankIDProduct = p
+                    bankIDPriceDisplay = p.displayPrice
+                }
+            }
         }
     }
 
@@ -51,6 +62,26 @@ final class PurchaseManager: ObservableObject {
             break
         @unknown default:
             break
+        }
+    }
+
+    /// Purchases one extra BankID signing (consumable). Returns true when
+    /// the transaction verified — the caller is responsible for granting
+    /// the credit server-side after this returns true.
+    func purchaseBankIDExtra() async throws -> Bool {
+        guard let bankIDProduct else { return false }
+        isLoading = true
+        defer { isLoading = false }
+        let result = try await bankIDProduct.purchase()
+        switch result {
+        case .success(let verification):
+            guard case .verified(let tx) = verification else { return false }
+            await tx.finish()
+            return true
+        case .userCancelled, .pending:
+            return false
+        @unknown default:
+            return false
         }
     }
 

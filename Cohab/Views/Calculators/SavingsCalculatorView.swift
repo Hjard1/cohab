@@ -18,7 +18,7 @@ struct SavingsCalculatorView: View {
     @State private var fundReturn: Double = 7.0
     @State private var showSettings = false
 
-    private var savings: Double { Double(monthlySavingsText.replacingOccurrences(of: ",", with: "")) ?? 0 }
+    private var savings: Double { parseExpenseAmount(monthlySavingsText) }
     private var hasInput: Bool { savings > 0 }
     private var mortgageSavings: Double { savings * mortgagePercent / 100 }
     private var fundSavings: Double { savings * (1 - mortgagePercent / 100) }
@@ -86,9 +86,9 @@ struct SavingsCalculatorView: View {
         cardSection(strings.savingsMonthlySavingsHeader) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(strings.savingsMonthlySavingsPrompt)
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.subheadline).foregroundStyle(Color.cohSecondary)
                 HStack(spacing: 6) {
-                    Text(symbol).foregroundStyle(.secondary).font(.title3)
+                    Text(symbol).foregroundStyle(Color.cohSecondary).font(.title3)
                     TextField("0", text: $monthlySavingsText)
                         .keyboardType(.decimalPad).font(.title3)
                 }
@@ -98,7 +98,7 @@ struct SavingsCalculatorView: View {
 
                 if hasInput {
                     Text(symbol + fmt(savings * 12) + strings.savingsPerYear)
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(Color.cohSecondary)
                 }
             }
         }
@@ -151,7 +151,7 @@ struct SavingsCalculatorView: View {
                     Spacer()
                     Text(strings.savingsMoreToInvesting)
                 }
-                .font(.caption2).foregroundStyle(Color.cohTertiary)
+                .font(.caption).foregroundStyle(Color.cohTertiary)
             }
         }
     }
@@ -163,7 +163,7 @@ struct SavingsCalculatorView: View {
             VStack(spacing: 10) {
                 HStack {
                     Text(strings.savingsSaveFor)
-                        .font(.subheadline).foregroundStyle(.secondary)
+                        .font(.subheadline).foregroundStyle(Color.cohSecondary)
                     Spacer()
                     Text("\(Int(yearsHorizon)) \(strings.savingsYears)")
                         .font(.title3.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
@@ -201,7 +201,7 @@ struct SavingsCalculatorView: View {
     private func rateRow(_ label: String, value: Binding<Double>, range: ClosedRange<Double>, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(label).font(.caption).foregroundStyle(.secondary)
+                Text(label).font(.caption).foregroundStyle(Color.cohSecondary)
                 Spacer()
                 Text(String(format: "%.1f%%", value.wrappedValue))
                     .font(.caption.bold().monospacedDigit()).foregroundStyle(color)
@@ -220,12 +220,12 @@ struct SavingsCalculatorView: View {
             // Total headline
             VStack(spacing: 4) {
                 Text(String(format: strings.savingsAfterYears, years))
-                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    .font(.caption.weight(.semibold)).foregroundStyle(Color.cohSecondary)
                 Text(symbol + fmt(p.totalValue))
                     .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(Color.cohInk)
                 Text(strings.savingsTotalAccumulated)
-                    .font(.caption2).foregroundStyle(Color.cohTertiary)
+                    .font(.caption).foregroundStyle(Color.cohTertiary)
             }
             .frame(maxWidth: .infinity)
 
@@ -262,13 +262,13 @@ struct SavingsCalculatorView: View {
                     Text(moreToMortgage
                          ? strings.savingsMortgagePrioritisedNote
                          : strings.savingsInvestingPrioritisedNote)
-                        .font(.caption2).foregroundStyle(Color.cohTertiary)
+                        .font(.caption).foregroundStyle(Color.cohTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
             Text(strings.savingsProjectionsDisclaimer)
-                .font(.caption2).foregroundStyle(Color(.quaternaryLabel))
+                .font(.caption).foregroundStyle(Color(.quaternaryLabel))
                 .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding(20)
@@ -289,7 +289,7 @@ struct SavingsCalculatorView: View {
                 Text("+ \(symbol)\(fmt(gain)) \(gainLabel)")
                     .font(.caption2.monospacedDigit()).foregroundStyle(color.opacity(0.8))
                 Text(symbol + fmt(paid) + strings.savingsPaidIn)
-                    .font(.caption2.monospacedDigit()).foregroundStyle(Color.cohTertiary)
+                    .font(.caption.monospacedDigit()).foregroundStyle(Color.cohTertiary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -301,7 +301,7 @@ struct SavingsCalculatorView: View {
 
     private func cardSection<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
             content()
         }
         .padding(18)

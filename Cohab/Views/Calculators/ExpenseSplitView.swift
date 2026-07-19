@@ -90,6 +90,10 @@ struct ExpenseSplitView: View {
         !store.expenses.isEmpty || presetAmts.contains { parse($0) > 0 }
     }
 
+    /// Partner deleted their account — the view becomes read-only: no edits
+    /// and nothing pushed to Supabase (mirrors the dashboard's locks).
+    private var isReadOnly: Bool { store.household?.partnerLeftAt != nil }
+
     // MARK: Body
 
     var body: some View {
@@ -224,8 +228,8 @@ struct ExpenseSplitView: View {
         cardShell(strings.expenseIncomeTitle) {
             VStack(alignment: .leading, spacing: 12) {
                 Text(strings.expenseIncomeSubtitle)
-                    .font(.caption2)
-                    .foregroundStyle(Color(.secondaryLabel))
+                    .font(.caption)
+                    .foregroundStyle(Color.cohSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 incomeRow(nameA, color: Color.cohGreen, text: $incomeAText)
                 incomeRow(nameB, color: Color(red: 0.20, green: 0.49, blue: 0.96), text: $incomeBText)
@@ -240,9 +244,10 @@ struct ExpenseSplitView: View {
                 Text(name).font(.caption.weight(.medium)).foregroundStyle(color)
             }
             HStack {
-                Text(symbol).foregroundStyle(.secondary).font(.subheadline)
+                Text(symbol).foregroundStyle(Color.cohSecondary).font(.subheadline)
                 TextField("0", text: text).keyboardType(.decimalPad)
                     .font(.subheadline.monospacedDigit())
+                    .disabled(isReadOnly)
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
             .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10))
@@ -315,7 +320,7 @@ struct ExpenseSplitView: View {
                     .frame(width: 72, alignment: .leading)
                 // Amount field
                 HStack(spacing: 2) {
-                    Text(symbol).font(.caption).foregroundStyle(.secondary)
+                    Text(symbol).font(.caption).foregroundStyle(Color.cohSecondary)
                     TextField("0", text: Binding(
                         get: { presetAmts[i] },
                         set: { presetAmts[i] = $0 }
@@ -323,6 +328,7 @@ struct ExpenseSplitView: View {
                     .keyboardType(.decimalPad)
                     .font(.subheadline.monospacedDigit())
                     .frame(maxWidth: .infinity)
+                    .disabled(isReadOnly)
                 }
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 8))
@@ -338,6 +344,7 @@ struct ExpenseSplitView: View {
                         presetPays[i] = "b"
                     }
                 }
+                .disabled(isReadOnly)
             }
             // Split slider — only when "both" pays
             if presetPays[i] == "both" {
@@ -348,6 +355,7 @@ struct ExpenseSplitView: View {
                     ),
                     colorA: Color.cohGreen, colorB: blueColor
                 )
+                .disabled(isReadOnly)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -400,40 +408,40 @@ struct ExpenseSplitView: View {
                         Image(systemName: "chart.bar.fill")
                             .font(.caption2).foregroundStyle(Color.cohGreen)
                         Text(strings.expenseFairSplitTitle)
-                            .font(.caption2.bold()).tracking(0.8).foregroundStyle(.secondary)
+                            .font(.caption2.bold()).tracking(0.8).foregroundStyle(Color.cohSecondary)
                     }
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 3) {
                             HStack(spacing: 4) {
                                 Circle().fill(Color.cohGreen).frame(width: 6, height: 6)
-                                Text(nameA).font(.caption2).foregroundStyle(.secondary)
+                                Text(nameA).font(.caption).foregroundStyle(Color.cohSecondary)
                             }
                             Text(symbol + fmt(fairA))
                                 .font(.subheadline.bold().monospacedDigit())
                                 .foregroundStyle(Color.cohGreen)
                             Text(strings.expensePctOfIncome(pctA))
-                                .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                                .font(.caption).foregroundStyle(Color.cohMuted)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         VStack(alignment: .leading, spacing: 3) {
                             HStack(spacing: 4) {
                                 Circle().fill(blueColor).frame(width: 6, height: 6)
-                                Text(nameB).font(.caption2).foregroundStyle(.secondary)
+                                Text(nameB).font(.caption).foregroundStyle(Color.cohSecondary)
                             }
                             Text(symbol + fmt(fairB))
                                 .font(.subheadline.bold().monospacedDigit())
                                 .foregroundStyle(blueColor)
                             Text(strings.expensePctOfIncome(100 - pctA))
-                                .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                                .font(.caption).foregroundStyle(Color.cohMuted)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     if abs(adjustment) >= 1 {
                         let over = adjustment > 0 ? nameA : nameB
                         HStack(spacing: 5) {
-                            Image(systemName: "info.circle").font(.caption2).foregroundStyle(.secondary)
+                            Image(systemName: "info.circle").font(.caption2).foregroundStyle(Color.cohSecondary)
                             Text(strings.expensePaysMoreThanFair(over, symbol + fmt(abs(adjustment))))
-                                .font(.caption2).foregroundStyle(Color(.secondaryLabel))
+                                .font(.caption).foregroundStyle(Color.cohSecondary)
                         }
                     }
                 }
@@ -458,7 +466,7 @@ struct ExpenseSplitView: View {
                         Text(savedBudget ? strings.expenseSavedToOverview : strings.expenseSaveToOverview)
                             .font(.subheadline.weight(.semibold))
                     }
-                    .foregroundStyle(savedBudget ? Color.cohGreen : Color(.secondaryLabel))
+                    .foregroundStyle(savedBudget ? Color.cohGreen : Color.cohSecondary)
                     .frame(maxWidth: .infinity).padding(.vertical, 11)
                     .background(
                         savedBudget ? Color.cohGreen.opacity(0.08) : Color(.systemGray6),
@@ -466,6 +474,7 @@ struct ExpenseSplitView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .disabled(isReadOnly)
                 .animation(.spring(duration: 0.3), value: savedBudget)
             }
         }
@@ -477,7 +486,7 @@ struct ExpenseSplitView: View {
     private func payoutPanel(_ name: String, amount: Double, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(name).font(.caption.weight(.semibold)).foregroundStyle(color)
-            Text(strings.expensePaysOut).font(.caption2).foregroundStyle(.secondary)
+            Text(strings.expensePaysOut).font(.caption).foregroundStyle(Color.cohSecondary)
             Text(symbol + fmt(amount))
                 .font(.title3.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
         }
@@ -489,7 +498,7 @@ struct ExpenseSplitView: View {
     private func leftoverView(_ name: String, income: Double, share: Double, color: Color) -> some View {
         let left = income - share
         return VStack(alignment: .leading, spacing: 3) {
-            Text(strings.expenseLeftOver(name)).font(.caption2).foregroundStyle(.secondary)
+            Text(strings.expenseLeftOver(name)).font(.caption).foregroundStyle(Color.cohSecondary)
             Text(symbol + fmt(max(0, left)))
                 .font(.subheadline.bold().monospacedDigit())
                 .foregroundStyle(left >= 0 ? color : Color.red)
@@ -530,7 +539,7 @@ struct ExpenseSplitView: View {
 
     private func cardShell<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
             content()
         }
         .padding(18)
@@ -558,21 +567,8 @@ struct ExpenseSplitView: View {
 }
 
 // MARK: - Shared amount helpers (Norwegian-tolerant)
-
-/// Accepts "10 000", "10.000,50", "10000,50" and "10000.50".
-private func parseExpenseAmount(_ s: String) -> Double {
-    var t = s.trimmingCharacters(in: .whitespaces)
-        .replacingOccurrences(of: "\u{00A0}", with: "")
-        .replacingOccurrences(of: "\u{202F}", with: "")
-        .replacingOccurrences(of: " ", with: "")
-    if t.contains(",") && t.contains(".") {
-        t = t.replacingOccurrences(of: ".", with: "")
-            .replacingOccurrences(of: ",", with: ".")
-    } else if t.contains(",") {
-        t = t.replacingOccurrences(of: ",", with: ".")
-    }
-    return Double(t) ?? 0
-}
+//
+// parseExpenseAmount lives in Core/Parsing.swift, shared across the app.
 
 /// Formats for an editable amount field — round-trips through parseExpenseAmount.
 private func fmtExpenseAmount(_ v: Double) -> String {
@@ -619,6 +615,9 @@ private struct CustomExpenseRow: View {
     @State private var lastLocalEdit = Date.distantPast
     @State private var pushTask: Task<Void, Never>?
 
+    /// Partner deleted their account — row is display-only, nothing pushed.
+    private var isReadOnly: Bool { store.household?.partnerLeftAt != nil }
+
     var body: some View {
         let blueColor = Color(red: 0.20, green: 0.49, blue: 0.96)
         VStack(spacing: 8) {
@@ -638,11 +637,12 @@ private struct CustomExpenseRow: View {
                     .frame(width: 72, alignment: .leading)
                 // Amount capsule
                 HStack(spacing: 2) {
-                    Text(symbol).font(.caption).foregroundStyle(.secondary)
+                    Text(symbol).font(.caption).foregroundStyle(Color.cohSecondary)
                     TextField("0", text: $amountText)
                         .keyboardType(.decimalPad)
                         .font(.subheadline.monospacedDigit())
                         .frame(maxWidth: .infinity)
+                        .disabled(isReadOnly)
                 }
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 8))
@@ -652,6 +652,7 @@ private struct CustomExpenseRow: View {
                     pill(strings.expenseBoth, key: "both", color: Color.cohInk)
                     pill(nameB, key: "b", color: blueColor)
                 }
+                .disabled(isReadOnly)
                 // Delete — subtle, same tertiary tone as the rest of the app
                 Button {
                     Task {
@@ -663,10 +664,12 @@ private struct CustomExpenseRow: View {
                         .font(.caption).foregroundStyle(Color(.tertiaryLabel))
                 }
                 .buttonStyle(.plain)
+                .disabled(isReadOnly)
             }
             if pays == "both" {
                 expenseSplitSlider(ratioA: $splitA, colorA: Color.cohGreen, colorB: blueColor,
                                    nameA: nameA, nameB: nameB)
+                .disabled(isReadOnly)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -765,7 +768,7 @@ struct AddExpenseSheet: View {
     }
 
     private var blueColor: Color { Color(red: 0.20, green: 0.49, blue: 0.96) }
-    private var amount: Double { Double(amountText.replacingOccurrences(of: ",", with: "")) ?? 0 }
+    private var amount: Double { parseExpenseAmount(amountText) }
     private var canSave: Bool { !label.trimmingCharacters(in: .whitespaces).isEmpty && amount > 0 }
 
     var body: some View {
@@ -861,7 +864,7 @@ struct AddExpenseSheet: View {
     private var amountCard: some View {
         cardShell(strings.expenseAmountTitle) {
             HStack {
-                Text(symbol).foregroundStyle(.secondary).font(.body)
+                Text(symbol).foregroundStyle(Color.cohSecondary).font(.body)
                 TextField("0", text: $amountText)
                     .keyboardType(.decimalPad)
                     .font(.title3.weight(.semibold).monospacedDigit())
@@ -926,7 +929,7 @@ struct AddExpenseSheet: View {
 
     private func cardShell<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
             content()
         }
         .padding(18)

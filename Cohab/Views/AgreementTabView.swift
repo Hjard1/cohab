@@ -87,7 +87,7 @@ struct AgreementTabView: View {
                             .font(.caption).foregroundStyle(Color.cohGreen)
                     } else {
                         Text("\(strings.agreementBetweenPartners) \(h.partnerAName)\(strings.agreementAndConnector)\(h.partnerBName)")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.footnote).foregroundStyle(Color.cohSecondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -202,7 +202,7 @@ struct AgreementTabView: View {
                         Text(strings.agreementNoAgreement)
                             .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
                         Text(strings.agreementNoAgreementSub)
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.footnote).foregroundStyle(Color.cohSecondary)
                     }
                     Spacer()
                 }
@@ -299,7 +299,7 @@ struct AgreementTabView: View {
                         .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
                     Spacer()
                     Image(systemName: showHowItWorks ? "chevron.up" : "chevron.down")
-                        .font(.caption.bold()).foregroundStyle(.secondary)
+                        .font(.caption.bold()).foregroundStyle(Color.cohSecondary)
                 }
                 .padding(18)
             }
@@ -327,8 +327,8 @@ struct AgreementTabView: View {
                     .foregroundStyle(Color.cohInk)
                 if !detail.isEmpty {
                     Text(detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.footnote)
+                        .foregroundStyle(Color.cohSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -343,13 +343,13 @@ struct AgreementTabView: View {
                 .font(.subheadline.bold())
                 .foregroundStyle(Color.cohInk)
             Text(strings.agreementRentalDetailsSub)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.footnote)
+                .foregroundStyle(Color.cohSecondary)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(strings.agreementRentalWhoPays)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.cohSecondary)
 
                 VStack(spacing: 8) {
                     rentPayerRow(h, value: "a", label: h.partnerAName)
@@ -363,10 +363,10 @@ struct AgreementTabView: View {
                     .font(.subheadline).foregroundStyle(Color.cohInk)
                 Spacer()
                 HStack(spacing: 4) {
-                    Text(h.currencySymbol).foregroundStyle(.secondary)
+                    Text(h.currencySymbol).foregroundStyle(Color.cohSecondary)
                     TextField("0", text: Binding(
                         get: { h.rentAmount > 0 ? String(Int(h.rentAmount)) : "" },
-                        set: { h.rentAmount = Double($0) ?? 0 }
+                        set: { h.rentAmount = parseExpenseAmount($0) }
                     ))
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
@@ -402,7 +402,7 @@ struct AgreementTabView: View {
             HStack {
                 Text(label)
                     .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? Color.cohInk : .secondary)
+                    .foregroundStyle(isSelected ? Color.cohInk : Color.cohSecondary)
                 Spacer()
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(isSelected ? Color.cohGreen : Color(.tertiaryLabel))
@@ -525,6 +525,8 @@ struct AgreementTabView: View {
         submission          = nil
         agreementError      = nil
         lastChecked         = nil
+        // Also supersede any pending BankID signing case for this household.
+        Task { await DealBuilderService.reset(household: h) }
     }
 
     private func primaryAction(for h: Household) -> (String, Color) {
@@ -540,7 +542,7 @@ struct AgreementTabView: View {
             Text(strings.agreementNeedUpdate)
                 .font(.headline).foregroundStyle(Color.cohInk)
             Text(strings.agreementNeedUpdateSub)
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.subheadline).foregroundStyle(Color.cohSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
@@ -555,7 +557,7 @@ struct AgreementTabView: View {
             Label(strings.agreementEmailsNeeded, systemImage: "envelope.badge")
                 .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
             Text(strings.agreementEmailsNeededSub)
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.footnote).foregroundStyle(Color.cohSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
@@ -584,11 +586,11 @@ struct AgreementTabView: View {
                         Text(activeCount > 0 && !advancedExpanded
                              ? "\(activeCount) \(strings.agreementClausesSelected)"
                              : strings.agreementAdvancedSub)
-                            .font(.caption).foregroundStyle(activeCount > 0 && !advancedExpanded ? Color.cohGreen : .secondary)
+                            .font(.footnote).foregroundStyle(activeCount > 0 && !advancedExpanded ? Color.cohGreen : Color.cohSecondary)
                     }
                     Spacer()
                     Image(systemName: advancedExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption.bold()).foregroundStyle(.secondary)
+                        .font(.caption.bold()).foregroundStyle(Color.cohSecondary)
                 }
                 .padding(18)
             }
@@ -645,7 +647,7 @@ struct AgreementTabView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.cohInk)
                 Text(subtitle)
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(Color.cohSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
@@ -747,7 +749,7 @@ struct AgreementTabView: View {
                         .foregroundStyle(Color.cohInk)
                 }
                 Text(body)
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(Color.cohSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineSpacing(2)
@@ -770,7 +772,7 @@ struct AgreementTabView: View {
                         .font(.system(size: 28, weight: .bold, design: .serif))
                         .foregroundStyle(Color.cohInk)
                     Text(strings.agreementNoFormal)
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.footnote).foregroundStyle(Color.cohSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 

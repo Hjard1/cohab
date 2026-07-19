@@ -62,7 +62,7 @@ struct OwnershipCalculatorView: View {
                             .tint(.cohGreen)
                         if loanAmount > 0 {
                             Text(strings.calcOwnLoanNote(fmt(loanAmount)))
-                                .font(.caption)
+                                .font(.footnote)
                                 .foregroundStyle(Color.cohTertiary)
                         }
                     }
@@ -82,7 +82,7 @@ struct OwnershipCalculatorView: View {
         VStack(spacing: 16) {
             Text(strings.calcOwnFairSplit)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.cohSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 12) {
@@ -105,7 +105,7 @@ struct OwnershipCalculatorView: View {
 
             if !hasInput {
                 Text(strings.calcOwnEnterValues)
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(Color.cohTertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -122,7 +122,7 @@ struct OwnershipCalculatorView: View {
                 .foregroundStyle(hasInput ? color : Color.cohTertiary)
             Text(name)
                 .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.cohSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
@@ -149,7 +149,7 @@ struct OwnershipCalculatorView: View {
     private func inputCard<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
-                .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
             content()
         }
         .padding(18)
@@ -159,7 +159,7 @@ struct OwnershipCalculatorView: View {
 
     private func inputRow(_ label: String, placeholder: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(label).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+            Text(label).font(.caption.weight(.medium)).foregroundStyle(Color.cohSecondary)
             TextField(placeholder, text: text)
                 .keyboardType(.decimalPad)
                 .font(.subheadline.monospacedDigit())
@@ -170,13 +170,13 @@ struct OwnershipCalculatorView: View {
 
     private func detailRow(_ label: String, _ value: String) -> some View {
         HStack {
-            Text(label).font(.subheadline).foregroundStyle(.secondary)
+            Text(label).font(.subheadline).foregroundStyle(Color.cohSecondary)
             Spacer()
             Text(value).font(.subheadline.bold().monospacedDigit())
         }
     }
 
-    private func parse(_ s: String) -> Double { Double(s.replacingOccurrences(of: ",", with: "")) ?? 0 }
+    private func parse(_ s: String) -> Double { parseExpenseAmount(s) }
     private func fmt(_ v: Double) -> String {
         let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
         return f.string(from: NSNumber(value: v)) ?? "0"

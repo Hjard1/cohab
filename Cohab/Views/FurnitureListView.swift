@@ -49,7 +49,7 @@ struct FurnitureListView: View {
                                 .padding(.bottom, 20)
 
                             Text(strings.furnSectionHeader)
-                                .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                                .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 20)
                                 .padding(.bottom, 10)
@@ -94,7 +94,7 @@ struct FurnitureListView: View {
         VStack(spacing: 14) {
             HStack {
                 Text(strings.furnTotalValue)
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Color.cohSecondary)
                 Spacer()
                 Text(sym + Int(totalValue).formatted())
                     .font(.title3.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
@@ -127,12 +127,12 @@ struct FurnitureListView: View {
                 Text(item.label)
                     .font(.subheadline.weight(.medium)).foregroundStyle(Color.cohInk)
                 Text(ownerLabel(item.ownerKey))
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Color.cohSecondary)
             }
             Spacer()
             if item.currentValue > 0 {
                 Text(sym + Int(item.currentValue).formatted())
-                    .font(.subheadline.monospacedDigit()).foregroundStyle(.secondary)
+                    .font(.subheadline.monospacedDigit()).foregroundStyle(Color.cohSecondary)
             }
             Button {
                 withAnimation { modelContext.delete(item) }
@@ -167,7 +167,7 @@ struct FurnitureListView: View {
                 Text(strings.furnNoItemsYet)
                     .font(.title3.bold())
                 Text(strings.furnNoItemsBody)
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.subheadline).foregroundStyle(Color.cohSecondary)
                     .multilineTextAlignment(.center).padding(.horizontal, 40)
             }
             Button {
@@ -203,7 +203,7 @@ struct AddFurnitureItemView: View {
                 Section(strings.furnItemSection) {
                     TextField(strings.furnNamePlaceholder, text: $label)
                     HStack {
-                        Text(household.currencySymbol).foregroundStyle(.secondary)
+                        Text(household.currencySymbol).foregroundStyle(Color.cohSecondary)
                         TextField(strings.furnValueOptional, text: $valueText)
                             .keyboardType(.decimalPad)
                     }
@@ -229,7 +229,7 @@ struct AddFurnitureItemView: View {
     }
 
     private func add() {
-        let value = Double(valueText.replacingOccurrences(of: ",", with: "")) ?? 0
+        let value = parseExpenseAmount(valueText)
         let item = FurnitureItem(
             label: label.trimmingCharacters(in: .whitespaces),
             currentValue: value,
@@ -266,7 +266,7 @@ struct EditFurnitureItemView: View {
                 Section(strings.furnItemSection) {
                     TextField(strings.furnNameShort, text: $label)
                     HStack {
-                        Text(household.currencySymbol).foregroundStyle(.secondary)
+                        Text(household.currencySymbol).foregroundStyle(Color.cohSecondary)
                         TextField("0", text: $valueText).keyboardType(.decimalPad)
                     }
                 }
@@ -292,7 +292,7 @@ struct EditFurnitureItemView: View {
 
     private func save() {
         item.label = label.trimmingCharacters(in: .whitespaces)
-        item.currentValue = Double(valueText.replacingOccurrences(of: ",", with: "")) ?? 0
+        item.currentValue = parseExpenseAmount(valueText)
         item.ownerKey = ownerKey
         dismiss()
     }

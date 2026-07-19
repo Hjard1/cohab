@@ -49,7 +49,7 @@ struct SettlementTabView: View {
                                 .padding(.bottom, 24)
                             assetBreakdown(h)
                             Text(strings.settlementEstimateNote)
-                                .font(.caption2)
+                                .font(.caption)
                                 .foregroundStyle(Color.cohTertiary)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 32)
@@ -76,19 +76,19 @@ struct SettlementTabView: View {
                         .font(.system(size: 28, weight: .bold, design: .serif))
                         .foregroundStyle(Color.cohInk)
                     Text("\(h.partnerAName) & \(h.partnerBName)")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.footnote).foregroundStyle(Color.cohSecondary)
                 }
                 Spacer()
                 // Report date
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(strings.asOf)
-                        .font(.caption2).foregroundStyle(Color.cohTertiary)
+                        .font(.caption).foregroundStyle(Color.cohTertiary)
                     Text(Date(), style: .date)
-                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        .font(.caption.monospacedDigit()).foregroundStyle(Color.cohSecondary)
                 }
             }
             Text(strings.settlementTabSub)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(Color.cohTertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -107,10 +107,10 @@ struct SettlementTabView: View {
             // Top: label
             HStack {
                 Text(strings.settlementTotalEquity)
-                    .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                    .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
                 Spacer()
                 Text(strings.settlementIfSoldToday)
-                    .font(.caption2).foregroundStyle(Color.cohTertiary)
+                    .font(.caption).foregroundStyle(Color.cohTertiary)
             }
             .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 14)
 
@@ -156,7 +156,7 @@ struct SettlementTabView: View {
     private func assetBreakdown(_ h: Household) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(strings.perAsset)
-                .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
                 .padding(.horizontal, 20)
 
             VStack(spacing: 10) {
@@ -183,7 +183,7 @@ struct SettlementTabView: View {
             VStack(spacing: 8) {
                 Text(strings.tabEquity).font(.title2.bold())
                 Text(strings.settlementNoAssets)
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.subheadline).foregroundStyle(Color.cohSecondary)
                     .multilineTextAlignment(.center).padding(.horizontal, 40)
             }
         }
@@ -251,7 +251,7 @@ struct SettlementRowCard: View {
                 Text(sym + Int(result.netProceeds).formatted())
                     .font(.subheadline.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
                 Text(strings.settlementNetProceeds)
-                    .font(.caption2).foregroundStyle(Color.cohTertiary)
+                    .font(.caption).foregroundStyle(Color.cohTertiary)
             }
 
             Image(systemName: "chevron.right")
@@ -266,7 +266,7 @@ struct SettlementRowCard: View {
         HStack(spacing: 3) {
             Circle().fill(color).frame(width: 6, height: 6)
             Text("\(name) \(Int(amount).formatted())")
-                .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                .font(.caption.monospacedDigit()).foregroundStyle(Color.cohSecondary)
         }
     }
 }

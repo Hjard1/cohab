@@ -18,8 +18,8 @@ struct CalculatorsView: View {
                             .font(.system(size: 28, weight: .bold, design: .serif))
                             .foregroundStyle(Color.cohInk)
                         Text(strings.calculatorsFreeToUse)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.footnote)
+                            .foregroundStyle(Color.cohSecondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 20)
@@ -83,7 +83,7 @@ struct CalculatorsView: View {
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title).font(.headline).foregroundStyle(Color.cohInk)
-                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                    Text(subtitle).font(.subheadline).foregroundStyle(Color.cohSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()

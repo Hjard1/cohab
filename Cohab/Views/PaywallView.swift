@@ -43,7 +43,7 @@ struct PaywallView: View {
                     .foregroundStyle(Color.cohInk)
                 Text(strings.paywallSubtitle)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.cohSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 16)
             }
@@ -127,11 +127,11 @@ struct PaywallView: View {
 
             Text(strings.paywallOneTime)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.cohSecondary)
 
             Text(strings.paywallNote)
-                .font(.caption2)
-                .foregroundStyle(Color(.tertiaryLabel))
+                .font(.caption)
+                .foregroundStyle(Color.cohMuted)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 8)
         }

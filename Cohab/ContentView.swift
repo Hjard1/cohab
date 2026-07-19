@@ -20,6 +20,8 @@ struct ContentView: View {
     @State private var completedOnboardingThisSession = false
     @State private var selectedTab: AppTab = .home
     @State private var needsDisclaimerAccept = false
+    @State private var isAcceptingDisclaimer = false
+    @State private var showDisclaimerSaveError = false
 
     var body: some View {
         Group {
@@ -32,7 +34,7 @@ struct ContentView: View {
                     ProgressView()
                         .scaleEffect(1.4)
                     Text(strings.joiningHousehold)
-                        .font(.subheadline).foregroundStyle(.secondary)
+                        .font(.subheadline).foregroundStyle(Color.cohSecondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.cohBg.ignoresSafeArea())
@@ -138,6 +140,7 @@ struct ContentView: View {
     // MARK: - Invite join
 
     private func handleJoin(token: UUID) async {
+        guard !isJoiningHousehold else { return }   // guard against double-fire
         isJoiningHousehold = true
         do {
             _ = try await SupabaseService.joinHousehold(token: token)
@@ -156,11 +159,20 @@ struct ContentView: View {
     /// The accepted version is stored per profile; a mismatch (new user,
     /// invited partner, or an updated text) blocks the app until accepted.
     private func checkDisclaimerAcceptance() async {
-        let v = try? await SupabaseService.fetchProfileDisclaimerVersion()
-        needsDisclaimerAccept = (v != Disclaimer.currentVersion)
+        do {
+            let v = try await SupabaseService.fetchProfileDisclaimerVersion()
+            needsDisclaimerAccept = (v != Disclaimer.currentVersion)
+        } catch {
+            // Fetch failed (e.g. no network) — fail OPEN this launch rather
+            // than locking the user behind a gate they cannot pass. The
+            // gate re-checks on the next launch.
+            print("[Cohab] Disclaimer check failed: \(error.localizedDescription)")
+        }
     }
 
     private func acceptDisclaimer() {
+        guard !isAcceptingDisclaimer else { return }
+        isAcceptingDisclaimer = true
         Task {
             do {
                 try await SupabaseService.recordDisclaimerAcceptance(
@@ -168,7 +180,9 @@ struct ContentView: View {
                 await MainActor.run { needsDisclaimerAccept = false }
             } catch {
                 print("[Cohab] Disclaimer record failed: \(error.localizedDescription)")
+                await MainActor.run { showDisclaimerSaveError = true }
             }
+            await MainActor.run { isAcceptingDisclaimer = false }
         }
     }
 
@@ -190,17 +204,28 @@ struct ContentView: View {
                         .font(.subheadline)
                         .lineSpacing(3)
                     Button(action: acceptDisclaimer) {
-                        Text(strings.disclaimerIUnderstand)
-                            .font(.headline).foregroundStyle(.white)
-                            .frame(maxWidth: .infinity).padding(.vertical, 16)
-                            .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
+                        HStack(spacing: 8) {
+                            if isAcceptingDisclaimer {
+                                ProgressView().tint(.white)
+                            }
+                            Text(strings.disclaimerIUnderstand)
+                        }
+                        .font(.headline).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).padding(.vertical, 16)
+                        .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
                     }
                     .buttonStyle(.plain)
+                    .disabled(isAcceptingDisclaimer)
                     .padding(.top, 8)
                 }
                 .padding(24)
             }
             .background(Color.cohBg.ignoresSafeArea())
+            .alert(strings.error, isPresented: $showDisclaimerSaveError) {
+                Button(strings.ok, role: .cancel) {}
+            } message: {
+                Text(strings.disclaimerSaveFailed)
+            }
         }
     }
 }

@@ -37,6 +37,32 @@ serve(async (req) => {
       );
     }
 
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // ── Monthly limit: 10 free DocuSeal signings per household. ─────────────
+    const monthStart = new Date();
+    monthStart.setUTCDate(1);
+    monthStart.setUTCHours(0, 0, 0, 0);
+
+    const { count } = await supabase
+      .from("cohab_docuseal_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("household_id", household_id)
+      .gte("created_at", monthStart.toISOString());
+
+    if ((count ?? 0) >= 10) {
+      return new Response(
+        JSON.stringify({
+          error: "DOCUSEAL_MONTHLY_LIMIT",
+          message: "DocuSeal includes 10 free signings per month. The limit resets on the 1st.",
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const dsHeaders = {
       "X-Auth-Token": DOCUSEAL_API_KEY,
       "Content-Type": "application/json",
@@ -126,11 +152,6 @@ serve(async (req) => {
 
     // ── Step 3: Track in Supabase DB (isolation from Samboappen) ─────────────
     // We only process webhook events for slugs in this table.
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
     await supabase.from("cohab_docuseal_submissions").insert({
       household_id,
       submission_id,

@@ -146,7 +146,7 @@ struct SettlementView: View {
 
     private func inputRow(label: String, text: Binding<String>, symbol: String) -> some View {
         HStack {
-            Text(label).font(.subheadline).foregroundStyle(.secondary)
+            Text(label).font(.subheadline).foregroundStyle(Color.cohSecondary)
             Spacer()
             HStack(spacing: 2) {
                 Text(symbol)
@@ -216,7 +216,7 @@ struct SettlementView: View {
                                symbol: sym, color: Color.cohBlue)
                 } else {
                     Text(strings.settlementNoContributions)
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.footnote).foregroundStyle(Color.cohSecondary)
                 }
             }
             .padding(14)
@@ -262,7 +262,7 @@ struct SettlementView: View {
                 if interest > 0.5 {
                     Text(String(format: strings.settlementInterestEarned,
                                 symbol + Int(interest).formatted()))
-                        .font(.caption2).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(Color.cohSecondary)
                 }
             }
             Spacer()
@@ -274,7 +274,7 @@ struct SettlementView: View {
     private func surplusRow(name: String, share: Double, amount: Double, symbol: String) -> some View {
         HStack {
             Text("\(name)  (\(Int(share * 100))%)")
-                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .font(.caption).foregroundStyle(Color.cohSecondary).lineLimit(1)
             Spacer()
             Text(symbol + Int(amount).formatted())
                 .font(.caption.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
@@ -284,7 +284,7 @@ struct SettlementView: View {
     private func shortfallRow(name: String, ratio: Double, amount: Double, symbol: String) -> some View {
         HStack {
             Text("\(name)  (\(Int(ratio * 100))%)")
-                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .font(.caption).foregroundStyle(Color.cohSecondary).lineLimit(1)
             Spacer()
             Text(symbol + Int(max(0, amount)).formatted())
                 .font(.caption.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
@@ -297,7 +297,7 @@ struct SettlementView: View {
         let sym = household.currencySymbol
         return VStack(alignment: .leading, spacing: 14) {
             Text(strings.settlementTotalPayout)
-                .font(.caption.bold()).tracking(0.5).foregroundStyle(.secondary)
+                .font(.caption.bold()).tracking(0.5).foregroundStyle(Color.cohSecondary)
 
             HStack(spacing: 20) {
                 payoutPartner(name: household.partnerAName, amount: payoutA,
@@ -318,7 +318,7 @@ struct SettlementView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 5) {
                 Circle().fill(color).frame(width: 8, height: 8)
-                Text(name).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(name).font(.caption).foregroundStyle(Color.cohSecondary).lineLimit(1)
             }
             Text(symbol + Int(max(0, amount)).formatted())
                 .font(.system(size: 24, weight: .bold, design: .rounded).monospacedDigit())
@@ -345,7 +345,7 @@ struct SettlementView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(strings.settlementTransferNote)
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.footnote).foregroundStyle(Color.cohSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -359,7 +359,7 @@ struct SettlementView: View {
     private var rateNote: some View {
         let rateStr = String(format: "%.1f%%", household.annualInterestRate * 100)
         return Text(String(format: strings.settlementRateNote, rateStr))
-            .font(.caption2)
+            .font(.caption)
             .foregroundStyle(Color.cohTertiary)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)

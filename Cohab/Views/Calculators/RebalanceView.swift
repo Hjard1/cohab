@@ -44,7 +44,7 @@ struct RebalanceView: View {
                     inputRow(strings.calcRebRemainingLoan, placeholder: "300,000", text: $loanText)
                     if value > 0 {
                         HStack {
-                            Text(strings.calcRebNetEquity).font(.subheadline).foregroundStyle(.secondary)
+                            Text(strings.calcRebNetEquity).font(.subheadline).foregroundStyle(Color.cohSecondary)
                             Spacer()
                             Text(fmt(netEquity))
                                 .font(.subheadline.bold().monospacedDigit())
@@ -73,7 +73,7 @@ struct RebalanceView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(strings.calcRebPaymentTitle)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.cohSecondary)
 
             if hasInput && hasChange {
                 let fromName = payment > 0 ? nameB : nameA
@@ -85,12 +85,12 @@ struct RebalanceView: View {
                             .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
                         Text(strings.calcRebFromTo(fromName, toName))
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.cohSecondary)
                             .padding(.leading, 4)
                     }
                     Text(strings.calcRebMoves(Int(currentShareA), Int(100 - currentShareA),
                                               Int(targetShareA), Int(100 - targetShareA)))
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(Color.cohTertiary)
                 }
             } else if hasInput {
@@ -99,11 +99,11 @@ struct RebalanceView: View {
                         .foregroundStyle(Color.cohGreen)
                     Text(strings.calcRebBalanced)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.cohSecondary)
                 }
             } else {
                 Text(strings.calcRebEnterValue)
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(Color.cohTertiary)
             }
         }
@@ -119,9 +119,9 @@ struct RebalanceView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(strings.calcRebPaymentPlan)
-                        .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                        .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
                     Text(strings.calcRebSpread)
-                        .font(.caption).foregroundStyle(Color.cohTertiary)
+                        .font(.footnote).foregroundStyle(Color.cohTertiary)
                 }
                 Spacer()
                 Toggle("", isOn: $showPlan.animation())
@@ -168,7 +168,7 @@ struct RebalanceView: View {
 
     private func inputCard<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
             content()
         }
         .padding(18)
@@ -178,7 +178,7 @@ struct RebalanceView: View {
 
     private func inputRow(_ label: String, placeholder: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(label).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+            Text(label).font(.caption.weight(.medium)).foregroundStyle(Color.cohSecondary)
             TextField(placeholder, text: text)
                 .keyboardType(.decimalPad)
                 .font(.subheadline.monospacedDigit())
@@ -189,7 +189,7 @@ struct RebalanceView: View {
 
     private func detailRow(_ label: String, _ value: String, bold: Bool = false) -> some View {
         HStack {
-            Text(label).font(.subheadline).foregroundStyle(.secondary)
+            Text(label).font(.subheadline).foregroundStyle(Color.cohSecondary)
             Spacer()
             Text(value)
                 .font(bold ? .subheadline.bold().monospacedDigit() : .subheadline.monospacedDigit())
@@ -197,7 +197,7 @@ struct RebalanceView: View {
         }
     }
 
-    private func parse(_ s: String) -> Double { Double(s.replacingOccurrences(of: ",", with: "")) ?? 0 }
+    private func parse(_ s: String) -> Double { parseExpenseAmount(s) }
     private func fmt(_ v: Double) -> String {
         let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
         return f.string(from: NSNumber(value: v)) ?? "0"

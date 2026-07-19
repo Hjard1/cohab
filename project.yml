@@ -48,6 +48,7 @@ targets:
         LSApplicationQueriesSchemes:
           - googlegmail
           - googlegmail-hd
+        ITSAppUsesNonExemptEncryption: false
 
   CohabUITests:
     type: bundle.ui-testing

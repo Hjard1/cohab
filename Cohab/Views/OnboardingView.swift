@@ -47,10 +47,19 @@ struct OnboardingView: View {
             Color.cohBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                if step > 0 && step < 7 {
+                if step > 0 && step <= 7 {
                     HStack(spacing: 12) {
                         Button {
-                            withAnimation(.easeInOut(duration: 0.32)) { step -= 1 }
+                            withAnimation(.easeInOut(duration: 0.32)) {
+                                // Step 5 (agreement type) is skipped for
+                                // memory-mode and married users — back from
+                                // step 6 must land on step 4 in those modes.
+                                if step == 6 && (setupMode == "memory" || relationshipType == "married") {
+                                    step = 4
+                                } else {
+                                    step -= 1
+                                }
+                            }
                         } label: {
                             Image(systemName: "chevron.left")
                                 .font(.body.weight(.semibold))
@@ -417,7 +426,7 @@ struct OnboardingView: View {
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text(title).font(.headline).foregroundStyle(Color.cohInk)
-                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                    Text(subtitle).font(.subheadline).foregroundStyle(Color.cohSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
@@ -471,7 +480,7 @@ struct OnboardingView: View {
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text(title).font(.headline).foregroundStyle(Color.cohInk)
-                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                    Text(subtitle).font(.subheadline).foregroundStyle(Color.cohSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
@@ -515,7 +524,7 @@ struct OnboardingView: View {
                             Text(s.onboardingYesAgreement)
                                 .font(.headline).foregroundStyle(Color.cohInk)
                             Text(s.onboardingYesAgreementSub)
-                                .font(.subheadline).foregroundStyle(.secondary)
+                                .font(.subheadline).foregroundStyle(Color.cohSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -548,7 +557,7 @@ struct OnboardingView: View {
                             Text(s.onboardingSkipForNow)
                                 .font(.headline).foregroundStyle(Color.cohInk)
                             Text(s.onboardingSkipSub)
-                                .font(.subheadline).foregroundStyle(.secondary)
+                                .font(.subheadline).foregroundStyle(Color.cohSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer()
@@ -560,7 +569,7 @@ struct OnboardingView: View {
                 .buttonStyle(.plain)
 
                 Text(s.onboardingAgreementNote)
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(Color.cohMuted)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 8)
@@ -613,8 +622,8 @@ struct OnboardingView: View {
             .padding(.horizontal, 28)
 
             Text(s.onboardingAssetsHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.footnote)
+                .foregroundStyle(Color.cohSecondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 28)
@@ -729,7 +738,7 @@ struct OnboardingView: View {
                         googleSignInError = msg
                     }
                     Text(s.onboardingSignInRequiredNote)
-                        .font(.caption).foregroundStyle(Color.cohMuted)
+                        .font(.footnote).foregroundStyle(Color.cohMuted)
                         .multilineTextAlignment(.center)
                     if let err = googleSignInError {
                         Text(err).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
@@ -789,7 +798,7 @@ struct OnboardingView: View {
                 .foregroundStyle(Color.cohInk)
                 .lineSpacing(2)
             if let subtitle {
-                Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                Text(subtitle).font(.subheadline).foregroundStyle(Color.cohSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -809,7 +818,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
                 .font(.caption.bold()).tracking(1)
-                .foregroundStyle(Color(.secondaryLabel))
+                .foregroundStyle(Color.cohSecondary)
             TextField(placeholder, text: text)
                 .textContentType(contentType)
                 .keyboardType(keyboard)
@@ -864,7 +873,7 @@ struct OnboardingView: View {
                         }
                         VStack(alignment: .leading, spacing: 3) {
                             Text(s.disclaimerTitle).font(.headline)
-                            Text("cohab · \(AppStrings.shared.disclaimerTitle)").font(.caption).foregroundStyle(.secondary)
+                            Text("cohab · \(AppStrings.shared.disclaimerTitle)").font(.footnote).foregroundStyle(Color.cohSecondary)
                         }
                     }
                     Text(s.disclaimerBody)

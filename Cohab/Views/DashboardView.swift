@@ -359,7 +359,7 @@ struct DashboardView: View {
                 HStack(spacing: 5) {
                     Image(systemName: "chart.pie.fill").font(.caption2).foregroundStyle(Color.cohGreen)
                     Text(strings.budgetOverviewTitle)
-                        .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                        .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
                     Spacer()
                     Text(money(total)).font(.subheadline.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
                     Image(systemName: "chevron.right")
@@ -380,11 +380,11 @@ struct DashboardView: View {
 
                 if !hasIncome {
                     Text(strings.budgetNoIncomeNote)
-                        .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                        .font(.caption).foregroundStyle(Color.cohMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if let saved = h.budgetSavedAt {
                     Text(strings.budgetUpdated(saved.formatted(date: .abbreviated, time: .omitted)))
-                        .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                        .font(.caption).foregroundStyle(Color.cohMuted)
                 }
             }
             .padding(18)
@@ -404,15 +404,15 @@ struct DashboardView: View {
                 Text(name).font(.caption.weight(.semibold)).foregroundStyle(color).lineLimit(1)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(strings.budgetNetIncomeLabel).font(.caption2).foregroundStyle(.secondary)
+                Text(strings.budgetNetIncomeLabel).font(.caption).foregroundStyle(Color.cohSecondary)
                 Text(money(income)).font(.subheadline.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(strings.expensePaysOut).font(.caption2).foregroundStyle(.secondary)
+                Text(strings.expensePaysOut).font(.caption).foregroundStyle(Color.cohSecondary)
                 Text(money(pays)).font(.caption.monospacedDigit()).foregroundStyle(Color.cohInk)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(strings.expenseLeftOver(name)).font(.caption2).foregroundStyle(.secondary)
+                Text(strings.expenseLeftOver(name)).font(.caption).foregroundStyle(Color.cohSecondary)
                 Text(money(max(0, left)))
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .foregroundStyle(left >= 0 ? color : Color.red)
@@ -458,7 +458,7 @@ struct DashboardView: View {
                     .font(.title2.bold())
                 Text(strings.dashboardEmptySub)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.cohSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
@@ -489,7 +489,7 @@ struct DashboardView: View {
                     .foregroundStyle(Color(.tertiaryLabel))
                 Text(h.currency)
                     .font(.caption.bold())
-                    .foregroundStyle(Color(.secondaryLabel))
+                    .foregroundStyle(Color.cohSecondary)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
@@ -528,7 +528,7 @@ struct DashboardView: View {
                 Spacer()
                 Text("\(h.assets.count) \(h.assets.count == 1 ? strings.dashboardItem : strings.dashboardItems)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.cohSecondary)
             }
             .padding(.horizontal, 24)
 
@@ -572,7 +572,7 @@ struct DashboardView: View {
                     .foregroundStyle(Color.cohInk)
                 Text(strings.assetsNoAssetsSub)
                     .font(.subheadline)
-                    .foregroundStyle(Color(.secondaryLabel))
+                    .foregroundStyle(Color.cohSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -643,6 +643,7 @@ struct DashboardView: View {
 
         return HStack(spacing: 0) {
             greenChip(icon: chip1.icon, label: chip1.label, action: chip1.action)
+                .disabled(h.partnerLeft == true)   // read-only chip, no action
             greenNavChip(icon: "dollarsign.circle.fill", label: strings.calcExpenseTitle,
                          destination: ExpenseSplitView(nameA: h.partnerAName, nameB: partnerB,
                                                        symbol: h.currencySymbol))
@@ -884,7 +885,7 @@ struct HouseholdStoryCard: View {
                     if !asset.address.isEmpty {
                         Text(asset.address)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.cohSecondary)
                             .lineLimit(1)
                     }
                     Text(ownershipLine)
@@ -986,7 +987,7 @@ struct AssetCard: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(asset.label).font(.headline)
                 if !asset.address.isEmpty {
-                    Text(asset.address).font(.caption).foregroundStyle(.secondary)
+                    Text(asset.address).font(.caption).foregroundStyle(Color.cohSecondary)
                 }
             }
             Spacer()
@@ -1019,7 +1020,7 @@ struct AssetCard: View {
             }
             if hasContribs {
                 Text("\(strings.assetContribFirst) \(Int(asset.ownershipShareA * 100))/\(100 - Int(asset.ownershipShareA * 100))")
-                    .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                    .font(.caption).foregroundStyle(Color.cohMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
@@ -1042,10 +1043,10 @@ struct AssetCard: View {
                     .font(.caption2).foregroundStyle(Color.cohGreen)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(showBreakdown ? strings.dashboardHideCalculation : strings.dashboardShowCalculation)
-                        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                        .font(.caption.weight(.medium)).foregroundStyle(Color.cohSecondary)
                     if !showBreakdown {
                         Text(strings.dashboardSaleCostsSub)
-                            .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                            .font(.caption).foregroundStyle(Color.cohMuted)
                     }
                 }
                 Spacer()
@@ -1102,7 +1103,7 @@ struct AssetCard: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(row.label).font(.caption).foregroundStyle(.primary)
-                        Text(row.dateStr).font(.caption2).foregroundStyle(.secondary)
+                        Text(row.dateStr).font(.caption).foregroundStyle(Color.cohSecondary)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 1) {
@@ -1111,7 +1112,7 @@ struct AssetCard: View {
                             .foregroundStyle(color)
                         if row.interest > 1 {
                             Text("+\(household.currencySymbol)\(fmt(row.interest)) \(strings.interestWord)")
-                                .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                                .font(.caption.monospacedDigit()).foregroundStyle(Color.cohSecondary)
                         }
                     }
                 }
@@ -1131,7 +1132,7 @@ struct AssetCard: View {
                 Text(String(format: strings.shortfallExplanation,
                             household.currencySymbol + fmt(result.netProceeds),
                             household.currencySymbol + fmt(totalAccrued)))
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Color.cohSecondary)
             } else {
                 let surplus = result.netProceeds - totalAccrued
                 let shareA = Int(asset.ownershipShareA * 100)
@@ -1159,16 +1160,16 @@ struct AssetCard: View {
             calcRow(household.partnerAName, fmt(result.payout[.a] ?? 0), bold: true, tint: .cohGreen)
             if hasContribs && accruedA > 0 {
                 Text("  \(strings.assetContribInterestLine) \(household.currencySymbol)\(fmt(accruedA))")
-                    .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                    .font(.caption).foregroundStyle(Color.cohMuted)
             }
             calcRow(household.partnerBName, fmt(result.payout[.b] ?? 0), bold: true,
                     tint: Color(red: 0.20, green: 0.49, blue: 0.96))
             if hasContribs && accruedB > 0 {
                 Text("  \(strings.assetContribInterestLine) \(household.currencySymbol)\(fmt(accruedB))")
-                    .font(.caption2).foregroundStyle(Color(.tertiaryLabel))
+                    .font(.caption).foregroundStyle(Color.cohMuted)
             }
             Text("\(strings.assetRateLine) \(String(format: "%.1f%%", household.annualInterestRate * 100)) p.a. · \(strings.assetPerAgreement)")
-                .font(.caption2).foregroundStyle(Color(.tertiaryLabel)).padding(.top, 2)
+                .font(.caption).foregroundStyle(Color.cohMuted).padding(.top, 2)
         }
     }
 
@@ -1201,7 +1202,7 @@ struct AssetCard: View {
     // MARK: UI building blocks
 
     private func sectionLabel(_ text: String) -> some View {
-        Text(text).font(.caption2.bold()).tracking(0.8).foregroundStyle(Color(.tertiaryLabel))
+        Text(text).font(.caption2.bold()).tracking(0.8).foregroundStyle(Color.cohMuted)
     }
 
     private func calcRow(_ label: String, _ value: String, bold: Bool = false,
@@ -1209,11 +1210,11 @@ struct AssetCard: View {
         HStack {
             Text(label)
                 .font(bold ? .caption.weight(.semibold) : .caption)
-                .foregroundStyle(dim ? Color(.tertiaryLabel) : .secondary)
+                .foregroundStyle(dim ? Color.cohMuted : Color.cohSecondary)
             Spacer()
             Text(household.currencySymbol + value)
                 .font(bold ? .caption.bold().monospacedDigit() : .caption.monospacedDigit())
-                .foregroundStyle(tint ?? (bold ? Color(.label) : .secondary))
+                .foregroundStyle(tint ?? (bold ? Color(.label) : Color.cohSecondary))
         }
     }
 
@@ -1254,7 +1255,7 @@ extension DashboardView {
                     de: "Sichern Sie Ihre Daten und teilen Sie alles mit Ihrem Partner.",
                     fr: "Sauvegardez vos données et partagez tout avec votre partenaire.",
                     es: "Protege tus datos y comparte todo con tu pareja."))
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Color.cohSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
@@ -1301,7 +1302,7 @@ extension DashboardView {
                     de: "Teilen Sie einen Link, damit beide dieselben Zahlen sehen.",
                     fr: "Partagez un lien pour voir les mêmes chiffres.",
                     es: "Comparte un enlace para ver los mismos números."))
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Color.cohSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
@@ -1330,7 +1331,7 @@ extension DashboardView {
                 Text(strings.partnerLeftTitle)
                     .font(.caption.weight(.semibold))
                 Text(strings.partnerLeftSub)
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Color.cohSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
@@ -1352,7 +1353,7 @@ extension DashboardView {
                 Text(strings.dashboardRateUpdated(rate.source))
                     .font(.caption.weight(.semibold))
                 Text(String(format: "%.2f%%", rate.rate * 100) + " " + strings.dashboardRateCurrently(String(format: "%.2f%%", household.annualInterestRate * 100)))
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Color.cohSecondary)
             }
             Spacer()
             if showRateSaved {
@@ -1382,7 +1383,7 @@ extension DashboardView {
             }
             Button { availableRate = nil } label: {
                 Image(systemName: "xmark")
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .font(.caption2).foregroundStyle(Color.cohSecondary)
             }
         }
         .padding(14)
@@ -1414,8 +1415,8 @@ extension DashboardView {
             Text(h.includeDissolutionClause
                  ? strings.agreementCoversFull
                  : strings.agreementCoversBasic)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.footnote)
+                .foregroundStyle(Color.cohSecondary)
 
             // ── Update notice ─────────────────────────────────────────
             if h.agreementNeedsUpdate && h.agreementStatus != "none" {
@@ -1490,18 +1491,30 @@ extension DashboardView {
 
 // MARK: - Agreement sheet
 
+/// How the agreement is sent for signing: DocuSeal e-signature (free,
+/// 10/month) or BankID via DealBuilder (1 included, then a paid credit).
+private enum SigningMethod {
+    case docuseal, bankid
+}
+
 struct AgreementSheetView: View {
     let household: Household
     @Binding var submission: DocuSealSubmission?
     @Binding var isGenerating: Bool
     @Binding var error: String?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var pm: PurchaseManager
     @ObservedObject private var strings = AppStrings.shared
     @State private var hasStarted = false
     @State private var isSigned = false
     @State private var reviewMode = false
     @State private var draftEmailA = ""
     @State private var draftEmailB = ""
+    @State private var signingMethod: SigningMethod = .docuseal
+    @State private var bankIDCase: DealBuilderCase?
+    @State private var showBankIDLimit = false
+    @State private var isPurchasingExtra = false
 
     var body: some View {
         NavigationStack {
@@ -1516,6 +1529,8 @@ struct AgreementSheetView: View {
                     errorView(err)
                 } else if let sub = submission {
                     signingView(sub)
+                } else if let dbCase = bankIDCase {
+                    bankIDWaitingView(dbCase)
                 } else if reviewMode {
                     reviewSendView
                 } else {
@@ -1550,6 +1565,24 @@ struct AgreementSheetView: View {
                 return
             }
 
+            // BankID recovery: a pending BankID case lives server-side only —
+            // look it up and restore the waiting view.
+            if submission == nil, household.agreementStatus == "pending",
+               household.docusealViewUrl.isEmpty {
+                Task {
+                    if let dbCase = await DealBuilderService.currentCase(household: household) {
+                        bankIDCase = dbCase
+                        let signed = await DealBuilderService.checkSigned(household: household)
+                        if signed { withAnimation { isSigned = true } }
+                    } else {
+                        draftEmailA = household.emailA
+                        draftEmailB = household.emailB
+                        reviewMode = true
+                    }
+                }
+                return
+            }
+
             // New submission: show the review-and-send screen. Nothing is generated
             // or emailed until the user explicitly taps "Send for signing".
             if submission == nil {
@@ -1574,11 +1607,35 @@ struct AgreementSheetView: View {
                 // Task cancelled — sheet was dismissed, nothing to do
             }
         }
+        // Same polling for a pending BankID case
+        .task(id: bankIDCase?.documentId) {
+            guard let docId = bankIDCase?.documentId, !docId.isEmpty else { return }
+            do {
+                while !isSigned {
+                    try await Task.sleep(for: .seconds(6))
+                    let signed = await DealBuilderService.checkSigned(household: household)
+                    if signed {
+                        withAnimation { isSigned = true }
+                        return
+                    }
+                }
+            } catch {
+                // Task cancelled — sheet was dismissed, nothing to do
+            }
+        }
+        .alert(strings.bankIDLimitTitle, isPresented: $showBankIDLimit) {
+            Button(strings.bankIDBuyExtra(pm.bankIDPriceDisplay)) {
+                buyExtraAndRetry()
+            }
+            Button(strings.cancel, role: .cancel) { }
+        } message: {
+            Text(strings.bankIDLimitBody(pm.bankIDPriceDisplay))
+        }
     }
 
     private var navTitle: String {
         if isSigned { return strings.agreementSignedTitle }
-        if submission != nil && !isGenerating { return strings.agreementSignTitle }
+        if (submission != nil || bankIDCase != nil) && !isGenerating { return strings.agreementSignTitle }
         return strings.agreementReviewSendTitle
     }
 
@@ -1613,7 +1670,7 @@ struct AgreementSheetView: View {
                 // Document summary
                 VStack(alignment: .leading, spacing: 10) {
                     Text(strings.agreementDocumentTitle)
-                        .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                        .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
                     summaryLine(icon: "house.fill",
                                 text: "\(household.assets.count) \(household.assets.count == 1 ? strings.agreementSharedAsset : strings.agreementSharedAssets)")
                     summaryLine(icon: "list.bullet.rectangle",
@@ -1626,16 +1683,32 @@ struct AgreementSheetView: View {
                 // Recipients
                 VStack(alignment: .leading, spacing: 14) {
                     Text(strings.agreementRecipientsTitle)
-                        .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                        .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
                     emailField(label: "\(household.partnerAName)\(strings.agreementPartnerEmailSuffix)",
                                text: $draftEmailA)
                     emailField(label: "\(partnerBDisplay)\(strings.agreementPartnerEmailSuffix)",
                                text: $draftEmailB)
                 }
 
+                // Signing method — BankID only in supported countries
+                if DealBuilderService.isSupported(country: household.country) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(strings.signingMethodTitle)
+                            .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
+                        methodCard(title: strings.signingMethodDocuSeal,
+                                   info: strings.signingMethodDocuSealInfo,
+                                   icon: "signature",
+                                   method: .docuseal)
+                        methodCard(title: strings.signingMethodBankID,
+                                   info: strings.signingMethodBankIDInfo(pm.bankIDPriceDisplay),
+                                   icon: "person.badge.key.fill",
+                                   method: .bankid)
+                    }
+                }
+
                 // Explicit send explainer + button
                 Text(strings.agreementSendExplainer(partnerBDisplay))
-                    .font(.caption).foregroundStyle(Color(.secondaryLabel))
+                    .font(.footnote).foregroundStyle(Color.cohSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Button {
@@ -1670,7 +1743,7 @@ struct AgreementSheetView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label.uppercased())
                 .font(.caption.bold()).tracking(0.5)
-                .foregroundStyle(Color(.secondaryLabel))
+                .foregroundStyle(Color.cohSecondary)
             TextField("email@example.com", text: text)
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
@@ -1681,6 +1754,103 @@ struct AgreementSheetView: View {
                 .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(Color(.separator).opacity(0.4), lineWidth: 1))
+        }
+    }
+
+    // MARK: Signing method choice
+
+    private func methodCard(title: String, info: String, icon: String, method: SigningMethod) -> some View {
+        let selected = signingMethod == method
+        return Button {
+            signingMethod = method
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: icon).font(.title3)
+                    .foregroundStyle(selected ? Color.cohGreen : Color.cohSecondary)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.subheadline.bold()).foregroundStyle(Color.cohInk)
+                    Text(info).font(.footnote).foregroundStyle(Color.cohSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(selected ? Color.cohGreen : Color.cohMuted)
+            }
+            .padding(14)
+            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(selected ? Color.cohGreen : Color(.separator).opacity(0.4),
+                              lineWidth: selected ? 1.5 : 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: BankID waiting — both partners sign from their email
+
+    private func bankIDWaitingView(_ dbCase: DealBuilderCase) -> some View {
+        VStack(spacing: 24) {
+            Spacer()
+            ZStack {
+                Circle().fill(Color.cohGreen.opacity(0.1)).frame(width: 90, height: 90)
+                Image(systemName: "envelope.badge.fill")
+                    .font(.system(size: 40)).foregroundStyle(Color.cohGreen)
+            }
+            VStack(spacing: 8) {
+                Text(strings.bankIDCheckEmailTitle)
+                    .font(.title2.bold())
+                Text(strings.bankIDCheckEmailBody(partnerBDisplay))
+                    .font(.subheadline).foregroundStyle(Color.cohSecondary)
+                    .multilineTextAlignment(.center).padding(.horizontal, 32)
+            }
+            if !dbCase.appUrl.isEmpty, let url = URL(string: dbCase.appUrl) {
+                Button {
+                    openURL(url)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "link")
+                        Text(strings.bankIDOpenSigningLink)
+                    }
+                    .font(.headline).foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 16)
+                    .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
+                }
+                .padding(.horizontal, 32)
+            }
+            HStack(spacing: 8) {
+                ProgressView()
+                Text(strings.bankIDWaitingForBoth)
+                    .font(.footnote).foregroundStyle(Color.cohSecondary)
+            }
+            Button(strings.bankIDCheckStatus) {
+                Task {
+                    let signed = await DealBuilderService.checkSigned(household: household)
+                    if signed { withAnimation { isSigned = true } }
+                }
+            }
+            .font(.subheadline).foregroundStyle(Color.cohGreen)
+            Spacer()
+        }
+    }
+
+    // MARK: Extra BankID signing purchase
+
+    private func buyExtraAndRetry() {
+        guard !isPurchasingExtra else { return }
+        isPurchasingExtra = true
+        Task {
+            defer { isPurchasingExtra = false }
+            do {
+                let purchased = try await pm.purchaseBankIDExtra()
+                if purchased {
+                    await DealBuilderService.addExtraCredit(household: household)
+                    reviewMode = false
+                    generate()
+                }
+                // Not purchased → user cancelled; stay on the review screen.
+            } catch {
+                self.error = strings.bankIDPurchaseFailed
+            }
         }
     }
 
@@ -1695,7 +1865,7 @@ struct AgreementSheetView: View {
                 Text(strings.agreementSignedTitle)
                     .font(.title2.bold())
                 Text(strings.agreementSignedBody(household.partnerAName, partnerBDisplay))
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.subheadline).foregroundStyle(Color.cohSecondary)
                     .multilineTextAlignment(.center).padding(.horizontal, 32)
             }
             Button(strings.done) { dismiss() }
@@ -1709,9 +1879,9 @@ struct AgreementSheetView: View {
         VStack(spacing: 20) {
             ProgressView().scaleEffect(1.3)
             Text(strings.agreementPreparingTitle)
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.subheadline).foregroundStyle(Color.cohSecondary)
             Text(strings.agreementPreparingSub)
-                .font(.caption).foregroundStyle(Color(.tertiaryLabel))
+                .font(.footnote).foregroundStyle(Color.cohMuted)
                 .multilineTextAlignment(.center).padding(.horizontal, 40)
         }
     }
@@ -1722,7 +1892,7 @@ struct AgreementSheetView: View {
         VStack(spacing: 16) {
             Image(systemName: "xmark.circle.fill").font(.system(size: 44)).foregroundStyle(.red)
             Text(strings.agreementSomethingWrong).font(.headline)
-            Text(msg).font(.subheadline).foregroundStyle(.secondary)
+            Text(msg).font(.subheadline).foregroundStyle(Color.cohSecondary)
                 .multilineTextAlignment(.center).padding(.horizontal, 32)
             Button(strings.agreementTryAgain) { error = nil; reviewMode = true }
                 .buttonStyle(.borderedProminent).tint(.cohGreen)
@@ -1767,20 +1937,41 @@ struct AgreementSheetView: View {
         let inclDebt = household.includeDebtClause
         Task {
             do {
-                let result = try await DocuSealService.submit(household: household)
                 // Persist the config that produced this contract so the partner's
                 // device generates/reads an identical agreement.
-                try? await SupabaseService.updateAgreementConfig(
-                    householdId: hid,
-                    rentAmount: rentAmount, rentPayerKey: rentPayerKey,
-                    rentPaymentDay: rentPaymentDay,
-                    includeDissolutionClause: inclDissolution,
-                    includeSeparatePropertyClause: inclSeparate,
-                    includeBuyoutRightsClause: inclBuyout,
-                    includeDisposalConsentClause: inclDisposal,
-                    includeDisputeResolutionClause: inclDispute,
-                    includeDebtClause: inclDebt)
-                await MainActor.run { submission = result; isGenerating = false }
+                func syncConfig() async {
+                    try? await SupabaseService.updateAgreementConfig(
+                        householdId: hid,
+                        rentAmount: rentAmount, rentPayerKey: rentPayerKey,
+                        rentPaymentDay: rentPaymentDay,
+                        includeDissolutionClause: inclDissolution,
+                        includeSeparatePropertyClause: inclSeparate,
+                        includeBuyoutRightsClause: inclBuyout,
+                        includeDisposalConsentClause: inclDisposal,
+                        includeDisputeResolutionClause: inclDispute,
+                        includeDebtClause: inclDebt)
+                }
+                if signingMethod == .bankid {
+                    let result = try await DealBuilderService.submit(household: household)
+                    await syncConfig()
+                    await MainActor.run { bankIDCase = result; isGenerating = false }
+                } else {
+                    let result = try await DocuSealService.submit(household: household)
+                    await syncConfig()
+                    await MainActor.run { submission = result; isGenerating = false }
+                }
+            } catch DealBuilderError.creditsExhausted {
+                // Included BankID signing is used — offer to buy an extra one.
+                await MainActor.run {
+                    isGenerating = false
+                    reviewMode = true
+                    showBankIDLimit = true
+                }
+            } catch DocuSealError.monthlyLimit {
+                await MainActor.run {
+                    self.error = strings.docuSealMonthlyLimit
+                    isGenerating = false
+                }
             } catch {
                 await MainActor.run { self.error = error.localizedDescription; isGenerating = false }
             }
@@ -1844,13 +2035,13 @@ struct HouseholdSetupView: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 60)
-                        Text("%").foregroundStyle(.secondary)
+                        Text("%").foregroundStyle(Color.cohSecondary)
                     }
                 } header: { Text(strings.settingsTitle) }
 
                 Section {
                     Text(strings.settingsInterestRateFooter)
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.footnote).foregroundStyle(Color.cohSecondary)
                 }
 
                 if let h = household {
@@ -1877,7 +2068,7 @@ struct HouseholdSetupView: View {
 
                 if household != nil {
                     Section {
-                        Button(role: .destructive) { signOut() } label: {
+                        Button(role: .destructive) { showSignOutConfirm = true } label: {
                             Label(strings.settingsSignOut,
                                   systemImage: "rectangle.portrait.and.arrow.right")
                         }
@@ -1913,6 +2104,11 @@ struct HouseholdSetupView: View {
                 Button(strings.cancel, role: .cancel) {}
             } message: {
                 Text(strings.settingsDeleteLocalMessage)
+            }
+            .confirmationDialog(strings.settingsSignOutTitle,
+                                isPresented: $showSignOutConfirm, titleVisibility: .visible) {
+                Button(strings.settingsSignOut, role: .destructive) { signOut() }
+                Button(strings.cancel, role: .cancel) {}
             }
             .confirmationDialog(strings.settingsDeleteAccountTitle,
                                 isPresented: $showDeleteAccountConfirm, titleVisibility: .visible) {
@@ -1979,15 +2175,17 @@ struct HouseholdSetupView: View {
     }
 
     private func deleteAccount() {
-        if let h = household { modelContext.delete(h) }
-        try? modelContext.save()
-        wasSignedOut = false         // full reset — go to OnboardingView
-        onboardingComplete = false
-        Task {
+        Task { @MainActor in
             do {
+                // Remote first — only wipe local data once the account is
+                // actually gone, otherwise a failed delete would leave the
+                // user signed in with their local data already removed.
                 try await auth.deleteAccount()
+                if let h = household { modelContext.delete(h) }
+                try? modelContext.save()
+                wasSignedOut = false         // full reset — go to OnboardingView
+                onboardingComplete = false
             } catch {
-                // Account deletion failed — user is still signed out locally
                 deleteAccountError = error.localizedDescription
             }
         }
@@ -2327,8 +2525,8 @@ struct AddAssetView: View {
                             Toggle(s.assetIsRegistered, isOn: $isRegistered)
                                 .font(.subheadline)
                             Text(s.assetIsRegisteredHint)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.footnote)
+                                .foregroundStyle(Color.cohSecondary)
                         }
                     }
                 }
@@ -2368,7 +2566,7 @@ struct AddAssetView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label.uppercased())
                 .font(.caption.bold()).tracking(0.5)
-                .foregroundStyle(Color(.secondaryLabel))
+                .foregroundStyle(Color.cohSecondary)
             HStack {
                 if let p = prefix {
                     Text(p).foregroundStyle(Color.cohMuted).font(.body)
@@ -2524,7 +2722,7 @@ struct EditAssetView: View {
 
     private var typePicker: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(strings.assetTypeLabel).font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+            Text(strings.assetTypeLabel).font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(AssetType.allCases, id: \.self) { type in
                     let selected = selectedType == type
@@ -2540,7 +2738,7 @@ struct EditAssetView: View {
                             }
                             Text(type.displayName)
                                 .font(.caption.weight(.semibold))
-                                .foregroundStyle(selected ? type.color : .secondary)
+                                .foregroundStyle(selected ? type.color : Color.cohSecondary)
                         }
                     }
                     .buttonStyle(.plain)
@@ -2597,11 +2795,11 @@ struct EditAssetView: View {
                             .multilineTextAlignment(.trailing)
                             .frame(width: 44)
                             .font(.subheadline.bold().monospacedDigit())
-                        Text("%").foregroundStyle(.secondary).font(.subheadline)
+                        Text("%").foregroundStyle(Color.cohSecondary).font(.subheadline)
                     }
                 }
                 Text(selectedType.ownershipHint)
-                    .font(.caption).foregroundStyle(Color(.tertiaryLabel))
+                    .font(.footnote).foregroundStyle(Color.cohMuted)
             }
         }
     }
@@ -2613,9 +2811,9 @@ struct EditAssetView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(strings.assetEquityContributions)
-                        .font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+                        .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
                     Text(selectedType.contributionSubtitle)
-                        .font(.caption).foregroundStyle(Color(.tertiaryLabel))
+                        .font(.footnote).foregroundStyle(Color.cohMuted)
                 }
                 Spacer()
                 if household.partnerLeft != true {
@@ -2632,7 +2830,7 @@ struct EditAssetView: View {
                     Image(systemName: "tray")
                         .foregroundStyle(Color(.tertiaryLabel))
                     Text(strings.noContribsYet)
-                        .font(.subheadline).foregroundStyle(Color(.tertiaryLabel))
+                        .font(.subheadline).foregroundStyle(Color.cohMuted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 6)
@@ -2681,7 +2879,7 @@ struct EditAssetView: View {
 
     private func formCard<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(.secondary)
+            Text(title).font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
             content()
         }
         .padding(18)
@@ -2696,10 +2894,10 @@ struct EditAssetView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: icon).font(.caption).foregroundStyle(Color.cohGreen)
-                Text(label).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                Text(label).font(.caption.weight(.medium)).foregroundStyle(Color.cohSecondary)
             }
             HStack {
-                if let p = prefix { Text(p).foregroundStyle(.secondary).font(.subheadline) }
+                if let p = prefix { Text(p).foregroundStyle(Color.cohSecondary).font(.subheadline) }
                 TextField(placeholder, text: text)
                     .keyboardType(keyboard).font(.subheadline)
             }
@@ -2721,9 +2919,9 @@ struct EditAssetView: View {
         asset.assetType       = selectedType.rawValue
         asset.label           = label.trimmingCharacters(in: .whitespaces)
         asset.address         = address.trimmingCharacters(in: .whitespaces)
-        asset.currentValue    = Double(valueText.replacingOccurrences(of: ",", with: "")) ?? asset.currentValue
+        asset.currentValue    = valueText.isEmpty ? asset.currentValue : parseExpenseAmount(valueText)
         asset.remainingLoan   = selectedType.showLoan
-            ? (Double(loanText.replacingOccurrences(of: ",", with: "")) ?? 0)
+            ? parseExpenseAmount(loanText)
             : 0
         asset.salesCostFraction = selectedType.defaultSalesCostFraction
         asset.ownershipShareA   = min(1, max(0, (Double(shareAText) ?? 50) / 100))
@@ -2742,9 +2940,17 @@ struct EditAssetView: View {
 
     private func deleteAsset() {
         let id = asset.id
-        modelContext.delete(asset)
-        Task { try? await store.deleteAsset(id) }
-        dismiss()
+        // Delete remotely first; remove the local row only on success,
+        // otherwise the next sync would resurrect the asset.
+        Task { @MainActor in
+            do {
+                try await store.deleteAsset(id)
+                modelContext.delete(asset)
+                dismiss()
+            } catch {
+                print("[Cohab] Delete asset failed: \(error.localizedDescription)")
+            }
+        }
     }
 }
 
@@ -2761,7 +2967,7 @@ struct ContributionRow: View {
                 Text(c.label)
                     .font(.subheadline.weight(.medium))
                 Text(c.date, style: .date)
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Color.cohSecondary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
@@ -2823,7 +3029,7 @@ struct ContribAssetPickerView: View {
                                         .font(.headline).foregroundStyle(Color.cohInk)
                                     if !asset.address.isEmpty {
                                         Text(asset.address)
-                                            .font(.caption).foregroundStyle(.secondary)
+                                            .font(.caption).foregroundStyle(Color.cohSecondary)
                                             .lineLimit(1)
                                     }
                                 }
@@ -2831,10 +3037,10 @@ struct ContribAssetPickerView: View {
                                 VStack(alignment: .trailing, spacing: 2) {
                                     Text("\(Int(asset.ownershipShareA * 100))/\(100 - Int(asset.ownershipShareA * 100))")
                                         .font(.caption.bold().monospacedDigit())
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Color.cohSecondary)
                                     Text(household.currencySymbol + "\(Int(asset.currentValue).formatted())")
                                         .font(.caption.monospacedDigit())
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Color.cohSecondary)
                                 }
                                 Image(systemName: "chevron.right")
                                     .font(.caption.bold())
@@ -2992,7 +3198,7 @@ struct AddContributionView: View {
                                     }
                                     Text(cat.label)
                                         .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(selected ? Color.cohGreen : .secondary)
+                                        .foregroundStyle(selected ? Color.cohGreen : Color.cohSecondary)
                                 }
                                 .frame(maxWidth: .infinity)
                             }
@@ -3009,10 +3215,10 @@ struct AddContributionView: View {
                                 HStack(spacing: 6) {
                                     Circle().fill(Color.cohGreen).frame(width: 8, height: 8)
                                     Text(household.partnerAName)
-                                        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                                        .font(.caption.weight(.medium)).foregroundStyle(Color.cohSecondary)
                                 }
                                 Spacer()
-                                Text(household.currencySymbol).foregroundStyle(.secondary).font(.subheadline)
+                                Text(household.currencySymbol).foregroundStyle(Color.cohSecondary).font(.subheadline)
                                 TextField("0", text: $amountText).keyboardType(.decimalPad)
                                     .multilineTextAlignment(.trailing)
                                     .frame(width: 100)
@@ -3022,10 +3228,10 @@ struct AddContributionView: View {
                                 HStack(spacing: 6) {
                                     Circle().fill(Color(red: 0.20, green: 0.49, blue: 0.96)).frame(width: 8, height: 8)
                                     Text(household.partnerBName)
-                                        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                                        .font(.caption.weight(.medium)).foregroundStyle(Color.cohSecondary)
                                 }
                                 Spacer()
-                                Text(household.currencySymbol).foregroundStyle(.secondary).font(.subheadline)
+                                Text(household.currencySymbol).foregroundStyle(Color.cohSecondary).font(.subheadline)
                                 TextField("0", text: $amountTextB).keyboardType(.decimalPad)
                                     .multilineTextAlignment(.trailing)
                                     .frame(width: 100)
@@ -3034,7 +3240,7 @@ struct AddContributionView: View {
                         .padding(.vertical, 4)
                     } else {
                         HStack {
-                            Text(household.currencySymbol).foregroundStyle(.secondary)
+                            Text(household.currencySymbol).foregroundStyle(Color.cohSecondary)
                             TextField(strings.contribAmountPlaceholder, text: $amountText).keyboardType(.decimalPad)
                         }
                     }

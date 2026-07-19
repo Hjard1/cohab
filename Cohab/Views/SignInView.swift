@@ -78,14 +78,19 @@ struct SignInView: View {
 
                     // Bottom action
                     if households.isEmpty {
-                        Button { dismiss() } label: {
-                            Text(strings.signInBackToSignUp)
-                                .font(.subheadline)
-                                .foregroundStyle(Color.cohMuted)
-                                .padding(.vertical, 8)
-                                .frame(maxWidth: .infinity)
+                        // Only meaningful as a sheet — as the root view (after
+                        // sign-out or in the invite flow) dismiss() is a no-op,
+                        // so the button is hidden rather than dead.
+                        if presentedAsSheet {
+                            Button { dismiss() } label: {
+                                Text(strings.signInBackToSignUp)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Color.cohMuted)
+                                    .padding(.vertical, 8)
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .padding(.bottom, 40)
                         }
-                        .padding(.bottom, 40)
                     } else if !presentedAsSheet {
                         // Shown as root after logout — offer clean slate
                         Button { showResetConfirm = true } label: {
@@ -114,7 +119,9 @@ struct SignInView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if households.isEmpty || presentedAsSheet {
+                // Close button only as a sheet — as the root view dismiss()
+                // is a no-op that would leave the user stuck.
+                if presentedAsSheet {
                     ToolbarItem(placement: .topBarLeading) {
                         Button { dismiss() } label: {
                             Image(systemName: "xmark")

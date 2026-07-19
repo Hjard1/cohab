@@ -11,6 +11,7 @@ struct DocuSealSubmission: Codable {
 
 enum DocuSealError: LocalizedError {
     case missingEmail
+    case monthlyLimit
     case httpError(Int, String)
     case decodingError(String)
 
@@ -18,6 +19,8 @@ enum DocuSealError: LocalizedError {
         switch self {
         case .missingEmail:
             return "Both partners need an email address to receive signing links."
+        case .monthlyLimit:
+            return "DocuSeal includes 10 free signings per month. The limit resets on the 1st."
         case .httpError(let code, let msg):
             return "Server error \(code): \(msg)"
         case .decodingError(let msg):
@@ -101,6 +104,9 @@ enum DocuSealService {
 
         if let http = response as? HTTPURLResponse, http.statusCode != 200 {
             let msg = String(data: data, encoding: .utf8) ?? "Unknown error"
+            if http.statusCode == 429, msg.contains("DOCUSEAL_MONTHLY_LIMIT") {
+                throw DocuSealError.monthlyLimit
+            }
             throw DocuSealError.httpError(http.statusCode, msg)
         }
 

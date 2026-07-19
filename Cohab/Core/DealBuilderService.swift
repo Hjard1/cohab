@@ -1,0 +1,204 @@
+import Foundation
+
+// MARK: - Types
+
+struct DealBuilderCase: Codable {
+    let documentId: String
+    let appUrl: String
+    let previewUrl: String
+}
+
+enum DealBuilderError: LocalizedError {
+    case missingEmail
+    case creditsExhausted
+    case httpError(Int, String)
+    case decodingError(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .missingEmail:
+            return "Both partners need an email address to receive signing links."
+        case .creditsExhausted:
+            return "The included BankID signing is used. Purchase an extra signing to continue."
+        case .httpError(let code, let msg):
+            return "Server error \(code): \(msg)"
+        case .decodingError(let msg):
+            return "Unexpected response from server: \(msg)"
+        }
+    }
+}
+
+// MARK: - Service
+
+/// BankID signing via DealBuilder. Signing links are emailed to both
+/// partners; the signing itself happens in their browser with BankID —
+/// nothing native is required in the app.
+enum DealBuilderService {
+    /// Countries where BankID signing is offered. The DealBuilder template
+    /// is configured for Norwegian BankID (same account as Samboappen).
+    /// Extend this set if the DealBuilder account adds templates for other
+    /// eIDs (Swedish BankID, MitID, Finnish Trust Network, ...).
+    static let supportedCountries: Set<String> = ["NO"]
+
+    static func isSupported(country: String) -> Bool {
+        supportedCountries.contains(country)
+    }
+
+    /// Actively polls the DealBuilder status via the Edge Function (which
+    /// also updates cohab_dealbuilder_cases). Returns true when signed.
+    @MainActor
+    static func checkSigned(household: Household) async -> Bool {
+        let body: [String: Any] = ["household_id": household.id.uuidString]
+        var req = URLRequest(url: APIConfig.dealBuilderStatusURL)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(APIConfig.supabaseKey)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        req.timeoutInterval = 15
+
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let completed = json["is_completed"] as? Bool else { return false }
+
+        if completed {
+            household.agreementStatus = "signed"
+            if household.signedAt == nil { household.signedAt = Date() }
+            return true
+        }
+        return false
+    }
+
+    /// The household's current (non-superseded) signing case, if any —
+    /// used to restore the "waiting for signatures" UI state after relaunch.
+    @MainActor
+    static func currentCase(household: Household) async -> DealBuilderCase? {
+        let urlStr = "\(APIConfig.supabaseURL)/rest/v1/cohab_dealbuilder_cases"
+            + "?household_id=eq.\(household.id.uuidString)&is_current=eq.true"
+            + "&select=document_id,app_url,preview_url&limit=1"
+        guard let url = URL(string: urlStr) else { return nil }
+
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(APIConfig.supabaseKey)", forHTTPHeaderField: "Authorization")
+        req.setValue(APIConfig.supabaseKey,             forHTTPHeaderField: "apikey")
+        req.timeoutInterval = 8
+
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              let row = rows.first,
+              let documentId = row["document_id"] as? String else { return nil }
+
+        return DealBuilderCase(
+            documentId: documentId,
+            appUrl: row["app_url"] as? String ?? "",
+            previewUrl: row["preview_url"] as? String ?? ""
+        )
+    }
+
+    /// Grants one extra BankID signing credit after a verified StoreKit
+    /// purchase of `com.hjard.cohab.bankid_extra`.
+    @MainActor
+    static func addExtraCredit(household: Household) async {
+        let urlStr = "\(APIConfig.supabaseURL)/rest/v1/rpc/cohab_add_bankid_credit"
+        guard let url = URL(string: urlStr) else { return }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(APIConfig.supabaseKey)", forHTTPHeaderField: "Authorization")
+        req.setValue(APIConfig.supabaseKey,             forHTTPHeaderField: "apikey")
+        req.setValue("application/json",                forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(
+            withJSONObject: ["p_household_id": household.id.uuidString])
+        req.timeoutInterval = 10
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
+    /// Number of purchased but unused extra BankID signings.
+    @MainActor
+    static func extraCredits(household: Household) async -> Int {
+        let urlStr = "\(APIConfig.supabaseURL)/rest/v1/cohab_household_credits"
+            + "?household_id=eq.\(household.id.uuidString)&select=bankid_extra_credits&limit=1"
+        guard let url = URL(string: urlStr) else { return 0 }
+
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(APIConfig.supabaseKey)", forHTTPHeaderField: "Authorization")
+        req.setValue(APIConfig.supabaseKey,             forHTTPHeaderField: "apikey")
+        req.timeoutInterval = 8
+
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              let credits = rows.first?["bankid_extra_credits"] as? Int else { return 0 }
+        return credits
+    }
+
+    /// Supersedes the household's current case (used when the agreement
+    /// data changes and the old signing case should no longer count).
+    @MainActor
+    static func reset(household: Household) async {
+        let urlStr = "\(APIConfig.supabaseURL)/rest/v1/cohab_dealbuilder_cases"
+            + "?household_id=eq.\(household.id.uuidString)&is_current=eq.true"
+        guard let url = URL(string: urlStr) else { return }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("Bearer \(APIConfig.supabaseKey)", forHTTPHeaderField: "Authorization")
+        req.setValue(APIConfig.supabaseKey,             forHTTPHeaderField: "apikey")
+        req.setValue("application/json",                forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["is_current": false])
+        req.timeoutInterval = 8
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
+    /// Generates the agreement PDF, creates a DealBuilder signing case via
+    /// the Edge Function, and updates the household's agreementStatus.
+    @MainActor
+    static func submit(household: Household) async throws -> DealBuilderCase {
+        let emailA = household.emailA.trimmingCharacters(in: .whitespacesAndNewlines)
+        let emailB = household.emailB.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard DocuSealService.isValidEmail(emailA), DocuSealService.isValidEmail(emailB) else {
+            throw DealBuilderError.missingEmail
+        }
+
+        let output = ContractGenerator.generate(household: household)
+
+        let body: [String: Any] = [
+            "pdf_base64":   output.pdfData.base64EncodedString(),
+            "name_a":       household.partnerAName,
+            "email_a":      emailA,
+            "name_b":       household.partnerBName,
+            "email_b":      emailB,
+            "household_id": household.id.uuidString,
+            "title": "\(household.partnerAName) & \(household.partnerBName) — Cohabitation Agreement"
+        ]
+
+        var request = URLRequest(url: APIConfig.dealBuilderSubmitURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json",        forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(APIConfig.supabaseKey)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+            let msg = String(data: data, encoding: .utf8) ?? "Unknown error"
+            if http.statusCode == 402, msg.contains("BANKID_CREDITS_EXHAUSTED") {
+                throw DealBuilderError.creditsExhausted
+            }
+            throw DealBuilderError.httpError(http.statusCode, msg)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        do {
+            let result = try decoder.decode(DealBuilderCase.self, from: data)
+            household.agreementStatus    = "pending"
+            // Snapshot all agreement-relevant data so any change triggers an update prompt
+            household.signedAssetCount   = household.assets.count
+            household.signedContribCount = household.assets.reduce(0) { $0 + $1.contributions.count }
+            household.signedDataSnapshot = household.currentDataSnapshot
+            return result
+        } catch {
+            throw DealBuilderError.decodingError(error.localizedDescription)
+        }
+    }
+}

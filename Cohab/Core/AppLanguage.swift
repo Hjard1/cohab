@@ -1063,6 +1063,16 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
         fr: "Fermer",
         es: "Cerrar") }
 
+    var disclaimerSaveFailed: String { s(
+        en: "Could not save. Check your connection and try again.",
+        nb: "Kunne ikke lagre. Sjekk tilkoblingen din og prøv igjen.",
+        sv: "Kunde inte spara. Kontrollera din anslutning och försök igen.",
+        da: "Kunne ikke gemme. Tjek din forbindelse og prøv igen.",
+        fi: "Tallennus epäonnistui. Tarkista yhteytesi ja yritä uudelleen.",
+        de: "Speichern fehlgeschlagen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        fr: "Enregistrement impossible. Vérifiez votre connexion et réessayez.",
+        es: "No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.") }
+
     // MARK: Navigation tabs
 
     var tabHome: String       { s(en: "Overview",    nb: "Oversikt",      sv: "Översikt",      da: "Oversigt",      fi: "Yhteenveto",    de: "Übersicht",     fr: "Aperçu",         es: "Resumen") }
@@ -1375,6 +1385,55 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
         de: "Sowohl \(a) als auch \(b) haben unterschrieben. Ihre Vereinbarung ist nun abgeschlossen.",
         fr: "\(a) et \(b) ont tous deux signé. Votre convention est maintenant complète.",
         es: "Tanto \(a) como \(b) han firmado. Tu contrato ya está completo.") }
+
+    // MARK: Signing method (DocuSeal vs BankID)
+    var signingMethodTitle: String { s(en: "SIGNING METHOD", nb: "SIGNERINGSMETODE", sv: "SIGNERINGSMETOD", da: "UNDERSKRIFTSMETODE", fi: "ALLEKIRJOITUSTAPA", de: "SIGNIERMETHODE", fr: "MÉTHODE DE SIGNATURE", es: "MÉTODO DE FIRMA") }
+    var signingMethodDocuSeal: String { s(en: "E-signature (DocuSeal)", nb: "E-signatur (DocuSeal)", sv: "E-signatur (DocuSeal)", da: "E-underskrift (DocuSeal)", fi: "Sähköinen allekirjoitus (DocuSeal)", de: "E-Signatur (DocuSeal)", fr: "Signature électronique (DocuSeal)", es: "Firma electrónica (DocuSeal)") }
+    var signingMethodDocuSealInfo: String { s(en: "Free — up to 10 signings per month", nb: "Gratis — opptil 10 signeringer per måned", sv: "Gratis — upp till 10 signeringar per månad", da: "Gratis — op til 10 underskrifter pr. måned", fi: "Ilmainen — enintään 10 allekirjoitusta kuukaudessa", de: "Kostenlos — bis zu 10 Signierungen pro Monat", fr: "Gratuit — jusqu'à 10 signatures par mois", es: "Gratis — hasta 10 firmas al mes") }
+    var signingMethodBankID: String { s(en: "Sign with BankID", nb: "Signer med BankID", sv: "Signera med BankID", da: "Underskriv med BankID", fi: "Allekirjoita BankID:llä", de: "Mit BankID unterschreiben", fr: "Signer avec BankID", es: "Firmar con BankID") }
+    func signingMethodBankIDInfo(_ price: String) -> String { s(
+        en: "1 signing included — then \(price) per signing",
+        nb: "1 signering inkludert — deretter \(price) per signering",
+        sv: "1 signering ingår — sedan \(price) per signering",
+        da: "1 underskrift inkluderet — derefter \(price) pr. underskrift",
+        fi: "1 allekirjoitus sisältyy — sen jälkeen \(price) per allekirjoitus",
+        de: "1 Signierung inklusive — danach \(price) pro Signierung",
+        fr: "1 signature incluse — puis \(price) par signature",
+        es: "1 firma incluida — luego \(price) por firma") }
+    var bankIDCheckEmailTitle: String { s(en: "Check your email", nb: "Sjekk e-posten din", sv: "Kolla din e-post", da: "Tjek din e-mail", fi: "Tarkista sähköpostisi", de: "Prüfen Sie Ihre E-Mails", fr: "Vérifiez vos e-mails", es: "Revisa tu correo") }
+    func bankIDCheckEmailBody(_ partner: String) -> String { s(
+        en: "We've sent a signing link to you and \(partner). Sign with BankID in your browser — it only takes a minute.",
+        nb: "Vi har sendt en signeringslenke til deg og \(partner). Signer med BankID i nettleseren — det tar bare et minutt.",
+        sv: "Vi har skickat en signeringslänk till dig och \(partner). Signera med BankID i webbläsaren — det tar bara en minut.",
+        da: "Vi har sendt et signeringslink til dig og \(partner). Underskriv med BankID i browseren — det tager kun et minut.",
+        fi: "Olemme lähettäneet allekirjoituslinkin sinulle ja \(partner). Allekirjoita BankID:llä selaimessa — se vie vain minuutin.",
+        de: "Wir haben Ihnen und \(partner) einen Signierlink gesendet. Unterschreiben Sie mit BankID im Browser — es dauert nur eine Minute.",
+        fr: "Nous avons envoyé un lien de signature à vous et \(partner). Signez avec BankID dans votre navigateur — cela ne prend qu'une minute.",
+        es: "Hemos enviado un enlace de firma a ti y a \(partner). Firma con BankID en tu navegador — solo toma un minuto.") }
+    var bankIDOpenSigningLink: String { s(en: "Open signing link", nb: "Åpne signeringslenke", sv: "Öppna signeringslänk", da: "Åbn signeringslink", fi: "Avaa allekirjoituslinkki", de: "Signierlink öffnen", fr: "Ouvrir le lien de signature", es: "Abrir enlace de firma") }
+    var bankIDCheckStatus: String { s(en: "Check status", nb: "Sjekk status", sv: "Kontrollera status", da: "Tjek status", fi: "Tarkista tila", de: "Status prüfen", fr: "Vérifier le statut", es: "Comprobar estado") }
+    var bankIDWaitingForBoth: String { s(en: "Waiting for both signatures…", nb: "Venter på begge signaturer…", sv: "Väntar på bådas signaturer…", da: "Venter på begges underskrifter…", fi: "Odotetaan molempien allekirjoituksia…", de: "Warten auf beide Unterschriften…", fr: "En attente des deux signatures…", es: "Esperando ambas firmas…") }
+    var bankIDLimitTitle: String { s(en: "Extra BankID signing", nb: "Ekstra BankID-signering", sv: "Extra BankID-signering", da: "Ekstra BankID-underskrift", fi: "Ylimääräinen BankID-allekirjoitus", de: "Zusätzliche BankID-Signierung", fr: "Signature BankID supplémentaire", es: "Firma BankID adicional") }
+    func bankIDLimitBody(_ price: String) -> String { s(
+        en: "Your included BankID signing is used. Buy an extra signing for \(price) to continue.",
+        nb: "Den inkluderte BankID-signeringen er brukt. Kjøp en ekstra signering for \(price) for å fortsette.",
+        sv: "Din inkluderade BankID-signering är använd. Köp en extra signering för \(price) för att fortsätta.",
+        da: "Din inkluderede BankID-underskrift er brugt. Køb en ekstra underskrift for \(price) for at fortsætte.",
+        fi: "Mukana oleva BankID-allekirjoituksesi on käytetty. Osta ylimääräinen allekirjoitus hintaan \(price) jatkaaksesi.",
+        de: "Ihre inklusive BankID-Signierung wurde verwendet. Kaufen Sie eine zusätzliche Signierung für \(price), um fortzufahren.",
+        fr: "Votre signature BankID incluse a été utilisée. Achetez une signature supplémentaire pour \(price) pour continuer.",
+        es: "Tu firma BankID incluida ha sido usada. Compra una firma adicional por \(price) para continuar.") }
+    func bankIDBuyExtra(_ price: String) -> String { s(
+        en: "Buy extra signing — \(price)",
+        nb: "Kjøp ekstra signering — \(price)",
+        sv: "Köp extra signering — \(price)",
+        da: "Køb ekstra underskrift — \(price)",
+        fi: "Osta ylimääräinen allekirjoitus — \(price)",
+        de: "Zusätzliche Signierung kaufen — \(price)",
+        fr: "Acheter une signature supplémentaire — \(price)",
+        es: "Comprar firma adicional — \(price)") }
+    var bankIDPurchaseFailed: String { s(en: "The purchase could not be completed. Please try again.", nb: "Kjøpet kunne ikke fullføres. Prøv igjen.", sv: "Köpet kunde inte slutföras. Försök igen.", da: "Købet kunne ikke gennemføres. Prøv igen.", fi: "Ostoa ei voitu suorittaa. Yritä uudelleen.", de: "Der Kauf konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.", fr: "L'achat n'a pas pu être finalisé. Veuillez réessayer.", es: "No se pudo completar la compra. Inténtalo de nuevo.") }
+    var docuSealMonthlyLimit: String { s(en: "The 10 free DocuSeal signings this month are used. Try again next month, or sign with BankID.", nb: "De 10 gratis DocuSeal-signeringene denne måneden er brukt. Prøv igjen neste måned, eller signer med BankID.", sv: "De 10 gratis DocuSeal-signeringarna denna månad är förbrukade. Försök igen nästa månad, eller signera med BankID.", da: "De 10 gratis DocuSeal-underskrifter denne måned er brugt. Prøv igen næste måned, eller underskriv med BankID.", fi: "Tämän kuun 10 ilmaista DocuSeal-allekirjoitusta on käytetty. Yritä ensi kuussa uudelleen tai allekirjoita BankID:llä.", de: "Die 10 kostenlosen DocuSeal-Signierungen dieses Monats sind aufgebraucht. Versuchen Sie es nächsten Monat erneut oder unterschreiben Sie mit BankID.", fr: "Les 10 signatures DocuSeal gratuites de ce mois sont épuisées. Réessayez le mois prochain ou signez avec BankID.", es: "Las 10 firmas DocuSeal gratuitas de este mes se han agotado. Inténtalo el próximo mes o firma con BankID.") }
 
     var agreementNeedUpdate: String { s(en: "Need to update?", nb: "Trenger du å oppdatere?", sv: "Behöver du uppdatera?", da: "Skal du opdatere?", fi: "Tarvitsetko päivityksen?", de: "Aktualisierung erforderlich?", fr: "Besoin de mettre à jour?", es: "¿Necesitas actualizar?") }
     var agreementNeedUpdateSub: String { s(en: "Generate a new agreement above — both parties will need to sign again.", nb: "Generer en ny avtale ovenfor — begge parter må signere på nytt.", sv: "Generera ett nytt avtal ovan — båda parter måste underteckna igen.", da: "Generér en ny aftale ovenfor — begge parter skal underskrive igen.", fi: "Luo uusi sopimus yllä — molempien osapuolten on allekirjoitettava uudelleen.", de: "Oben eine neue Vereinbarung erstellen — beide Parteien müssen erneut unterzeichnen.", fr: "Générez un nouvel accord ci-dessus — les deux parties devront signer à nouveau.", es: "Genera un nuevo acuerdo arriba — ambas partes deberán firmar de nuevo.") }
@@ -2759,6 +2818,7 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
     var settingsExportCSV: String { s(en: "Export to Excel / CSV", nb: "Eksporter til Excel / CSV", sv: "Exportera till Excel / CSV", da: "Eksportér til Excel / CSV", fi: "Vie Exceliin / CSV", de: "Nach Excel / CSV exportieren", fr: "Exporter vers Excel / CSV", es: "Exportar a Excel / CSV") }
     var settingsExportFooter: String { s(en: "Exports all assets, contributions and expenses as a .csv file (Excel, Numbers, Google Sheets).", nb: "Eksporterer alle eiendeler, bidrag og utgifter som en .csv-fil (Excel, Numbers, Google Sheets).", sv: "Exporterar alla tillgångar, bidrag och utgifter som en .csv-fil (Excel, Numbers, Google Sheets).", da: "Eksporterer alle aktiver, bidrag og udgifter som en .csv-fil (Excel, Numbers, Google Sheets).", fi: "Vie kaikki varat, maksut ja kulut .csv-tiedostona (Excel, Numbers, Google Sheets).", de: "Exportiert alle Vermögenswerte, Beiträge und Ausgaben als .csv-Datei (Excel, Numbers, Google Sheets).", fr: "Exporte tous les actifs, contributions et dépenses dans un fichier .csv (Excel, Numbers, Google Sheets).", es: "Exporta todos los activos, aportaciones y gastos como archivo .csv (Excel, Numbers, Google Sheets).") }
     var settingsSignOut: String { s(en: "Sign out", nb: "Logg ut", sv: "Logga ut", da: "Log ud", fi: "Kirjaudu ulos", de: "Abmelden", fr: "Se déconnecter", es: "Cerrar sesión") }
+    var settingsSignOutTitle: String { s(en: "Sign out?", nb: "Logge ut?", sv: "Logga ut?", da: "Log ud?", fi: "Kirjaudutaanko ulos?", de: "Abmelden?", fr: "Se déconnecter ?", es: "¿Cerrar sesión?") }
     var settingsDeleteLocal: String { s(en: "Delete all local data", nb: "Slett alle lokale data", sv: "Radera all lokal data", da: "Slet alle lokale data", fi: "Poista kaikki paikalliset tiedot", de: "Alle lokalen Daten löschen", fr: "Supprimer toutes les données locales", es: "Eliminar todos los datos locales") }
     var settingsDeleteAccount: String { s(en: "Delete account", nb: "Slett konto", sv: "Ta bort konto", da: "Slet konto", fi: "Poista tili", de: "Konto löschen", fr: "Supprimer le compte", es: "Eliminar cuenta") }
     var settingsDeleteAccountFooter: String { s(en: "\"Delete account\" permanently removes your account and all data from our servers. This cannot be undone.", nb: "«Slett konto» sletter kontoen din og alle data fra serverne våre permanent. Dette kan ikke angres.", sv: "”Ta bort konto” tar permanent bort ditt konto och all data från våra servrar. Detta kan inte ångras.", da: "»Slet konto« sletter din konto og alle data fra vores servere permanent. Dette kan ikke fortrydes.", fi: "”Poista tili” poistaa tilisi ja kaikki tiedot palvelimiltamme pysyvästi. Tätä ei voi peruuttaa.", de: "„Konto löschen“ entfernt Ihr Konto und alle Daten dauerhaft von unseren Servern. Dies kann nicht rückgängig gemacht werden.", fr: "« Supprimer le compte » supprime définitivement votre compte et toutes vos données de nos serveurs. Cette action est irréversible.", es: "«Eliminar cuenta» elimina permanentemente tu cuenta y todos los datos de nuestros servidores. Esto no se puede deshacer.") }

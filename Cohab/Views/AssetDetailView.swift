@@ -9,6 +9,7 @@ struct AssetDetailView: View {
     @State private var showSettlement = false
     @State private var editingOwnership = false
     @Environment(\.modelContext) private var modelContext
+    @Environment(HouseholdStore.self) private var store
     @ObservedObject private var strings = AppStrings.shared
 
     private var netEquity: Double { asset.currentValue - asset.remainingLoan }
@@ -147,7 +148,7 @@ struct AssetDetailView: View {
                 VStack(spacing: 3) {
                     Text(strings.assetOwnership)
                         .font(.caption2.bold()).tracking(1)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.cohSecondary)
                     Text("\(Int(asset.ownershipShareA * 100))%")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.cohInk)
@@ -200,6 +201,23 @@ struct AssetDetailView: View {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                             editingOwnership = false
                         }
+                        // Persist remotely too — the slider only wrote to local
+                        // SwiftData, so the partner never saw the change and the
+                        // next sync overwrote it.
+                        let id = asset.id
+                        let type = asset.assetType, lbl = asset.label, addr = asset.address
+                        let val = asset.currentValue, loan = asset.remainingLoan
+                        let salesCost = asset.salesCostFraction, share = asset.ownershipShareA
+                        Task { @MainActor in
+                            do {
+                                try await store.updateAsset(
+                                    id, assetType: type, label: lbl, address: addr,
+                                    currentValue: val, remainingLoan: loan,
+                                    salesCostFraction: salesCost, ownershipShareA: share)
+                            } catch {
+                                print("[Cohab] Ownership update failed: \(error.localizedDescription)")
+                            }
+                        }
                     } label: {
                         Text(strings.save)
                             .font(.subheadline.weight(.semibold))
@@ -223,7 +241,7 @@ struct AssetDetailView: View {
         VStack(spacing: 4) {
             HStack(spacing: 6) {
                 Circle().fill(color).frame(width: 8, height: 8)
-                Text(name).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(name).font(.caption).foregroundStyle(Color.cohSecondary).lineLimit(1)
             }
             Text("\(Int(share * 100))%")
                 .font(.title3.bold()).foregroundStyle(Color.cohInk)
@@ -237,11 +255,11 @@ struct AssetDetailView: View {
         return VStack(alignment: .leading, spacing: 14) {
             Text(strings.assetNetEquity)
                 .font(.caption.bold()).tracking(0.5)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.cohSecondary)
 
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(household.currencySymbol)
-                    .font(.title3.bold()).foregroundStyle(.secondary)
+                    .font(.title3.bold()).foregroundStyle(Color.cohSecondary)
                 Text("\(Int(netEquity).formatted())")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.cohInk)
@@ -261,8 +279,8 @@ struct AssetDetailView: View {
                 Text(shortfall
                      ? strings.settlementShortfallInline
                      : strings.dashboardContribFirst)
-                    .font(.caption2)
-                    .foregroundStyle(shortfall ? Color.orange : Color(.tertiaryLabel))
+                    .font(.caption)
+                    .foregroundStyle(shortfall ? Color.orange : Color.cohMuted)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -275,7 +293,7 @@ struct AssetDetailView: View {
     private func equityRow(name: String, amount: Double, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(name)
-                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .font(.caption).foregroundStyle(Color.cohSecondary).lineLimit(1)
             HStack(spacing: 3) {
                 Circle().fill(color).frame(width: 7, height: 7)
                 Text("\(household.currencySymbol)\(Int(amount).formatted())")
@@ -293,7 +311,7 @@ struct AssetDetailView: View {
 
             if asset.contributions.isEmpty {
                 Text(strings.assetNoContribs)
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.subheadline).foregroundStyle(Color.cohSecondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 20)
             } else {
@@ -312,7 +330,7 @@ struct AssetDetailView: View {
                                     .font(.subheadline.weight(.medium))
                                     .foregroundStyle(Color.cohInk)
                                 Text(contrib.date.formatted(date: .abbreviated, time: .omitted))
-                                    .font(.caption).foregroundStyle(.secondary)
+                                    .font(.caption).foregroundStyle(Color.cohSecondary)
                             }
                             Spacer()
                             Text("\(household.currencySymbol)\(Int(contrib.amount).formatted())")
