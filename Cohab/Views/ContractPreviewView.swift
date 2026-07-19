@@ -27,6 +27,14 @@ struct ContractPreviewView: View {
                         .padding(.top, 20)
                         .padding(.bottom, 20)
 
+                    // Teaser — first asset + first contribution, visible
+                    // before purchase so users see their own data.
+                    if !pm.hasFormalAccess, hasTeaser {
+                        teaserCard
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 20)
+                    }
+
                     // Sections — first N clear, rest blurred
                     ZStack(alignment: .bottom) {
                         VStack(alignment: .leading, spacing: 0) {
@@ -128,6 +136,50 @@ struct ContractPreviewView: View {
                     .font(.caption.weight(.medium)).foregroundStyle(Color.cohSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    // MARK: Teaser (first asset + first contribution, pre-purchase)
+
+    private var firstAsset: Asset? { household.assets.first }
+    private var firstContribution: ContributionRecord? {
+        household.assets.flatMap { $0.contributions }.first
+    }
+    private var hasTeaser: Bool { firstAsset != nil || firstContribution != nil }
+
+    private var teaserCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(strings.contractTeaserTitle.uppercased())
+                .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
+
+            if let a = firstAsset {
+                teaserRow(icon: a.type.icon, color: a.type.color,
+                          text: a.label,
+                          value: household.currencySymbol + Int(a.currentValue).formatted())
+            }
+            if let c = firstContribution {
+                let ownerColor = c.ownerKey == "A" ? Color.cohGreen : Color.cohBlue
+                teaserRow(icon: "banknote", color: ownerColor,
+                          text: c.label.isEmpty ? c.category.capitalized : c.label,
+                          value: household.currencySymbol + Int(c.amount).formatted())
+            }
+
+            Text(strings.contractTeaserFooter)
+                .font(.footnote).foregroundStyle(Color.cohMuted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+    }
+
+    private func teaserRow(icon: String, color: Color, text: String, value: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).font(.subheadline).foregroundStyle(color).frame(width: 20)
+            Text(text).font(.subheadline).foregroundStyle(Color.cohInk).lineLimit(1)
+            Spacer()
+            Text(value).font(.subheadline.monospacedDigit()).foregroundStyle(Color.cohInk)
         }
     }
 
