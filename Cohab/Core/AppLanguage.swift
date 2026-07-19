@@ -2116,14 +2116,34 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
         es: "\(who) restante") }
 
     var budgetOverviewTitle: String { s(
-        en: "MONTHLY BUDGET",
-        nb: "MÅNEDSBUDSJETT",
-        sv: "MÅNADSBUDGET",
-        da: "MÅNEDSBUDGET",
-        fi: "KUUKAUSIBUDJETTI",
-        de: "MONATSBUDGET",
-        fr: "BUDGET MENSUEL",
-        es: "PRESUPUESTO MENSUAL") }
+        en: "Monthly budget",
+        nb: "Månedsbudsjett",
+        sv: "Månadsbudget",
+        da: "Månedsbudget",
+        fi: "Kuukausibudjetti",
+        de: "Monatsbudget",
+        fr: "Budget mensuel",
+        es: "Presupuesto mensual") }
+
+    var budgetHideFromOverview: String { s(
+        en: "Hide from Overview",
+        nb: "Skjul fra Oversikt",
+        sv: "Dölj från Översikt",
+        da: "Skjul fra Oversigt",
+        fi: "Piilota Yleiskatsauksesta",
+        de: "In Übersicht ausblenden",
+        fr: "Masquer de l'Aperçu",
+        es: "Ocultar de Resumen") }
+
+    var budgetShowOnOverview: String { s(
+        en: "Show on Overview",
+        nb: "Vis på Oversikt",
+        sv: "Visa på Översikt",
+        da: "Vis på Oversigt",
+        fi: "Näytä Yleiskatsauksessa",
+        de: "In Übersicht anzeigen",
+        fr: "Afficher dans l'Aperçu",
+        es: "Mostrar en Resumen") }
 
     func budgetTransfer(_ from: String, _ amount: String, _ to: String) -> String { s(
         en: "\(from) transfers \(amount) to \(to) each month",

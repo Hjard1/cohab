@@ -215,7 +215,7 @@ enum SupabaseService {
         householdId: UUID,
         incomeA: Double, incomeB: Double, totalExpenses: Double,
         splitA: Double, paysA: Double, paysB: Double,
-        netTransfer: Double, savedAt: Date
+        netTransfer: Double, savedAt: Date, hidden: Bool
     ) async throws {
         struct Update: Encodable {
             let budget_income_a: Double
@@ -226,6 +226,7 @@ enum SupabaseService {
             let budget_pays_b: Double
             let budget_net_transfer: Double
             let budget_saved_at: String
+            let budget_hidden: Bool
         }
         let iso = ISO8601DateFormatter()
         try await supabase
@@ -235,7 +236,8 @@ enum SupabaseService {
                 budget_total_expenses: totalExpenses, budget_split_a: splitA,
                 budget_pays_a: paysA, budget_pays_b: paysB,
                 budget_net_transfer: netTransfer,
-                budget_saved_at: iso.string(from: savedAt)))
+                budget_saved_at: iso.string(from: savedAt),
+                budget_hidden: hidden))
             .eq("id", value: householdId.uuidString)
             .execute()
     }

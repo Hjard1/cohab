@@ -65,7 +65,7 @@ struct DashboardView: View {
                                 }
 
                                 assetsList(h).padding(.top, 20)
-                                if h.hasBudget {
+                                if h.hasBudget && !h.budgetHidden {
                                     // Budget is its own section — same header
                                     // style as "Eiendeler" so it doesn't read
                                     // as part of the assets list.

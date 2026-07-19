@@ -119,6 +119,25 @@ struct ExpenseSplitView: View {
         .background(Color.cohBg.ignoresSafeArea())
         .navigationTitle(strings.calcExpenseTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // Hide/show the budget card on the dashboard — synced, so it
+            // applies to both partners. Only relevant when a budget exists.
+            if !isReadOnly, let h = household, h.hasBudget {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            toggleBudgetHidden()
+                        } label: {
+                            Label(h.budgetHidden ? strings.budgetShowOnOverview : strings.budgetHideFromOverview,
+                                  systemImage: h.budgetHidden ? "eye" : "eye.slash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundStyle(Color.cohInk)
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showAdd) {
             AddExpenseSheet(nameA: nameA, nameB: nameB, symbol: symbol) { label, amount, paidBy, splitA, recurring in
                 Task {
@@ -507,6 +526,25 @@ struct ExpenseSplitView: View {
 
     // MARK: Helpers
 
+    /// Toggles the dashboard visibility of the budget card and pushes the
+    /// flag to Supabase so the partner's dashboard matches.
+    private func toggleBudgetHidden() {
+        guard let h = household else { return }
+        h.budgetHidden.toggle()
+        try? modelContext.save()
+        guard h.hasBudget, let savedAt = h.budgetSavedAt else { return }
+        Task {
+            try? await SupabaseService.updateHouseholdBudget(
+                householdId: h.id,
+                incomeA: h.budgetIncomeA, incomeB: h.budgetIncomeB,
+                totalExpenses: h.budgetTotalExpenses, splitA: h.budgetSplitA,
+                paysA: h.budgetPaysA, paysB: h.budgetPaysB,
+                netTransfer: h.budgetNetTransfer, savedAt: savedAt,
+                hidden: h.budgetHidden
+            )
+        }
+    }
+
     private func saveToOverview() {
         guard let h = household else { return }
         let t = totals
@@ -528,7 +566,8 @@ struct ExpenseSplitView: View {
                 householdId: h.id,
                 incomeA: iA, incomeB: iB, totalExpenses: total,
                 splitA: h.budgetSplitA, paysA: t.paysA, paysB: t.paysB,
-                netTransfer: t.netTransfer, savedAt: now
+                netTransfer: t.netTransfer, savedAt: now,
+                hidden: h.budgetHidden
             )
         }
         withAnimation { savedBudget = true }

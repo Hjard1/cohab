@@ -392,6 +392,9 @@ final class Household {
     var budgetPaysA: Double = 0
     var budgetPaysB: Double = 0
     var budgetNetTransfer: Double = 0  // + = B owes A, − = A owes B (per month)
+    // Hide the budget card from the dashboard without deleting the data.
+    // Synced, so it applies to both partners.
+    var budgetHidden: Bool = false
     var hasBudget: Bool { budgetTotalExpenses > 0 }
 
     /// What each partner effectively bears after the transfer settles.

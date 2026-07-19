@@ -160,6 +160,7 @@ final class HouseholdStore {
             if let v = dbHousehold.budgetPaysB         { localHousehold.budgetPaysB = v }
             if let v = dbHousehold.budgetNetTransfer   { localHousehold.budgetNetTransfer = v }
             if let v = dbHousehold.budgetSavedAt       { localHousehold.budgetSavedAt = v }
+            if let v = dbHousehold.budgetHidden        { localHousehold.budgetHidden = v }
 
             // Live expense-split working state — keep both partners' calculators identical.
             if let presets = dbHousehold.expensePresets, presets.count == 5 {
@@ -397,7 +398,8 @@ final class HouseholdStore {
                     incomeA: local.budgetIncomeA, incomeB: local.budgetIncomeB,
                     totalExpenses: local.budgetTotalExpenses, splitA: local.budgetSplitA,
                     paysA: local.budgetPaysA, paysB: local.budgetPaysB,
-                    netTransfer: local.budgetNetTransfer, savedAt: savedAt)
+                    netTransfer: local.budgetNetTransfer, savedAt: savedAt,
+                    hidden: local.budgetHidden)
             }
 
             if let updatedAt = local.expensesUpdatedAt,
