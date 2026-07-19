@@ -19,6 +19,7 @@ struct ContentView: View {
     @State private var initialSyncCompleted = false
     @State private var completedOnboardingThisSession = false
     @State private var selectedTab: AppTab = .home
+    @State private var needsDisclaimerAccept = false
 
     var body: some View {
         Group {
@@ -62,12 +63,21 @@ struct ContentView: View {
         } message: {
             Text(joinError ?? "")
         }
+        // Mandatory disclaimer gate — shown until the current version is
+        // accepted by this profile (covers invited partners and text updates).
+        .fullScreenCover(isPresented: $needsDisclaimerAccept) {
+            mandatoryDisclaimerView
+                .interactiveDismissDisabled(true)
+        }
         .task(id: auth.isSignedIn) {
             initialSyncCompleted = false
             if auth.isSignedIn {
                 await store.sync(modelContext: modelContext)
                 if let h = households.first {
                     store.subscribeRealtime(householdId: h.id, modelContext: modelContext)
+                }
+                if !households.isEmpty {
+                    await checkDisclaimerAcceptance()
                 }
                 if let token = pendingInviteToken {
                     await handleJoin(token: token)
@@ -133,10 +143,65 @@ struct ContentView: View {
             _ = try await SupabaseService.joinHousehold(token: token)
             await store.sync(modelContext: modelContext)
             onboardingComplete = true
+            // Invited partners never pass through onboarding, so they have
+            // not accepted the disclaimer — the gate below catches that.
+            await checkDisclaimerAcceptance()
         } catch {
             joinError = error.localizedDescription
         }
         isJoiningHousehold = false
+    }
+
+    /// Both partners must have accepted the current disclaimer version.
+    /// The accepted version is stored per profile; a mismatch (new user,
+    /// invited partner, or an updated text) blocks the app until accepted.
+    private func checkDisclaimerAcceptance() async {
+        let v = try? await SupabaseService.fetchProfileDisclaimerVersion()
+        needsDisclaimerAccept = (v != Disclaimer.currentVersion)
+    }
+
+    private func acceptDisclaimer() {
+        Task {
+            do {
+                try await SupabaseService.recordDisclaimerAcceptance(
+                    version: Disclaimer.currentVersion)
+                await MainActor.run { needsDisclaimerAccept = false }
+            } catch {
+                print("[Cohab] Disclaimer record failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private var mandatoryDisclaimerView: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.orange.opacity(0.1))
+                                .frame(width: 48, height: 48)
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.title3).foregroundStyle(.orange)
+                        }
+                        Text(strings.disclaimerTitle).font(.headline)
+                    }
+                    Text(strings.disclaimerBody)
+                        .font(.subheadline)
+                        .lineSpacing(3)
+                    Button(action: acceptDisclaimer) {
+                        Text(strings.disclaimerIUnderstand)
+                            .font(.headline).foregroundStyle(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 16)
+                            .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 8)
+                }
+                .padding(24)
+            }
+            .background(Color.cohBg.ignoresSafeArea())
+        }
     }
 }
 

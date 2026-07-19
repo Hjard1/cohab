@@ -3,6 +3,12 @@ import SwiftUI
 
 // MARK: - Language enum
 
+/// Version of the disclaimer text. Bump when the text changes so every
+/// user re-accepts; the accepted version is stored per profile (legal trail).
+enum Disclaimer {
+    static let currentVersion = "1.1"
+}
+
 enum AppLanguage: String, CaseIterable {
     case en, nb, sv, da, fi, de, fr, es
 
@@ -69,156 +75,268 @@ final class AppStrings: ObservableObject {
 
     var disclaimerBody: String { s(
         en: """
-cohab is not a law firm and does not provide legal advice. \
-This agreement is a template for general use between two parties.
+cohab is provided by Hjard AS (org. no. 933 786 021, Norway) — a digital tool for tracking shared assets and expenses, and for creating cohabitation agreements between two parties.
 
-• Digital signatures and cohabitation agreements may not be legally binding in all jurisdictions. \
-Courts often look for clear intent to create legal relations — \
-verify with a licensed attorney in your country before signing.
+1. Not legal advice
+cohab is not a law firm and does not provide legal advice. Agreements, calculations and suggestions are standardized templates based on the information you enter. \
+You are responsible for ensuring the information is correct and that the documents fit your situation. \
+For significant matters — such as high-value property or complex ownership — consult a licensed attorney.
 
-• This template may not cover every aspect of your situation. \
-For significant legal matters — such as high-value property or complex ownership — \
-consult a qualified attorney or legal counsel.
+2. Digital signing
+Signing is performed via DocuSeal with timestamp and audit trail. \
+Electronic signatures are recognized in many jurisdictions (e.g. eIDAS in the EU/EEA), \
+but the validity of cohabitation agreements varies between countries. \
+Both parties are responsible for ensuring the right people sign.
 
-• The interest rate used in calculations is a guiding illustrative reference rate only \
-and is not a guaranteed or legally binding rate.
+3. Calculations
+Settlement estimates and the interest rate used are guiding references only — \
+they are not a legally binding settlement between the parties.
 
-• Keep your agreement up to date whenever your shared assets or contributions change.
+4. Payment
+The app is free to use. Creating a contract with digital signing is a one-time in-app purchase. \
+By purchasing, you consent to immediate delivery of the digital service; \
+the right of withdrawal may lapse once delivery has started.
+
+5. Privacy
+Personal data is processed in accordance with applicable data protection law and our privacy policy.
+
+6. Governing law
+These terms are governed by Norwegian law. Disputes are handled by the ordinary courts \
+with Oslo District Court as venue, unless mandatory consumer law provides otherwise.
 
 By continuing, you acknowledge that cohab provides tools, not legal advice, \
-and accepts no liability for the legal validity of any agreement in any jurisdiction.
+and accepts no liability beyond what follows from mandatory law.
 """,
         nb: """
-cohab er ikke et advokatfirma og yter ikke juridisk rådgivning. \
-Denne avtalen er en standardisert mal for generell bruk mellom to parter.
+cohab tilbys av Hjard AS (org.nr. 933 786 021) — et digitalt verktøy for å følge felles eiendeler og utgifter, og for å lage samboeravtaler mellom to parter.
 
-• Elektronisk signering er ikke nødvendigvis juridisk bindende i alle jurisdiksjoner. \
-Kontroller gyldigheten av digitale kontrakter etter gjeldende lov i ditt land.
+1. Ikke juridisk rådgivning
+cohab er ikke et advokatfirma og yter ikke juridisk rådgivning. Avtaler, beregninger og forslag er standardiserte maler basert på opplysningene du selv registrerer. \
+Du er selv ansvarlig for at opplysningene er korrekte og at dokumentene passer din situasjon. \
+For viktige forhold — som eiendom av høy verdi eller komplekse eierforhold — bør du kontakte advokat.
 
-• Malen dekker kanskje ikke alle sider av din situasjon. \
-For viktige juridiske spørsmål — som kjøp av eiendom av høy verdi eller komplekse eierforhold — \
-kontakt en kvalifisert advokat.
+2. Digital signering
+Signering skjer via DocuSeal med tidspunkt og revisjonsspor. \
+Elektroniske signaturer er anerkjent i mange jurisdiksjoner (bl.a. eIDAS i EU/EØS), \
+men gyldigheten av samboeravtaler varierer fra land til land. \
+Partene er selv ansvarlige for at riktige personer signerer.
 
-• Renten som brukes i beregningene er en veiledende referanserente \
-og er kun illustrativ.
+3. Beregninger
+Oppgjørsestimater og renten som brukes er kun veiledende — \
+de utgjør ikke et juridisk bindende oppgjør mellom partene.
 
-• Hold avtalen oppdatert når felles eiendeler eller bidrag endres.
+4. Betaling
+Appen er gratis å bruke. Å opprette en kontrakt med digital signering er et engangskjøp i appen. \
+Ved kjøp samtykker du til umiddelbar levering av den digitale tjenesten; \
+angreretten kan bortfalle når leveringen er startet.
+
+5. Personvern
+Personopplysninger behandles i samsvar med gjeldende personvernlovgivning og vår personvernpolicy.
+
+6. Lovvalg
+Disse vilkårene reguleres av norsk rett. Tvister behandles av ordinære domstoler \
+med Oslo tingrett som verneting, med mindre annet følger av ufravikelig forbrukerlovgivning.
 
 Ved å fortsette erkjenner du at cohab tilbyr verktøy, ikke juridisk rådgivning, \
-og fraskriver seg ethvert ansvar for den juridiske gyldigheten av en avtale i noen jurisdiksjon.
+og ikke påtar seg ansvar ut over det som følger av ufravikelig lov.
 """,
         sv: """
-cohab är inte en advokatbyrå och ger inte juridisk rådgivning. \
-Detta avtal är en standardiserad mall för allmänt bruk mellan två parter.
+cohab tillhandahålls av Hjard AS (org.nr 933 786 021, Norge) — ett digitalt verktyg för att följa gemensamma tillgångar och utgifter och för att skapa samboavtal mellan två parter.
 
-• Elektronisk signering är inte nödvändigtvis juridiskt bindande i alla jurisdiktioner. \
-Kontrollera giltigheten av digitala avtal enligt gällande lag i ditt land.
+1. Inte juridisk rådgivning
+cohab är inte en advokatbyrå och ger inte juridisk rådgivning. Avtal, beräkningar och förslag är standardiserade mallar baserade på uppgifterna du själv registrerar. \
+Du ansvarar själv för att uppgifterna är korrekta och att dokumenten passar din situation. \
+För viktiga frågor — som egendom av högt värde eller komplexa ägarförhållanden — bör du kontakta en advokat.
 
-• Mallen kanske inte täcker alla aspekter av din situation. \
-För viktiga juridiska frågor — som köp av högt värderad egendom eller komplexa ägarförhållanden — \
-kontakta en kvalificerad jurist eller advokat.
+2. Digital signering
+Signering sker via DocuSeal med tidsstämpel och revisionsspår. \
+Elektroniska signaturer är erkända i många jurisdiktioner (bl.a. eIDAS i EU/EES), \
+men giltigheten av samboavtal varierar mellan länder. \
+Parterna ansvarar själva för att rätt personer signerar.
 
-• Räntan som används i beräkningarna är en vägledande illustrativ referensränta \
-och är inte garanterad eller juridiskt bindande.
+3. Beräkningar
+Uppgörelseuppskattningar och räntan som används är endast vägledande — \
+de utgör inte en juridiskt bindande uppgörelse mellan parterna.
 
-• Håll avtalet uppdaterat när gemensamma tillgångar eller bidrag förändras.
+4. Betalning
+Appen är gratis att använda. Att skapa ett avtal med digital signering är ett engångsköp i appen. \
+Vid köp samtycker du till omedelbar leverans av den digitala tjänsten; \
+ångerrätten kan bortfalla när leveransen har påbörjats.
 
-• Observera att enbart spårning av bidrag i appen inte åsidosätter Sambolagens regler om \
-likadelning. För att appens fördelningsmodell ska gälla måste ett formellt samboavtal \
-undertecknas där Sambolagen avtalas bort.
+5. Integritet
+Personuppgifter behandlas i enlighet med gällande dataskyddslagstiftning och vår integritetspolicy.
 
-Genom att fortsätta erkänner du att cohab erbjuder verktyg, inte juridisk rådgivning, \
-och avsäger sig allt ansvar för ett avtals juridiska giltighet i någon jurisdiktion.
+6. Lagval
+Dessa villkor regleras av norsk rätt. Tvister behandlas av allmän domstol \
+med Oslo tingrett som verneting, om inte annat följer av tvingande konsumentlagstiftning.
+
+Genom att fortsätta bekräftar du att cohab tillhandahåller verktyg, inte juridisk rådgivning, \
+och inte tar ansvar utöver vad som följer av tvingande lag.
 """,
         da: """
-cohab er ikke et advokatfirma og yder ikke juridisk rådgivning. \
-Denne aftale er en standardiseret skabelon til generel brug mellem to parter.
+cohab tilbydes af Hjard AS (org.nr. 933 786 021, Norge) — et digitalt værktøj til at følge fælles aktiver og udgifter og til at lave samleveraftaler mellem to parter.
 
-• Elektronisk signering er ikke nødvendigvis juridisk bindende i alle jurisdiktioner. \
-Kontrollér gyldigheden af digitale kontrakter i henhold til gældende lovgivning i dit land.
+1. Ikke juridisk rådgivning
+cohab er ikke et advokatfirma og yder ikke juridisk rådgivning. Aftaler, beregninger og forslag er standardiserede skabeloner baseret på de oplysninger, du selv registrerer. \
+Du er selv ansvarlig for, at oplysningerne er korrekte, og at dokumenterne passer til din situation. \
+For vigtige forhold — som ejendom af høj værdi eller komplekse ejerforhold — bør du kontakte en advokat.
 
-• Skabelonen dækker muligvis ikke alle aspekter af din situation. \
-Kontakt en kvalificeret advokat ved vigtige juridiske spørgsmål — f.eks. køb af højværdi-ejendom \
-eller komplekse ejerforhold.
+2. Digital underskrift
+Underskrift sker via DocuSeal med tidspunkt og revisionsspor. \
+Elektroniske underskrifter er anerkendt i mange jurisdiktioner (bl.a. eIDAS i EU/EØS), \
+men gyldigheden af samleveraftaler varierer fra land til land. \
+Parterne er selv ansvarlige for, at de rigtige personer underskriver.
 
-• Den rente der anvendes i beregningerne er en vejledende illustrativ referencerente \
-og er ikke garanteret eller juridisk bindende.
+3. Beregninger
+Opgørelsesestimater og renten, der bruges, er kun vejledende — \
+de udgør ikke en juridisk bindende opgørelse mellem parterne.
 
-• Hold aftalen opdateret, når fælles aktiver eller bidrag ændres.
+4. Betaling
+Appen er gratis at bruge. At oprette en kontrakt med digital underskrift er et engangskøb i appen. \
+Ved køb samtykker du til øjeblikkelig levering af den digitale tjeneste; \
+fortrydelsesretten kan bortfalde, når leveringen er startet.
+
+5. Privatliv
+Personoplysninger behandles i overensstemmelse med gældende databeskyttelseslovgivning og vores privatlivspolitik.
+
+6. Lovvalg
+Disse vilkår er underlagt norsk ret. Tvister behandles af de almindelige domstole \
+med Oslo tingret som værneting, medmindre andet følger af ufravigelig forbrugerlovgivning.
 
 Ved at fortsætte anerkender du, at cohab tilbyder værktøjer, ikke juridisk rådgivning, \
-og fraskriver sig ethvert ansvar for et aftalets juridiske gyldighed i nogen jurisdiktion.
+og ikke påtager sig ansvar ud over, hvad der følger af ufravigelig lov.
 """,
         fi: """
-cohab ei ole lakiasiaintoimisto eikä anna oikeudellisia neuvoja. \
-Tämä sopimus on yleiskäyttöinen malli kahdelle osapuolelle.
+cohab-palvelun tarjoaa Hjard AS (Y-tunnus 933 786 021, Norja) — digitaalinen työkalu yhteisten varojen ja kulujen seuraamiseen sekä avoliittosopimusten laatimiseen kahden osapuolen välillä.
 
-• Sähköinen allekirjoitus ei välttämättä ole oikeudellisesti sitova kaikissa lainkäyttöalueilla. \
-Tarkista digitaalisten sopimusten pätevyys maasi voimassa olevan lainsäädännön mukaan.
+1. Ei oikeudellista neuvontaa
+cohab ei ole lakiasiaintoimisto eikä tarjoa oikeudellista neuvontaa. Sopimukset, laskelmat ja ehdotukset ovat standardoituja malleja, jotka perustuvat itse syöttämiisi tietoihin. \
+Olet itse vastuussa siitä, että tiedot ovat oikein ja että asiakirjat sopivat tilanteeseesi. \
+Tärkeissä asioissa — kuten arvokas kiinteistö tai monimutkaiset omistussuhteet — ota yhteys lakimieheen.
 
-• Malli ei välttämättä kata kaikkia tilanteitasi. \
-Ota yhteys pätevään lakimieheen tärkeissä oikeudellisissa asioissa.
+2. Sähköinen allekirjoitus
+Allekirjoitus tapahtuu DocuSeal-palvelun kautta aikaleimalla ja auditointijäljellä. \
+Sähköiset allekirjoitukset tunnustetaan monilla lainkäyttöalueilla (mm. eIDAS EU/ETA-alueella), \
+mutta avoliittosopimusten pätevyys vaihtelee maittain. \
+Osapuolet ovat itse vastuussa siitä, että oikeat henkilöt allekirjoittavat.
 
-• Laskelmissa käytetty korko on ohjeellinen viitekorko eikä ole takuukorko tai oikeudellisesti sitova.
+3. Laskelmat
+Selvityslaskelmat ja käytetty korko ovat vain ohjeellisia — \
+ne eivät ole oikeudellisesti sitova selvitys osapuolten välillä.
 
-• Pidä sopimus ajan tasalla yhteisten varojen tai maksujen muuttuessa.
+4. Maksu
+Sovellus on ilmainen käyttää. Sopimuksen luominen sähköisellä allekirjoituksella on kertaluonteinen sovelluksen sisäinen ostos. \
+Ostamalla hyväksyt digitaalisen palvelun välittömän toimituksen; \
+peruuttamisoikeus voi raueta, kun toimitus on alkanut.
 
-Jatkamalla vahvistat, että cohab tarjoaa työkaluja, ei oikeudellisia neuvoja, \
-eikä se ota vastuuta sopimuksen oikeudellisesta pätevyydestä missään lainkäyttöalueella.
+5. Yksityisyys
+Henkilötietoja käsitellään soveltuvan tietosuojalainsäädännön ja tietosuojakäytäntömme mukaisesti.
+
+6. Lainvalinta
+Näihin ehtoihin sovelletaan Norjan lakia. Riidat käsitellään yleisissä tuomioistuimissa \
+Oslon käräjäoikeudessa, ellei pakottaavasta kuluttajalainsäädännöstä muuta johdu.
+
+Jatkamalla vahvistat, että cohab tarjoaa työkaluja, ei oikeudellista neuvontaa, \
+eikä ota vastuuta pakottavan lain sallimaa laajemmin.
 """,
         de: """
-cohab ist keine Anwaltskanzlei und erteilt keine Rechtsberatung. \
-Diese Vereinbarung ist eine Vorlage für den allgemeinen Gebrauch zwischen zwei Parteien.
+cohab wird von der Hjard AS (Org.-Nr. 933 786 021, Norwegen) bereitgestellt — ein digitales Werkzeug zum Verfolgen gemeinsamer Vermögenswerte und Ausgaben sowie zum Erstellen von Lebenspartnerschaftsverträgen zwischen zwei Parteien.
 
-• Elektronische Signaturen sind nicht in allen Rechtsgebieten rechtlich bindend. \
-Überprüfen Sie die Gültigkeit digitaler Verträge nach dem in Ihrem Land geltenden Recht.
+1. Keine Rechtsberatung
+cohab ist keine Anwaltskanzlei und bietet keine Rechtsberatung. Verträge, Berechnungen und Vorschläge sind standardisierte Vorlagen auf Grundlage der von Ihnen eingegebenen Daten. \
+Sie sind selbst dafür verantwortlich, dass die Angaben korrekt sind und die Dokumente zu Ihrer Situation passen. \
+Bei wichtigen Angelegenheiten — etwa hochwertige Immobilien oder komplexe Eigentumsverhältnisse — wenden Sie sich an einen Anwalt.
 
-• Die Vorlage deckt möglicherweise nicht alle Aspekte Ihrer Situation ab. \
-Wenden Sie sich bei wichtigen rechtlichen Fragen an einen qualifizierten Anwalt.
+2. Digitale Signatur
+Die Signatur erfolgt über DocuSeal mit Zeitstempel und Prüfprotokoll. \
+Elektronische Signaturen sind in vielen Rechtsordnungen anerkannt (u. a. eIDAS in der EU/dem EWR), \
+die Gültigkeit von Lebenspartnerschaftsverträgen variiert jedoch je nach Land. \
+Die Parteien sind selbst dafür verantwortlich, dass die richtigen Personen unterschreiben.
 
-• Der in den Berechnungen verwendete Zinssatz ist ein orientierender Referenzzins \
-und ist nicht garantiert oder rechtlich verbindlich.
+3. Berechnungen
+Abrechnungsschätzungen und der verwendete Zinssatz sind lediglich Richtwerte — \
+sie stellen keine rechtsverbindliche Abrechnung zwischen den Parteien dar.
 
-• Halten Sie die Vereinbarung aktuell, wenn sich gemeinsame Vermögenswerte oder Einlagen ändern.
+4. Zahlung
+Die App ist kostenlos. Das Erstellen eines Vertrags mit digitaler Signatur ist ein einmaliger In-App-Kauf. \
+Mit dem Kauf stimmen Sie der sofortigen Bereitstellung des digitalen Dienstes zu; \
+das Widerrufsrecht kann mit Beginn der Bereitstellung erlöschen.
 
-Durch Fortfahren bestätigen Sie, dass cohab Werkzeuge und keine Rechtsberatung bietet \
-und keine Haftung für die rechtliche Gültigkeit einer Vereinbarung übernimmt.
+5. Datenschutz
+Personenbezogene Daten werden gemäß dem geltenden Datenschutzrecht und unserer Datenschutzerklärung verarbeitet.
+
+6. Rechtswahl
+Diese Bedingungen unterliegen norwegischem Recht. Streitigkeiten werden von den ordentlichen Gerichten \
+mit Oslo tingrett als Gerichtsstand entschieden, soweit zwingendes Verbraucherrecht nichts anderes vorsieht.
+
+Indem Sie fortfahren, erkennen Sie an, dass cohab Werkzeuge bereitstellt, keine Rechtsberatung, \
+und keine Haftung über das zwingend gesetzlich vorgeschriebene Maß hinaus übernimmt.
 """,
         fr: """
-cohab n'est pas un cabinet d'avocats et ne fournit pas de conseils juridiques. \
-Cet accord est un modèle à usage général entre deux parties.
+cohab est fourni par Hjard AS (n° d'org. 933 786 021, Norvège) — un outil numérique pour suivre les actifs et dépenses communs et créer des contrats de cohabitation entre deux parties.
 
-• La signature électronique n'est pas nécessairement juridiquement contraignante dans toutes les juridictions. \
-Vérifiez la validité des contrats numériques selon la législation en vigueur dans votre pays.
+1. Pas de conseil juridique
+cohab n'est pas un cabinet d'avocats et ne fournit pas de conseil juridique. Les contrats, calculs et suggestions sont des modèles standardisés basés sur les informations que vous saisissez. \
+Vous êtes responsable de l'exactitude des informations et de l'adéquation des documents à votre situation. \
+Pour les questions importantes — comme un bien de grande valeur ou une propriété complexe — consultez un avocat.
 
-• Le modèle peut ne pas couvrir tous les aspects de votre situation. \
-Consultez un avocat qualifié pour les questions juridiques importantes.
+2. Signature électronique
+La signature s'effectue via DocuSeal avec horodatage et piste d'audit. \
+Les signatures électroniques sont reconnues dans de nombreuses juridictions (notamment eIDAS dans l'UE/EEE), \
+mais la validité des contrats de cohabitation varie selon les pays. \
+Les parties sont responsables de faire signer les bonnes personnes.
 
-• Le taux d'intérêt utilisé dans les calculs est un taux de référence indicatif \
-et n'est pas garanti ni juridiquement contraignant.
+3. Calculs
+Les estimations de partage et le taux d'intérêt utilisé sont indicatifs — \
+ils ne constituent pas un règlement juridiquement contraignant entre les parties.
 
-• Tenez l'accord à jour lorsque les actifs communs ou les contributions changent.
+4. Paiement
+L'application est gratuite. La création d'un contrat avec signature électronique est un achat intégré unique. \
+En achetant, vous consentez à la fourniture immédiate du service numérique ; \
+le droit de rétractation peut être perdu une fois la fourniture commencée.
 
-En continuant, vous reconnaissez que cohab fournit des outils, non des conseils juridiques, \
-et décline toute responsabilité quant à la validité juridique de tout accord.
+5. Confidentialité
+Les données personnelles sont traitées conformément à la législation applicable et à notre politique de confidentialité.
+
+6. Droit applicable
+Les présentes conditions sont régies par le droit norvégien. Les litiges sont portés devant les tribunaux ordinaires, \
+le tribunal d'Oslo étant le for compétent, sauf disposition impérative contraire du droit de la consommation.
+
+En continuant, vous reconnaissez que cohab fournit des outils, pas des conseils juridiques, \
+et décline toute responsabilité au-delà de ce que prévoit la loi impérative.
 """,
         es: """
-cohab no es un despacho de abogados y no presta asesoramiento jurídico. \
-Este acuerdo es una plantilla de uso general entre dos partes.
+cohab es proporcionado por Hjard AS (n.º de org. 933 786 021, Noruega) — una herramienta digital para registrar bienes y gastos compartidos y crear acuerdos de convivencia entre dos partes.
 
-• La firma electrónica puede no ser jurídicamente vinculante en todas las jurisdicciones. \
-Verifica la validez de los contratos digitales conforme a la legislación vigente en tu país.
+1. Sin asesoramiento jurídico
+cohab no es un despacho de abogados y no ofrece asesoramiento jurídico. Los acuerdos, cálculos y sugerencias son plantillas estandarizadas basadas en la información que introduces. \
+Eres responsable de que la información sea correcta y de que los documentos se ajusten a tu situación. \
+Para asuntos importantes — como propiedades de alto valor o titularidad compleja — consulta a un abogado.
 
-• La plantilla puede no cubrir todos los aspectos de tu situación. \
-Consulta a un abogado cualificado para asuntos jurídicos importantes.
+2. Firma electrónica
+La firma se realiza a través de DocuSeal con fecha, hora y registro de auditoría. \
+Las firmas electrónicas están reconocidas en muchas jurisdicciones (p. ej., eIDAS en la UE/EEE), \
+pero la validez de los acuerdos de convivencia varía según el país. \
+Las partes son responsables de que firmen las personas correctas.
 
-• El tipo de interés utilizado en los cálculos es un tipo de referencia orientativo \
-y no es garantizado ni jurídicamente vinculante.
+3. Cálculos
+Las estimaciones de liquidación y el tipo de interés utilizado son solo orientativos — \
+no constituyen una liquidación jurídicamente vinculante entre las partes.
 
-• Mantén el acuerdo actualizado cuando cambien los activos comunes o las aportaciones.
+4. Pago
+La app es gratuita. Crear un contrato con firma digital es una compra única dentro de la app. \
+Al comprar, consientes la entrega inmediata del servicio digital; \
+el derecho de desistimiento puede extinguirse una vez iniciada la entrega.
 
-Al continuar, reconoces que cohab proporciona herramientas, no asesoramiento jurídico, \
-y no acepta ninguna responsabilidad por la validez jurídica de ningún acuerdo.
+5. Privacidad
+Los datos personales se tratan conforme a la legislación aplicable y a nuestra política de privacidad.
+
+6. Legislación aplicable
+Estas condiciones se rigen por la ley noruega. Los litigios se resolverán en los tribunales ordinarios \
+con el tribunal de Oslo como fuero, salvo que la normativa imperativa del consumidor disponga otra cosa.
+
+Al continuar, reconoces que cohab ofrece herramientas, no asesoramiento jurídico, \
+y no asume responsabilidad más allá de lo exigido por la ley imperativa.
 """) }
 
     var disclaimerAckLabel: String { s(

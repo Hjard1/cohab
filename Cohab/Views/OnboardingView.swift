@@ -23,10 +23,6 @@ struct OnboardingView: View {
     @State private var selectedCountry = CohabCountry.defaults.first(where: { $0.code == "GB" }) ?? CohabCountry.defaults[0]
     @State private var selectedAssetTypes: Set<AssetType> = [.home]
     @State private var disclaimerAccepted = false
-
-    /// Bump when the disclaimer text changes, so re-acceptance can be
-    /// requested and the stored version documents what was agreed to.
-    private static let disclaimerVersion = "1.0"
     @State private var showDisclaimerSheet = false
     @State private var showDisclaimerRequiredAlert = false
     @State private var googleSignInError: String?
@@ -921,7 +917,7 @@ struct OnboardingView: View {
                 // trail) — before create/adopt so it is recorded either way.
                 do {
                     try await SupabaseService.recordDisclaimerAcceptance(
-                        version: Self.disclaimerVersion)
+                        version: Disclaimer.currentVersion)
                 } catch {
                     print("[Cohab] Disclaimer record failed: \(error.localizedDescription)")
                 }

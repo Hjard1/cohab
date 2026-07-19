@@ -138,17 +138,32 @@ enum SupabaseService {
     /// a legal trail of who accepted what, and when.
     static func recordDisclaimerAcceptance(version: String) async throws {
         guard let uid = try? await supabase.auth.session.user.id else { return }
-        struct Update: Encodable {
+        struct Row: Encodable {
+            let user_id: String
             let disclaimer_accepted_at: String
             let disclaimer_version: String
         }
         let iso = ISO8601DateFormatter()
         try await supabase
             .from("profiles")
-            .update(Update(disclaimer_accepted_at: iso.string(from: Date()),
-                           disclaimer_version: version))
-            .eq("user_id", value: uid.uuidString)
+            .upsert(Row(user_id: uid.uuidString,
+                        disclaimer_accepted_at: iso.string(from: Date()),
+                        disclaimer_version: version))
             .execute()
+    }
+
+    /// The disclaimer version the signed-in user has accepted, if any.
+    static func fetchProfileDisclaimerVersion() async throws -> String? {
+        guard let uid = try? await supabase.auth.session.user.id else { return nil }
+        struct Row: Decodable { let disclaimer_version: String? }
+        let rows: [Row] = try await supabase
+            .from("profiles")
+            .select("disclaimer_version")
+            .eq("user_id", value: uid.uuidString)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first?.disclaimer_version
     }
 
     static func updateAgreementStatus(
