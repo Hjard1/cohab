@@ -62,8 +62,8 @@ struct OwnershipCalculatorView: View {
                             .tint(.cohGreen)
                         if loanAmount > 0 {
                             Text(strings.calcOwnLoanNote(fmt(loanAmount)))
-                                .font(.footnote)
-                                .foregroundStyle(Color.cohTertiary)
+                                .font(.subheadline)
+                                .foregroundStyle(Color.cohSecondary)
                         }
                     }
                 }
@@ -105,8 +105,8 @@ struct OwnershipCalculatorView: View {
 
             if !hasInput {
                 Text(strings.calcOwnEnterValues)
-                    .font(.footnote)
-                    .foregroundStyle(Color.cohTertiary)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.cohSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }

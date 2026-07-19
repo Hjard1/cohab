@@ -104,8 +104,8 @@ struct InvitePartnerView: View {
                     }
 
                     Text(strings.inviteExpiry)
-                        .font(.footnote)
-                        .foregroundStyle(Color.cohInk.opacity(0.50))
+                        .font(.subheadline)
+                        .foregroundStyle(Color.cohMuted)
                 }
                 .padding(24)
             }

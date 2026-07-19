@@ -76,7 +76,7 @@ struct SettlementTabView: View {
                         .font(.system(size: 28, weight: .bold, design: .serif))
                         .foregroundStyle(Color.cohInk)
                     Text("\(h.partnerAName) & \(h.partnerBName)")
-                        .font(.footnote).foregroundStyle(Color.cohSecondary)
+                        .font(.subheadline).foregroundStyle(Color.cohSecondary)
                 }
                 Spacer()
                 // Report date
@@ -88,8 +88,8 @@ struct SettlementTabView: View {
                 }
             }
             Text(strings.settlementTabSub)
-                .font(.footnote)
-                .foregroundStyle(Color.cohTertiary)
+                .font(.subheadline)
+                .foregroundStyle(Color.cohSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)

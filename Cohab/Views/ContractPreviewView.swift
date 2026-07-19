@@ -67,7 +67,7 @@ struct ContractPreviewView: View {
                                     .buttonStyle(.plain)
 
                                     Text("\(sections.count) \(strings.contractClausesIncluded)")
-                                        .font(.footnote)
+                                        .font(.subheadline)
                                         .foregroundStyle(Color.cohSecondary)
                                 }
                                 .padding(.bottom, 24)

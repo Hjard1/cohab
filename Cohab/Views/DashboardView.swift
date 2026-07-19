@@ -1415,7 +1415,7 @@ extension DashboardView {
             Text(h.includeDissolutionClause
                  ? strings.agreementCoversFull
                  : strings.agreementCoversBasic)
-                .font(.footnote)
+                .font(.subheadline)
                 .foregroundStyle(Color.cohSecondary)
 
             // ── Update notice ─────────────────────────────────────────
@@ -1708,7 +1708,7 @@ struct AgreementSheetView: View {
 
                 // Explicit send explainer + button
                 Text(strings.agreementSendExplainer(partnerBDisplay))
-                    .font(.footnote).foregroundStyle(Color.cohSecondary)
+                    .font(.subheadline).foregroundStyle(Color.cohSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Button {
@@ -1770,7 +1770,7 @@ struct AgreementSheetView: View {
                     .frame(width: 28)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.subheadline.bold()).foregroundStyle(Color.cohInk)
-                    Text(info).font(.footnote).foregroundStyle(Color.cohSecondary)
+                    Text(info).font(.subheadline).foregroundStyle(Color.cohSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
@@ -1820,7 +1820,7 @@ struct AgreementSheetView: View {
             HStack(spacing: 8) {
                 ProgressView()
                 Text(strings.bankIDWaitingForBoth)
-                    .font(.footnote).foregroundStyle(Color.cohSecondary)
+                    .font(.subheadline).foregroundStyle(Color.cohSecondary)
             }
             Button(strings.bankIDCheckStatus) {
                 Task {
@@ -1881,7 +1881,7 @@ struct AgreementSheetView: View {
             Text(strings.agreementPreparingTitle)
                 .font(.subheadline).foregroundStyle(Color.cohSecondary)
             Text(strings.agreementPreparingSub)
-                .font(.footnote).foregroundStyle(Color.cohMuted)
+                .font(.subheadline).foregroundStyle(Color.cohMuted)
                 .multilineTextAlignment(.center).padding(.horizontal, 40)
         }
     }
@@ -2041,7 +2041,7 @@ struct HouseholdSetupView: View {
 
                 Section {
                     Text(strings.settingsInterestRateFooter)
-                        .font(.footnote).foregroundStyle(Color.cohSecondary)
+                        .font(.subheadline).foregroundStyle(Color.cohSecondary)
                 }
 
                 if let h = household {
@@ -2525,7 +2525,7 @@ struct AddAssetView: View {
                             Toggle(s.assetIsRegistered, isOn: $isRegistered)
                                 .font(.subheadline)
                             Text(s.assetIsRegisteredHint)
-                                .font(.footnote)
+                                .font(.subheadline)
                                 .foregroundStyle(Color.cohSecondary)
                         }
                     }
@@ -2799,7 +2799,7 @@ struct EditAssetView: View {
                     }
                 }
                 Text(selectedType.ownershipHint)
-                    .font(.footnote).foregroundStyle(Color.cohMuted)
+                    .font(.subheadline).foregroundStyle(Color.cohMuted)
             }
         }
     }
@@ -2813,7 +2813,7 @@ struct EditAssetView: View {
                     Text(strings.assetEquityContributions)
                         .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
                     Text(selectedType.contributionSubtitle)
-                        .font(.footnote).foregroundStyle(Color.cohMuted)
+                        .font(.subheadline).foregroundStyle(Color.cohMuted)
                 }
                 Spacer()
                 if household.partnerLeft != true {

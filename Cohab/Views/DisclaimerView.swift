@@ -22,7 +22,7 @@ struct DisclaimerView: View {
                             Text(strings.disclaimerTitle)
                                 .font(.headline)
                             Text("cohab · \(strings.disclaimerTitle)")
-                                .font(.footnote).foregroundStyle(Color.cohSecondary)
+                                .font(.subheadline).foregroundStyle(Color.cohSecondary)
                         }
                     }
 

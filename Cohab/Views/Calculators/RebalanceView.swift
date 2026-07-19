@@ -90,8 +90,8 @@ struct RebalanceView: View {
                     }
                     Text(strings.calcRebMoves(Int(currentShareA), Int(100 - currentShareA),
                                               Int(targetShareA), Int(100 - targetShareA)))
-                        .font(.footnote)
-                        .foregroundStyle(Color.cohTertiary)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.cohSecondary)
                 }
             } else if hasInput {
                 HStack(spacing: 8) {
@@ -103,8 +103,8 @@ struct RebalanceView: View {
                 }
             } else {
                 Text(strings.calcRebEnterValue)
-                    .font(.footnote)
-                    .foregroundStyle(Color.cohTertiary)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.cohSecondary)
             }
         }
         .padding(20)
@@ -121,7 +121,7 @@ struct RebalanceView: View {
                     Text(strings.calcRebPaymentPlan)
                         .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
                     Text(strings.calcRebSpread)
-                        .font(.footnote).foregroundStyle(Color.cohTertiary)
+                        .font(.subheadline).foregroundStyle(Color.cohSecondary)
                 }
                 Spacer()
                 Toggle("", isOn: $showPlan.animation())

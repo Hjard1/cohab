@@ -18,7 +18,7 @@ struct CalculatorsView: View {
                             .font(.system(size: 28, weight: .bold, design: .serif))
                             .foregroundStyle(Color.cohInk)
                         Text(strings.calculatorsFreeToUse)
-                            .font(.footnote)
+                            .font(.subheadline)
                             .foregroundStyle(Color.cohSecondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

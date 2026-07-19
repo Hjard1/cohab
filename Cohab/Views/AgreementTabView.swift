@@ -87,7 +87,7 @@ struct AgreementTabView: View {
                             .font(.caption).foregroundStyle(Color.cohGreen)
                     } else {
                         Text("\(strings.agreementBetweenPartners) \(h.partnerAName)\(strings.agreementAndConnector)\(h.partnerBName)")
-                            .font(.footnote).foregroundStyle(Color.cohSecondary)
+                            .font(.subheadline).foregroundStyle(Color.cohSecondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -202,7 +202,7 @@ struct AgreementTabView: View {
                         Text(strings.agreementNoAgreement)
                             .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
                         Text(strings.agreementNoAgreementSub)
-                            .font(.footnote).foregroundStyle(Color.cohSecondary)
+                            .font(.subheadline).foregroundStyle(Color.cohSecondary)
                     }
                     Spacer()
                 }
@@ -327,7 +327,7 @@ struct AgreementTabView: View {
                     .foregroundStyle(Color.cohInk)
                 if !detail.isEmpty {
                     Text(detail)
-                        .font(.footnote)
+                        .font(.subheadline)
                         .foregroundStyle(Color.cohSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -343,7 +343,7 @@ struct AgreementTabView: View {
                 .font(.subheadline.bold())
                 .foregroundStyle(Color.cohInk)
             Text(strings.agreementRentalDetailsSub)
-                .font(.footnote)
+                .font(.subheadline)
                 .foregroundStyle(Color.cohSecondary)
 
             VStack(alignment: .leading, spacing: 8) {
@@ -557,7 +557,7 @@ struct AgreementTabView: View {
             Label(strings.agreementEmailsNeeded, systemImage: "envelope.badge")
                 .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
             Text(strings.agreementEmailsNeededSub)
-                .font(.footnote).foregroundStyle(Color.cohSecondary)
+                .font(.subheadline).foregroundStyle(Color.cohSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
@@ -586,7 +586,7 @@ struct AgreementTabView: View {
                         Text(activeCount > 0 && !advancedExpanded
                              ? "\(activeCount) \(strings.agreementClausesSelected)"
                              : strings.agreementAdvancedSub)
-                            .font(.footnote).foregroundStyle(activeCount > 0 && !advancedExpanded ? Color.cohGreen : Color.cohSecondary)
+                            .font(.subheadline).foregroundStyle(activeCount > 0 && !advancedExpanded ? Color.cohGreen : Color.cohSecondary)
                     }
                     Spacer()
                     Image(systemName: advancedExpanded ? "chevron.up" : "chevron.down")
@@ -647,7 +647,7 @@ struct AgreementTabView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.cohInk)
                 Text(subtitle)
-                    .font(.footnote).foregroundStyle(Color.cohSecondary)
+                    .font(.subheadline).foregroundStyle(Color.cohSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
@@ -749,7 +749,7 @@ struct AgreementTabView: View {
                         .foregroundStyle(Color.cohInk)
                 }
                 Text(body)
-                    .font(.footnote)
+                    .font(.subheadline)
                     .foregroundStyle(Color.cohSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineSpacing(2)
@@ -772,7 +772,7 @@ struct AgreementTabView: View {
                         .font(.system(size: 28, weight: .bold, design: .serif))
                         .foregroundStyle(Color.cohInk)
                     Text(strings.agreementNoFormal)
-                        .font(.footnote).foregroundStyle(Color.cohSecondary)
+                        .font(.subheadline).foregroundStyle(Color.cohSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 

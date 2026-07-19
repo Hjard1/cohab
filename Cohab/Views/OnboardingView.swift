@@ -569,7 +569,7 @@ struct OnboardingView: View {
                 .buttonStyle(.plain)
 
                 Text(s.onboardingAgreementNote)
-                    .font(.footnote)
+                    .font(.subheadline)
                     .foregroundStyle(Color.cohMuted)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 8)
@@ -622,7 +622,7 @@ struct OnboardingView: View {
             .padding(.horizontal, 28)
 
             Text(s.onboardingAssetsHint)
-                .font(.footnote)
+                .font(.subheadline)
                 .foregroundStyle(Color.cohSecondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
@@ -738,7 +738,7 @@ struct OnboardingView: View {
                         googleSignInError = msg
                     }
                     Text(s.onboardingSignInRequiredNote)
-                        .font(.footnote).foregroundStyle(Color.cohMuted)
+                        .font(.subheadline).foregroundStyle(Color.cohMuted)
                         .multilineTextAlignment(.center)
                     if let err = googleSignInError {
                         Text(err).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)

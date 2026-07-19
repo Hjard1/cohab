@@ -216,7 +216,7 @@ struct SettlementView: View {
                                symbol: sym, color: Color.cohBlue)
                 } else {
                     Text(strings.settlementNoContributions)
-                        .font(.footnote).foregroundStyle(Color.cohSecondary)
+                        .font(.subheadline).foregroundStyle(Color.cohSecondary)
                 }
             }
             .padding(14)
@@ -345,7 +345,7 @@ struct SettlementView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(strings.settlementTransferNote)
-                .font(.footnote).foregroundStyle(Color.cohSecondary)
+                .font(.subheadline).foregroundStyle(Color.cohSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
