@@ -25,7 +25,6 @@ struct OnboardingView: View {
     @State private var disclaimerAccepted = false
     @State private var showDisclaimerSheet = false
     @State private var showDisclaimerRequiredAlert = false
-    @State private var showSignIn = false
     @State private var googleSignInError: String?
     @State private var finishError: String?
     @State private var isFinishing = false
@@ -91,7 +90,6 @@ struct OnboardingView: View {
             AppStrings.shared.language = AppLanguage.from(country: country.code)
         }
         .sheet(isPresented: $showDisclaimerSheet) { disclaimerSheet }
-        .sheet(isPresented: $showSignIn) { SignInView() }
         .alert(s.disclaimerTitle, isPresented: $showDisclaimerRequiredAlert) {
             Button(s.ok, role: .cancel) { }
         } message: {
@@ -187,8 +185,10 @@ struct OnboardingView: View {
                     Spacer()
 
                     VStack(spacing: 12) {
-                        ctaButton(s.onboardingGetStarted, enabled: true) { advance() }
-
+                        // Sign-in is the only way forward: the app is cloud-first
+                        // (partner sync + contracts), and the old unsigned
+                        // "Get started" path dead-ended at the final step where
+                        // sign-in was required anyway.
                         GoogleSignInButton(label: s.onboardingContinueWithGoogle) { user in
                             if nameA.isEmpty { nameA = user.givenName }
                             if emailA.isEmpty { emailA = user.email }
@@ -201,14 +201,6 @@ struct OnboardingView: View {
                             advance()
                         } onError: { msg in
                             googleSignInError = msg
-                        }
-
-                        Button { showSignIn = true } label: {
-                            Text(s.onboardingAlreadyHaveAccount)
-                                .font(.subheadline)
-                                .foregroundStyle(Color.cohMuted)
-                                .padding(.vertical, 6)
-                                .frame(maxWidth: .infinity)
                         }
 
                         if let err = googleSignInError {

@@ -336,6 +336,8 @@ final class Household {
     var docusealSlug: String = ""
     var docusealViewUrl: String = ""           // signingUrlA — usable as view/download link post-signing
     var signedAt: Date? = nil
+    // True when the other partner deleted their account — read-only mode
+    var partnerLeft: Bool? = nil
     var relationshipType: String = "partner"   // "partner" | "friend" | "married"
     var agreementType: String = "cohabitation" // "cohabitation" | "rental"
 

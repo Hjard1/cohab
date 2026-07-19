@@ -120,12 +120,17 @@ struct DashboardView: View {
 
                             // CREAM CONTENT — rounded top overlaps header
                             VStack(spacing: 0) {
+                                if h.partnerLeft == true {
+                                    partnerLeftBanner
+                                        .padding(.horizontal, 20)
+                                        .padding(.top, 16)
+                                }
                                 if !auth.isSignedIn {
                                     signInBanner
                                         .padding(.horizontal, 20)
                                         .padding(.top, 16)
                                 }
-                                if auth.isSignedIn, store.memberCount < 2 {
+                                if auth.isSignedIn, store.memberCount < 2, h.partnerLeft != true {
                                     invitePartnerBanner(h)
                                         .padding(.horizontal, 20)
                                         .padding(.top, 16)
@@ -167,9 +172,11 @@ struct DashboardView: View {
                         }
                     }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        HStack { Spacer(); addButton }
-                            .padding(.trailing, 20)
-                            .padding(.bottom, 8)
+                        if h.partnerLeft != true {
+                            HStack { Spacer(); addButton }
+                                .padding(.trailing, 20)
+                                .padding(.bottom, 8)
+                        }
                     }
 
                 } else {
@@ -601,7 +608,10 @@ struct DashboardView: View {
         let partnerB   = h.partnerBName.isEmpty ? "Partner" : h.partnerBName
 
         let chip1: (icon: String, label: String, action: () -> Void)
-        if noPartner {
+        if h.partnerLeft == true {
+            // Read-only mode — the banner at the top explains why
+            chip1 = ("person.fill.xmark", strings.partnerLeftChip, {})
+        } else if noPartner {
             // No partner name set yet → open settings to add
             chip1 = ("person.badge.plus", strings.inviteTitle, { showSetup = true })
         } else if noAssets {
@@ -1307,6 +1317,30 @@ extension DashboardView {
         .padding(14)
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
         .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    /// Shown when the other partner deleted their account: the data stays
+    /// readable, but every "add new" path is disabled.
+    private var partnerLeftBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "person.fill.xmark")
+                .font(.subheadline)
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(strings.partnerLeftTitle)
+                    .font(.caption.weight(.semibold))
+                Text(strings.partnerLeftSub)
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Color.orange.opacity(0.25), lineWidth: 1)
+        )
     }
 
     func rateUpdateBanner(household: Household, rate: CentralBankRate) -> some View {
@@ -2584,10 +2618,12 @@ struct EditAssetView: View {
                         .font(.caption).foregroundStyle(Color(.tertiaryLabel))
                 }
                 Spacer()
-                Button { showAddContribution = true } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(Color.cohGreen)
+                if household.partnerLeft != true {
+                    Button { showAddContribution = true } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(Color.cohGreen)
+                    }
                 }
             }
 

@@ -136,6 +136,7 @@ final class HouseholdStore {
             localHousehold.signedContribCount = dbHousehold.signedContribCount
             localHousehold.docusealSlug       = dbHousehold.docusealSlug
             localHousehold.docusealViewUrl    = dbHousehold.docusealViewUrl
+            localHousehold.partnerLeft        = dbHousehold.partnerLeftAt != nil
             localHousehold.emailA             = dbHousehold.emailA
             localHousehold.emailB             = dbHousehold.emailB
 

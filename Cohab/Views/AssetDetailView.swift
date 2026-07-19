@@ -365,11 +365,13 @@ struct AssetDetailView: View {
                             .strokeBorder(Color.cohInk.opacity(0.2), lineWidth: 1.5)
                     )
             }
-            Button { showAddContribution = true } label: {
-                Text(strings.assetAddContrib)
-                    .font(.headline).foregroundStyle(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 16)
-                    .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
+            if household.partnerLeft != true {
+                Button { showAddContribution = true } label: {
+                    Text(strings.assetAddContrib)
+                        .font(.headline).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).padding(.vertical, 16)
+                        .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
+                }
             }
         }
         .padding(.horizontal, 20)

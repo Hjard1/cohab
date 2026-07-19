@@ -271,22 +271,25 @@ struct ExpenseSplitView: View {
                     }
                 }
 
-                // Add custom expense button
-                Button { showAdd = true } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus.circle.fill").foregroundStyle(Color.cohGreen)
-                        Text(strings.expenseAddExpense)
-                            .font(.subheadline.weight(.medium)).foregroundStyle(Color.cohGreen)
+                // Add custom expense button — hidden in read-only mode
+                // (partner deleted their account)
+                if store.household?.partnerLeftAt == nil {
+                    Button { showAdd = true } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus.circle.fill").foregroundStyle(Color.cohGreen)
+                            Text(strings.expenseAddExpense)
+                                .font(.subheadline.weight(.medium)).foregroundStyle(Color.cohGreen)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(Color.cohGreen.opacity(0.4),
+                                              style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                        )
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 13)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.cohGreen.opacity(0.4),
-                                          style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
-                    )
+                    .padding(.top, 12)
                 }
-                .padding(.top, 12)
             }
         }
     }

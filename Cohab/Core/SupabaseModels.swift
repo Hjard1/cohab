@@ -62,6 +62,8 @@ struct DBHousehold: Codable, Identifiable {
     var expenseIncomeA: Double?
     var expenseIncomeB: Double?
     var expensesUpdatedAt: Date?
+    // Set when the other partner deleted their account — household becomes read-only
+    var partnerLeftAt: Date?
     let createdAt: Date
 
     var isFormalMode: Bool { setupMode == "formal" }
@@ -117,6 +119,7 @@ struct DBHousehold: Codable, Identifiable {
         case expenseIncomeA = "expense_income_a"
         case expenseIncomeB = "expense_income_b"
         case expensesUpdatedAt = "expenses_updated_at"
+        case partnerLeftAt = "partner_left_at"
         case createdAt = "created_at"
     }
 }

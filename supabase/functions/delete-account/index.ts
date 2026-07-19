@@ -42,7 +42,67 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Delete user from auth — cascades to profiles via ON DELETE CASCADE
+    // Delete the user's household data BEFORE deleting the auth user.
+    // Deleting the user alone only cascades to profiles + their membership
+    // rows, leaving households/assets/contributions/expenses orphaned.
+    //
+    // Households where the user is the sole member are deleted entirely —
+    // assets, contributions, expenses, invites and memberships cascade.
+    // Households shared with a partner keep their data for the remaining
+    // partner, but are flagged partner_left_at (read-only mode); the
+    // departing user's membership row disappears with the user delete below.
+    const { data: memberships, error: memberError } = await supabaseAdmin
+      .from("household_members")
+      .select("household_id")
+      .eq("user_id", user.id);
+    if (memberError) {
+      return new Response(JSON.stringify({ error: memberError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    for (const m of memberships ?? []) {
+      const { count, error: countError } = await supabaseAdmin
+        .from("household_members")
+        .select("user_id", { count: "exact", head: true })
+        .eq("household_id", m.household_id);
+      if (countError) {
+        return new Response(JSON.stringify({ error: countError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if ((count ?? 0) <= 1) {
+        const { error: hhError } = await supabaseAdmin
+          .from("households")
+          .delete()
+          .eq("id", m.household_id);
+        if (hhError) {
+          return new Response(JSON.stringify({ error: hhError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } else {
+        // Shared household — leave the data for the remaining partner, but
+        // flag it so their app shows "partner deleted their account" and
+        // switches to read-only (no new assets/contributions/expenses).
+        const { error: flagError } = await supabaseAdmin
+          .from("households")
+          .update({ partner_left_at: new Date().toISOString() })
+          .eq("id", m.household_id);
+        if (flagError) {
+          return new Response(JSON.stringify({ error: flagError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
+
+    // Delete user from auth — cascades to profiles and any remaining
+    // membership rows via ON DELETE CASCADE
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
     if (deleteError) {
       return new Response(JSON.stringify({ error: deleteError.message }), {
