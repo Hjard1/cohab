@@ -25,19 +25,6 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Green liquid photo, flipped vertically so its dark half sits
-                // behind the white header text — no scrim needed.
-                ZStack(alignment: .top) {
-                    Image("overviewBg")
-                        .resizable()
-                        .scaledToFill()
-                        .scaleEffect(y: -1)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                        .ignoresSafeArea(.all, edges: .top)
-                }
-                .ignoresSafeArea(.all, edges: .top)
-
                 if let h = household {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
@@ -95,6 +82,17 @@ struct DashboardView: View {
                             .clipShape(.rect(topLeadingRadius: 28, topTrailingRadius: 28))
                         }
                     }
+                    // Green liquid photo behind the header — attached as the
+                    // ScrollView's background so it bleeds under the status bar
+                    // WITHOUT disturbing the scroll view's safe-area insets
+                    // (a ZStack sibling pushed content under the notch).
+                    .background(
+                        Image("overviewBg")
+                            .resizable()
+                            .scaledToFill()
+                            .scaleEffect(y: -1)
+                            .ignoresSafeArea(.all, edges: .top)
+                    )
                     .task {
                         // Only show banner if fetched rate meaningfully differs from current
                         if let fetched = await InterestRateService.fetch(currency: h.currency),
