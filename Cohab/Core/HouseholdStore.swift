@@ -529,6 +529,7 @@ final class HouseholdStore {
             purchaseDate: f.string(from: Date()))
         assets.append(row)
         contributions[row.id] = []
+        Task { await SupabaseService.notifyPartner(kind: "asset", label: label, householdId: h.id) }
         return row
     }
 
@@ -564,6 +565,10 @@ final class HouseholdStore {
             assetId: assetId, ownerKey: ownerKey, amount: amount,
             date: f.string(from: date), label: label, category: category)
         contributions[assetId, default: []].insert(row, at: 0)
+        if let hid = household?.id {
+            let assetLabel = assets.first(where: { $0.id == assetId })?.label ?? label
+            Task { await SupabaseService.notifyPartner(kind: "contribution", label: assetLabel, householdId: hid) }
+        }
     }
 
     func deleteContribution(_ id: UUID, assetId: UUID) async throws {
@@ -583,6 +588,7 @@ final class HouseholdStore {
             paidByKey: paidByKey, splitRatioA: splitRatioA,
             date: f.string(from: date), category: category, isRecurring: isRecurring)
         expenses.insert(row, at: 0)
+        Task { await SupabaseService.notifyPartner(kind: "expense", label: label, householdId: h.id) }
     }
 
     func deleteExpense(_ id: UUID) async throws {

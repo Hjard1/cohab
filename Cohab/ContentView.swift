@@ -75,6 +75,12 @@ struct ContentView: View {
             initialSyncCompleted = false
             if auth.isSignedIn {
                 await store.sync(modelContext: modelContext)
+                if !households.isEmpty {
+                    // Push registration — asks permission once, then keeps the
+                    // device token in Supabase for partner-activity alerts.
+                    await PushManager.shared.requestAndRegister()
+                    await PushManager.shared.uploadPendingIfNeeded()
+                }
                 if let h = households.first {
                     store.subscribeRealtime(householdId: h.id, modelContext: modelContext)
                 }

@@ -320,6 +320,21 @@ enum SupabaseService {
 
     // MARK: - Invite
 
+    /// Fire-and-forget push to the OTHER household members after an insert
+    /// (asset / contribution / expense). Failures are intentionally silent —
+    /// a missed notification must never break the underlying save.
+    static func notifyPartner(kind: String, label: String, householdId: UUID) async {
+        guard let accessToken = try? await supabase.auth.session.accessToken else { return }
+        var req = URLRequest(url: URL(string: "\(APIConfig.supabaseURL)/functions/v1/notify-partner")!)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "kind": kind, "label": label, "household_id": householdId.uuidString,
+        ])
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
     /// Number of members in the household (1 = only you, 2 = partner joined).
     static func fetchMemberCount(householdId: UUID) async throws -> Int {
         struct Row: Decodable { let user_id: UUID }
