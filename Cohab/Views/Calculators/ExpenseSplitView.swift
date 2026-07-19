@@ -456,6 +456,22 @@ struct ExpenseSplitView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    // One-tap: apply the income-proportional split to every
+                    // expense row paid by "both".
+                    Button { applyIncomeSplit() } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.left.and.right")
+                                .font(.caption)
+                            Text(strings.expenseApplyIncomeSplit)
+                                .font(.caption.weight(.semibold))
+                        }
+                        .foregroundStyle(Color.cohGreen)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(Color.cohGreen.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isReadOnly)
                     if abs(adjustment) >= 1 {
                         let over = adjustment > 0 ? nameA : nameB
                         // Tappable — expands into a plain-language explanation
@@ -546,6 +562,23 @@ struct ExpenseSplitView: View {
     }
 
     // MARK: Helpers
+
+    /// Applies the income-proportional split to every row paid by "both" —
+    /// preset rows via working-state sync, individual expenses via the store.
+    private func applyIncomeSplit() {
+        guard totalIncome > 0 else { return }
+        let share = iA / totalIncome
+        for i in 0..<5 where presetPays[i] == "both" {
+            presetSplits[i] = share   // .onChange → persistWorkingState pushes
+        }
+        for e in store.expenses where e.paidByKey == "both" {
+            Task {
+                try? await store.updateExpense(e.id, amount: e.amount,
+                                               paidByKey: e.paidByKey,
+                                               splitRatioA: share)
+            }
+        }
+    }
 
     /// Toggles the dashboard visibility of the budget card and pushes the
     /// flag to Supabase so the partner's dashboard matches.

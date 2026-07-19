@@ -2075,6 +2075,16 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
         fr: "RÉPARTITION ÉQUITABLE SELON LE REVENU",
         es: "DIVISIÓN JUSTA SEGÚN INGRESOS") }
 
+    var expenseApplyIncomeSplit: String { s(
+        en: "Split shared costs by income",
+        nb: "Fordel felles utgifter etter inntekt",
+        sv: "Fördela gemensamma kostnader efter inkomst",
+        da: "Fordel fælles udgifter efter indkomst",
+        fi: "Jaa yhteiset kulut tulojen mukaan",
+        de: "Gemeinsame Kosten nach Einkommen aufteilen",
+        fr: "Répartir les dépenses communes selon le revenu",
+        es: "Repartir los gastos comunes según ingresos") }
+
     func expensePctOfIncome(_ pct: Int) -> String { s(
         en: "\(pct)% of income",
         nb: "\(pct) % av inntekt",
