@@ -2086,14 +2086,24 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
         es: "\(pct) % de ingresos") }
 
     func expensePaysMoreThanFair(_ who: String, _ amount: String) -> String { s(
-        en: "\(who) pays \(amount)/month more than income-fair",
-        nb: "\(who) betaler \(amount)/mnd mer enn inntektsrettferdig",
-        sv: "\(who) betalar \(amount)/mån mer än inkomsträttvist",
-        da: "\(who) betaler \(amount)/md mere end indkomstretfærdigt",
-        fi: "\(who) maksaa \(amount)/kk enemmän kuin tuloihin nähden reilua",
-        de: "\(who) zahlt \(amount)/Monat mehr als einkommensgerecht",
-        fr: "\(who) paie \(amount)/mois de plus que la part équitable",
-        es: "\(who) paga \(amount)/mes más de lo justo según ingresos") }
+        en: "\(who) covers \(amount)/month more than their income share",
+        nb: "\(who) dekker \(amount)/mnd mer enn sin inntektsandel",
+        sv: "\(who) täcker \(amount)/mån mer än sin inkomstandel",
+        da: "\(who) dækker \(amount)/md mere end sin indkomstandel",
+        fi: "\(who) maksaa \(amount)/kk enemmän kuin tulosuhteensa",
+        de: "\(who) zahlt \(amount)/Monat mehr als seinen Einkommensanteil",
+        fr: "\(who) paie \(amount)/mois de plus que sa part de revenu",
+        es: "\(who) paga \(amount)/mes más que su parte según ingresos") }
+
+    func expenseFairSplitExplanation(_ pctA: Int, _ pctB: Int) -> String { s(
+        en: "With an income-based split you each pay the same percentage of your income toward shared costs. Based on your incomes that works out to \(pctA)/\(pctB).",
+        nb: "Med fordeling etter inntekt dekker hver av dere samme prosentandel av inntekten sin til felles utgifter. Basert på inntektene deres blir det \(pctA)/\(pctB).",
+        sv: "Med inkomstbaserad fördelning betalar ni samma andel av era inkomster till gemensamma kostnader. Utifrån era inkomster blir det \(pctA)/\(pctB).",
+        da: "Med indkomstbaseret fordeling betaler I samme andel af jeres indkomster til fælles udgifter. Baseret på jeres indkomster bliver det \(pctA)/\(pctB).",
+        fi: "Tuloperusteisessa jaossa kumpikin maksaa saman osuuden tuloistaan yhteisiin kuluihin. Tulojenne perusteella se on \(pctA)/\(pctB).",
+        de: "Bei der einkommensbasierten Aufteilung zahlt jeder denselben Prozentsatz seines Einkommens für gemeinsame Kosten. Basierend auf Ihren Einkommen ergibt das \(pctA)/\(pctB).",
+        fr: "Avec une répartition selon le revenu, chacun paie le même pourcentage de son revenu pour les dépenses communes. Sur la base de vos revenus, cela donne \(pctA)/\(pctB).",
+        es: "Con un reparto según ingresos, cada uno paga el mismo porcentaje de sus ingresos para los gastos comunes. Según vuestros ingresos, sería \(pctA)/\(pctB).") }
 
     var expensePaysOut: String { s(
         en: "Pays out",

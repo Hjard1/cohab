@@ -19,6 +19,7 @@ struct ExpenseSplitView: View {
     @State private var showAdd = false
     @State private var savedBudget = false
     @State private var expenseError: String?
+    @State private var showFairInfo = false
 
     // Preset amounts, payers & split — mirrored to the Household model and
     // pushed to Supabase (debounced) so both partners edit the same numbers.
@@ -457,10 +458,30 @@ struct ExpenseSplitView: View {
                     }
                     if abs(adjustment) >= 1 {
                         let over = adjustment > 0 ? nameA : nameB
-                        HStack(spacing: 5) {
-                            Image(systemName: "info.circle").font(.caption2).foregroundStyle(Color.cohSecondary)
-                            Text(strings.expensePaysMoreThanFair(over, symbol + fmt(abs(adjustment))))
-                                .font(.caption).foregroundStyle(Color.cohSecondary)
+                        // Tappable — expands into a plain-language explanation
+                        // of what the income-based split means.
+                        VStack(alignment: .leading, spacing: 8) {
+                            Button {
+                                withAnimation(.spring(duration: 0.25)) { showFairInfo.toggle() }
+                            } label: {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "info.circle").font(.caption2).foregroundStyle(Color.cohSecondary)
+                                    Text(strings.expensePaysMoreThanFair(over, symbol + fmt(abs(adjustment))))
+                                        .font(.caption).foregroundStyle(Color.cohSecondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    Spacer()
+                                    Image(systemName: showFairInfo ? "chevron.up" : "chevron.down")
+                                        .font(.caption2.bold()).foregroundStyle(Color.cohTertiary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+
+                            if showFairInfo {
+                                Text(strings.expenseFairSplitExplanation(pctA, 100 - pctA))
+                                    .font(.caption).foregroundStyle(Color.cohMuted)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
                         }
                     }
                 }
