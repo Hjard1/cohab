@@ -6,7 +6,7 @@ import SwiftUI
 /// Version of the disclaimer text. Bump when the text changes so every
 /// user re-accepts; the accepted version is stored per profile (legal trail).
 enum Disclaimer {
-    static let currentVersion = "1.1"
+    static let currentVersion = "1.2"
 }
 
 enum AppLanguage: String, CaseIterable {
@@ -104,8 +104,8 @@ Personal data is processed in accordance with applicable data protection law and
 These terms are governed by Norwegian law. Disputes are handled by the ordinary courts \
 with Oslo District Court as venue, unless mandatory consumer law provides otherwise.
 
-By continuing, you acknowledge that cohab provides tools, not legal advice, \
-and accepts no liability beyond what follows from mandatory law.
+By continuing, you acknowledge that cohab provides tools, not legal advice. \
+Hjard AS's total liability is in any case limited to the amount you have paid for the service.
 """,
         nb: """
 cohab tilbys av Hjard AS (org.nr. 933 786 021) — et digitalt verktøy for å følge felles eiendeler og utgifter, og for å lage samboeravtaler mellom to parter.
@@ -137,8 +137,8 @@ Personopplysninger behandles i samsvar med gjeldende personvernlovgivning og vå
 Disse vilkårene reguleres av norsk rett. Tvister behandles av ordinære domstoler \
 med Oslo tingrett som verneting, med mindre annet følger av ufravikelig forbrukerlovgivning.
 
-Ved å fortsette erkjenner du at cohab tilbyr verktøy, ikke juridisk rådgivning, \
-og ikke påtar seg ansvar ut over det som følger av ufravikelig lov.
+Ved å fortsette erkjenner du at cohab tilbyr verktøy, ikke juridisk rådgivning. \
+Hjard AS sitt samlede erstatningsansvar er under enhver omstendighet begrenset til beløpet du har betalt for tjenesten.
 """,
         sv: """
 cohab tillhandahålls av Hjard AS (org.nr 933 786 021, Norge) — ett digitalt verktyg för att följa gemensamma tillgångar och utgifter och för att skapa samboavtal mellan två parter.
@@ -170,8 +170,8 @@ Personuppgifter behandlas i enlighet med gällande dataskyddslagstiftning och v�
 Dessa villkor regleras av norsk rätt. Tvister behandlas av allmän domstol \
 med Oslo tingrett som verneting, om inte annat följer av tvingande konsumentlagstiftning.
 
-Genom att fortsätta bekräftar du att cohab tillhandahåller verktyg, inte juridisk rådgivning, \
-och inte tar ansvar utöver vad som följer av tvingande lag.
+Genom att fortsätta bekräftar du att cohab tillhandahåller verktyg, inte juridisk rådgivning. \
+Hjard AS samlade skadeståndsansvar är under alla omständigheter begränsat till det belopp du har betalat för tjänsten.
 """,
         da: """
 cohab tilbydes af Hjard AS (org.nr. 933 786 021, Norge) — et digitalt værktøj til at følge fælles aktiver og udgifter og til at lave samleveraftaler mellem to parter.
@@ -203,8 +203,8 @@ Personoplysninger behandles i overensstemmelse med gældende databeskyttelseslov
 Disse vilkår er underlagt norsk ret. Tvister behandles af de almindelige domstole \
 med Oslo tingret som værneting, medmindre andet følger af ufravigelig forbrugerlovgivning.
 
-Ved at fortsætte anerkender du, at cohab tilbyder værktøjer, ikke juridisk rådgivning, \
-og ikke påtager sig ansvar ud over, hvad der følger af ufravigelig lov.
+Ved at fortsætte anerkender du, at cohab tilbyder værktøjer, ikke juridisk rådgivning. \
+Hjard AS' samlede erstatningsansvar er under alle omstændigheder begrænset til det beløb, du har betalt for tjenesten.
 """,
         fi: """
 cohab-palvelun tarjoaa Hjard AS (Y-tunnus 933 786 021, Norja) — digitaalinen työkalu yhteisten varojen ja kulujen seuraamiseen sekä avoliittosopimusten laatimiseen kahden osapuolen välillä.
@@ -236,8 +236,8 @@ Henkilötietoja käsitellään soveltuvan tietosuojalainsäädännön ja tietosu
 Näihin ehtoihin sovelletaan Norjan lakia. Riidat käsitellään yleisissä tuomioistuimissa \
 Oslon käräjäoikeudessa, ellei pakottaavasta kuluttajalainsäädännöstä muuta johdu.
 
-Jatkamalla vahvistat, että cohab tarjoaa työkaluja, ei oikeudellista neuvontaa, \
-eikä ota vastuuta pakottavan lain sallimaa laajemmin.
+Jatkamalla vahvistat, että cohab tarjoaa työkaluja, ei oikeudellista neuvontaa. \
+Hjard AS:n kokonaisvahingonkorvausvastuu rajoittuu joka tapauksessa palvelusta maksamaasi summaan.
 """,
         de: """
 cohab wird von der Hjard AS (Org.-Nr. 933 786 021, Norwegen) bereitgestellt — ein digitales Werkzeug zum Verfolgen gemeinsamer Vermögenswerte und Ausgaben sowie zum Erstellen von Lebenspartnerschaftsverträgen zwischen zwei Parteien.
@@ -269,8 +269,8 @@ Personenbezogene Daten werden gemäß dem geltenden Datenschutzrecht und unserer
 Diese Bedingungen unterliegen norwegischem Recht. Streitigkeiten werden von den ordentlichen Gerichten \
 mit Oslo tingrett als Gerichtsstand entschieden, soweit zwingendes Verbraucherrecht nichts anderes vorsieht.
 
-Indem Sie fortfahren, erkennen Sie an, dass cohab Werkzeuge bereitstellt, keine Rechtsberatung, \
-und keine Haftung über das zwingend gesetzlich vorgeschriebene Maß hinaus übernimmt.
+Indem Sie fortfahren, erkennen Sie an, dass cohab Werkzeuge bereitstellt, keine Rechtsberatung. \
+Die Gesamthaftung der Hjard AS ist in jedem Fall auf den Betrag begrenzt, den Sie für den Dienst bezahlt haben.
 """,
         fr: """
 cohab est fourni par Hjard AS (n° d'org. 933 786 021, Norvège) — un outil numérique pour suivre les actifs et dépenses communs et créer des contrats de cohabitation entre deux parties.
@@ -302,8 +302,8 @@ Les données personnelles sont traitées conformément à la législation applic
 Les présentes conditions sont régies par le droit norvégien. Les litiges sont portés devant les tribunaux ordinaires, \
 le tribunal d'Oslo étant le for compétent, sauf disposition impérative contraire du droit de la consommation.
 
-En continuant, vous reconnaissez que cohab fournit des outils, pas des conseils juridiques, \
-et décline toute responsabilité au-delà de ce que prévoit la loi impérative.
+En continuant, vous reconnaissez que cohab fournit des outils, pas des conseils juridiques. \
+La responsabilité totale de Hjard AS est en tout état de cause limitée au montant que vous avez payé pour le service.
 """,
         es: """
 cohab es proporcionado por Hjard AS (n.º de org. 933 786 021, Noruega) — una herramienta digital para registrar bienes y gastos compartidos y crear acuerdos de convivencia entre dos partes.
@@ -335,8 +335,8 @@ Los datos personales se tratan conforme a la legislación aplicable y a nuestra 
 Estas condiciones se rigen por la ley noruega. Los litigios se resolverán en los tribunales ordinarios \
 con el tribunal de Oslo como fuero, salvo que la normativa imperativa del consumidor disponga otra cosa.
 
-Al continuar, reconoces que cohab ofrece herramientas, no asesoramiento jurídico, \
-y no asume responsabilidad más allá de lo exigido por la ley imperativa.
+Al continuar, reconoces que cohab ofrece herramientas, no asesoramiento jurídico. \
+La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe que has pagado por el servicio.
 """) }
 
     var disclaimerAckLabel: String { s(
