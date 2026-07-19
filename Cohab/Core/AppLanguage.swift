@@ -2684,8 +2684,6 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
     var contractHeaderTitle: String     { s(en: "Cohabitation Agreement",    nb: "Avtale om felles eierskap",  sv: "Samboavtal",                    da: "Samlivskontrakt",      fi: "Avoliittosopimus",    de: "Partnerschaftsvertrag", fr: "Convention de cohabitation", es: "Contrato de convivencia") }
     /// Use String(format: strings.contractBetween, nameA, nameB)
     var contractBetween: String         { s(en: "Between %@ and %@",         nb: "Mellom %@ og %@",            sv: "Mellan %@ och %@",              da: "Mellem %@ og %@",     fi: "Välillä %@ ja %@",    de: "Zwischen %@ und %@",  fr: "Entre %@ et %@",       es: "Entre %@ y %@") }
-    var contractTeaserTitle: String     { s(en: "From your agreement",       nb: "Fra avtalen din",            sv: "Från ditt avtal",              da: "Fra din aftale",      fi: "Sopimuksestasi",      de: "Aus Ihrer Vereinbarung", fr: "De votre convention", es: "De tu contrato") }
-    var contractTeaserFooter: String    { s(en: "The full agreement includes all assets and contributions.", nb: "Fullversjonen inneholder alle eiendeler og bidrag.", sv: "Hela avtalet innehåller alla tillgångar och bidrag.", da: "Hele aftalen indeholder alle aktiver og bidrag.", fi: "Koko sopimus sisältää kaikki varat ja maksut.", de: "Die vollständige Vereinbarung enthält alle Vermögenswerte und Beiträge.", fr: "La convention complète inclut tous les biens et contributions.", es: "El contrato completo incluye todos los bienes y aportaciones.") }
 
     // MARK: Agreement intro
 

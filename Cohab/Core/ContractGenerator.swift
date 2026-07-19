@@ -1,6 +1,14 @@
 import UIKit
 import Foundation
 
+/// Marks sections whose body can be partially revealed as a teaser
+/// (first asset / first contribution) in the unpaid in-app preview.
+enum ContractSectionKind {
+    case plain
+    case assets
+    case contributions
+}
+
 enum ContractGenerator {
 
     struct Output {
@@ -295,11 +303,11 @@ enum ContractGenerator {
     }
 
     /// Public access to clause sections for in-app preview.
-    static func previewSections(household: Household) -> [(title: String, body: String)] {
+    static func previewSections(household: Household) -> [(title: String, body: String, kind: ContractSectionKind)] {
         buildSections(household: household)
     }
 
-    private static func buildSections(household: Household) -> [(title: String, body: String)] {
+    private static func buildSections(household: Household) -> [(title: String, body: String, kind: ContractSectionKind)] {
         // Print the exact rate (e.g. "4.5%"), not a rounded integer — the signed
         // document must state the same rate the settlement engine actually uses.
         let rateStr = formatRate(household.annualInterestRate)
@@ -312,7 +320,7 @@ enum ContractGenerator {
         let isFr = isFrench(household)
         let isEs = isSpanish(household)
         var n = 1
-        var sections: [(title: String, body: String)] = []
+        var sections: [(title: String, body: String, kind: ContractSectionKind)] = []
 
         // § 1 SCOPE
         sections.append(("\(n).  \(t(household, no: "AVTALENS FORMÅL", sv: "AVTALETS ÄNDAMÅL", da: "AFTALENS FORMÅL", fi: "SOPIMUKSEN TARKOITUS", de: "VERTRAGSZWECK", fr: "OBJET DE LA CONVENTION", es: "OBJETO DEL CONTRATO", en: "PURPOSE"))", {
@@ -358,7 +366,7 @@ enum ContractGenerator {
                 }
                 return "This agreement confirms each party's registered ownership of shared assets and documents what each has contributed financially.\(dissolution) \(regNote) Both parties agree to keep records up to date."
             }
-        }()))
+        }(), .plain))
 
         // § SEPARATE PROPERTY — Samboappen § 2 (optional advanced; presumes co-owned property)
         if household.includeSeparatePropertyClause && !isRental {
@@ -381,7 +389,7 @@ enum ContractGenerator {
                 } else {
                     return "Assets that each party brought into this arrangement, and any assets received as a gift or inheritance during the arrangement, remain the sole property of the party who brought or received them.\n\nAssets acquired jointly during the arrangement are held in the proportions registered in cohab. Both parties are encouraged to keep records up to date; the most recently signed version of this agreement takes precedence in the event of any discrepancy."
                 }
-            }()))
+            }(), .plain))
         }
 
         // § SHARED ASSETS
@@ -546,7 +554,7 @@ enum ContractGenerator {
                 contribRef = "See § \(contribSectionNumber) for a breakdown of what each party has actually paid in toward each asset."
             }
             return "\(intro)\n\n\(list)\n\n\(valuationClause)\n\n\(contribRef)"
-        }()))
+        }(), .assets))
 
         // § RENTAL ARRANGEMENT — added when the household is renting rather than co-owning a home
         if isRental {
@@ -666,7 +674,7 @@ enum ContractGenerator {
                     }
                     return "The parties share a home that they rent, or one party rents to the other. \(rentSentence) If the arrangement ends, the obligation to pay rent ends automatically from the date the arrangement ends."
                 }
-            }()))
+            }(), .plain))
         }
 
         // § FINANCIAL CONTRIBUTIONS
@@ -827,7 +835,7 @@ enum ContractGenerator {
             lines.append("")
             lines.append(note)
             return lines.joined(separator: "\n")
-        }()))
+        }(), .contributions))
 
         // § DISSOLUTION — Samboappen § 8 (core, always included if toggled)
         if household.includeDissolutionClause {
@@ -850,7 +858,7 @@ enum ContractGenerator {
                 } else {
                     return "If this arrangement ends, the following order applies:\n\n(a) Contributions returned first. What each party has paid in — with accrued interest at \(rateStr) per annum — is returned to that party before any remaining value is divided.\n\n(b) Shortfall. If available proceeds are less than total contributions, the available amount is shared proportionally to what each party has paid in.\n\n(c) Surplus. Any remaining value after contributions are repaid is divided according to each party's recorded ownership percentage."
                 }
-            }()))
+            }(), .plain))
         }
 
         // § BUYOUT RIGHTS — Samboappen § 7 (advanced optional; presumes co-owned property)
@@ -874,7 +882,7 @@ enum ContractGenerator {
                 } else {
                     return "If this arrangement ends and the parties hold a jointly owned property:\n\n(a) Right of first refusal: The party with the greater recorded ownership share has the right to buy out the other. Where ownership is equal (50/50), the parties shall first attempt written agreement; if no agreement is reached within 30 days, the right is determined by mediation or, failing that, by coin toss or selection by a mutually agreed neutral third party.\n\n(b) Valuation: The buyout price shall be the average of two independent licensed appraisals, one obtained by each party from a licensed appraiser.\n\n(c) Timeline: Buyout or open-market sale shall be completed within 6 months of written notice of termination, or the documented date the arrangement ended.\n\n(d) Interest on delay: If the deadline is missed, the delaying party shall pay interest at the maximum rate permitted by applicable law."
                 }
-            }()))
+            }(), .plain))
         }
 
         // § DISPOSAL CONSENT — Samboappen § 10 (advanced optional)
@@ -898,7 +906,7 @@ enum ContractGenerator {
                 } else {
                     return "Neither party may sell, lease, mortgage, pledge, or otherwise dispose of any jointly held asset without the prior written consent of both parties. Any transaction entered into without such consent shall be voidable at the non-consenting party's election."
                 }
-            }()))
+            }(), .plain))
         }
 
         // § DISPUTE RESOLUTION — Samboappen § 9 (advanced optional)
@@ -922,7 +930,7 @@ enum ContractGenerator {
                 } else {
                     return "Any dispute arising from or relating to this agreement shall first be referred to mediation. If mediation does not resolve the dispute within 60 days, either party may bring proceedings before the courts of the jurisdiction in which the primary shared asset is located."
                 }
-            }()))
+            }(), .plain))
         }
 
         // § PERSONAL DEBT RESPONSIBILITY (optional; mortgage/loan-oriented, presumes co-owned property)
@@ -946,7 +954,7 @@ enum ContractGenerator {
                 } else {
                     return "Debts and other financial obligations incurred by a party — whether before or during this arrangement — are solely that party's responsibility. The other party is not liable for such debts to creditors or third parties, unless both parties have expressly agreed to shared liability in writing."
                 }
-            }()))
+            }(), .plain))
         }
 
         // § AMENDMENTS — Samboappen § 11
@@ -969,7 +977,7 @@ enum ContractGenerator {
             } else {
                 return "This agreement may be amended at any time by the written consent of both parties. All amendments must be documented and signed by both parties to be valid.\n\nThis agreement remains in force for as long as the parties jointly hold the assets recorded herein. All obligations or claims arising before termination shall continue to be settled in accordance with this agreement."
             }
-        }()))
+        }(), .plain))
 
         // § GOVERNING LAW
         sections.append(("\(n).  \(t(household, no: "LOVVALG", fi: "SOVELLETTAVA LAKI", de: "ANWENDBARES RECHT", fr: "LOI APPLICABLE", es: "LEY APLICABLE", en: "GOVERNING LAW"))", {
@@ -992,7 +1000,7 @@ enum ContractGenerator {
             } else {
                 return "This agreement is governed by the law of England and Wales. Any disputes that cannot be resolved between the parties shall be referred to the courts of England and Wales."
             }
-        }()))
+        }(), .plain))
 
         return sections
     }

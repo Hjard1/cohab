@@ -9,13 +9,39 @@ struct ContractPreviewView: View {
     @ObservedObject private var strings = AppStrings.shared
     @State private var showPaywall = false
 
-    private var sections: [(title: String, body: String)] {
+    private var sections: [(title: String, body: String, kind: ContractSectionKind)] {
         ContractGenerator.previewSections(household: household)
     }
 
-    // Number of sections shown clearly before blur kicks in — everything
-    // unlocks once the user has formal access.
-    private var visibleSections: Int { pm.hasFormalAccess ? sections.count : 1 }
+    /// How much of a section is shown before purchase.
+    private enum SectionVisibility {
+        case full
+        case blurred
+        /// The contract text itself teases one asset / one contribution.
+        case teaser(visible: String, hidden: String)
+    }
+
+    private func visibility(for section: (title: String, body: String, kind: ContractSectionKind), idx: Int) -> SectionVisibility {
+        if pm.hasFormalAccess || idx == 0 { return .full }
+        switch section.kind {
+        case .assets:
+            // Body is intro + one block per asset + closing clauses, separated
+            // by blank lines — reveal the intro and the first asset only.
+            let comps = section.body.components(separatedBy: "\n\n")
+            guard comps.count > 2 else { return .full }
+            return .teaser(visible: comps.prefix(2).joined(separator: "\n\n") + "\n\n",
+                           hidden: comps.dropFirst(2).joined(separator: "\n\n"))
+        case .contributions:
+            // Contribution rows are indented with two spaces — reveal
+            // everything up to and including the first row.
+            let lines = section.body.components(separatedBy: "\n")
+            guard let firstRow = lines.firstIndex(where: { $0.hasPrefix("  ") }) else { return .full }
+            return .teaser(visible: lines[...firstRow].joined(separator: "\n") + "\n",
+                           hidden: lines[(firstRow + 1)...].joined(separator: "\n"))
+        case .plain:
+            return .blurred
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -27,21 +53,12 @@ struct ContractPreviewView: View {
                         .padding(.top, 20)
                         .padding(.bottom, 20)
 
-                    // Teaser — first asset + first contribution, visible
-                    // before purchase so users see their own data.
-                    if !pm.hasFormalAccess, hasTeaser {
-                        teaserCard
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 20)
-                    }
-
-                    // Sections — first N clear, rest blurred
+                    // Sections — first clear, assets/contributions teased,
+                    // rest blurred until purchase
                     ZStack(alignment: .bottom) {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(Array(sections.enumerated()), id: \.offset) { idx, section in
-                                sectionView(section)
-                                    .blur(radius: idx >= visibleSections ? 6 : 0)
-                                    .allowsHitTesting(idx < visibleSections)
+                                sectionView(section, idx: idx)
                             }
                         }
                         .padding(.horizontal, 20)
@@ -139,54 +156,11 @@ struct ContractPreviewView: View {
         }
     }
 
-    // MARK: Teaser (first asset + first contribution, pre-purchase)
-
-    private var firstAsset: Asset? { household.assets.first }
-    private var firstContribution: ContributionRecord? {
-        household.assets.flatMap { $0.contributions }.first
-    }
-    private var hasTeaser: Bool { firstAsset != nil || firstContribution != nil }
-
-    private var teaserCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(strings.contractTeaserTitle.uppercased())
-                .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
-
-            if let a = firstAsset {
-                teaserRow(icon: a.type.icon, color: a.type.color,
-                          text: a.label,
-                          value: household.currencySymbol + Int(a.currentValue).formatted())
-            }
-            if let c = firstContribution {
-                let ownerColor = c.ownerKey == "A" ? Color.cohGreen : Color.cohBlue
-                teaserRow(icon: "banknote", color: ownerColor,
-                          text: c.label.isEmpty ? c.category.capitalized : c.label,
-                          value: household.currencySymbol + Int(c.amount).formatted())
-            }
-
-            Text(strings.contractTeaserFooter)
-                .font(.footnote).foregroundStyle(Color.cohMuted)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
-    }
-
-    private func teaserRow(icon: String, color: Color, text: String, value: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon).font(.subheadline).foregroundStyle(color).frame(width: 20)
-            Text(text).font(.subheadline).foregroundStyle(Color.cohInk).lineLimit(1)
-            Spacer()
-            Text(value).font(.subheadline.monospacedDigit()).foregroundStyle(Color.cohInk)
-        }
-    }
-
     // MARK: Section view
 
-    private func sectionView(_ section: (title: String, body: String)) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+    private func sectionView(_ section: (title: String, body: String, kind: ContractSectionKind), idx: Int) -> some View {
+        let vis = visibility(for: section, idx: idx)
+        return VStack(alignment: .leading, spacing: 10) {
             // Section title
             Text(section.title)
                 .font(.caption.bold())
@@ -195,15 +169,31 @@ struct ContractPreviewView: View {
                 .padding(.top, 4)
 
             // Body text
-            Text(section.body)
-                .font(.subheadline)
-                .foregroundStyle(Color.cohInk)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
+            switch vis {
+            case .full:
+                bodyText(section.body)
+            case .blurred:
+                bodyText(section.body)
+                    .blur(radius: 6)
+            case .teaser(let visible, let hidden):
+                VStack(alignment: .leading, spacing: 0) {
+                    bodyText(visible)
+                    bodyText(hidden)
+                        .blur(radius: 6)
+                }
+            }
 
             Divider()
                 .padding(.top, 8)
         }
         .padding(.vertical, 12)
+    }
+
+    private func bodyText(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(Color.cohInk)
+            .lineSpacing(4)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
