@@ -6,6 +6,7 @@ struct OnboardingView: View {
     private let onFinished: () -> Void
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(HouseholdStore.self) private var store
     @AppStorage("onboardingComplete") private var onboardingComplete = false
     @AppStorage("wasSignedOut") private var wasSignedOut = false
     @EnvironmentObject private var auth: AuthManager
@@ -910,6 +911,22 @@ struct OnboardingView: View {
 
         Task {
             do {
+                // Guard against duplicate households: if this user already has
+                // one on the server (after a local reset, reinstall, or a
+                // sign-out/in cycle), adopt it instead of creating another.
+                // Duplicates orphan data — the app always shows the newest
+                // household, so entries in the older ones look "gone".
+                if try await SupabaseService.fetchHousehold() != nil {
+                    await store.sync(modelContext: modelContext)
+                    await MainActor.run {
+                        isFinishing = false
+                        wasSignedOut = false
+                        withAnimation { onboardingComplete = true }
+                        onFinished()
+                    }
+                    return
+                }
+
                 // 1. Create the household in Supabase FIRST so we have the canonical id.
                 let householdId = try await SupabaseService.createHousehold(
                     partnerALabel: nameA.trimmingCharacters(in: .whitespaces),
