@@ -359,6 +359,16 @@ struct OnboardingView: View {
                     .padding(.bottom, 52)
             }
         }
+        .onAppear {
+            // nameA can be prefilled from the sign-in profile — onChange
+            // never fires for a prefilled value, so the partner field would
+            // stay hidden and Continue greyed out until the user edited
+            // their name. Reveal it immediately instead.
+            if !nameA.trimmingCharacters(in: .whitespaces).isEmpty,
+               inviteAnswer != "later", !showPartnerName {
+                showPartnerName = true
+            }
+        }
     }
 
     private var canAdvancePartners: Bool {
