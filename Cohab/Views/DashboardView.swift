@@ -25,79 +25,25 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Aurora borealis header — lighter teal/emerald sky with drifting,
-                // multi-colour ribbons (green → teal → violet) instead of a
-                // flat green fill with plain glow blobs.
+                // Green liquid photo background with a dark scrim at the top
+                // so the white header text stays readable.
                 ZStack(alignment: .top) {
+                    Image("overviewBg")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                        .ignoresSafeArea(.all, edges: .top)
+
                     LinearGradient(
                         colors: [
-                            Color(red: 0.06, green: 0.24, blue: 0.30),
-                            Color(red: 0.07, green: 0.34, blue: 0.32),
-                            Color(red: 0.09, green: 0.46, blue: 0.34)
+                            Color(red: 0.02, green: 0.10, blue: 0.07).opacity(0.60),
+                            Color(red: 0.02, green: 0.10, blue: 0.07).opacity(0.30),
+                            .clear
                         ],
                         startPoint: .top, endPoint: .bottom
                     )
-                    .ignoresSafeArea(.all, edges: .top)
-
-                    TimelineView(.animation) { tl in
-                        Canvas { ctx, size in
-                            let t = tl.date.timeIntervalSinceReferenceDate * 0.15
-
-                            // Faint stars — cheap, static-per-frame scatter for a night-sky feel
-                            var starSeed: UInt64 = 42
-                            for _ in 0..<28 {
-                                starSeed = starSeed &* 6364136223846793005 &+ 1
-                                let rx = Double((starSeed >> 33) % 1000) / 1000
-                                starSeed = starSeed &* 6364136223846793005 &+ 1
-                                let ry = Double((starSeed >> 33) % 1000) / 1000
-                                let sx = size.width * rx
-                                let sy = size.height * ry * 0.7
-                                let twinkle = 0.08 + 0.10 * abs(sin(t * 1.4 + rx * 30))
-                                ctx.fill(
-                                    Path(ellipseIn: CGRect(x: sx, y: sy, width: 2, height: 2)),
-                                    with: .color(.white.opacity(twinkle))
-                                )
-                            }
-
-                            // Aurora ribbons — wavy horizontal bands, each its own colour
-                            // and drift speed, layered and blurred to feel like curtains of light.
-                            let bands: [(color: Color, phase: Double, speed: Double, amplitude: Double, yBase: Double, thickness: CGFloat)] = [
-                                (Color(red: 0.45, green: 1.00, blue: 0.70), 0.0, 0.9, 0.09, 0.22, 100),
-                                (Color(red: 0.50, green: 0.95, blue: 0.90), 1.7, 0.7, 0.13, 0.36, 120),
-                                (Color(red: 0.72, green: 0.70, blue: 1.00), 3.1, 1.1, 0.08, 0.50, 80),
-                                (Color(red: 0.40, green: 0.92, blue: 0.75), 4.6, 0.8, 0.11, 0.30, 70)
-                            ]
-
-                            for band in bands {
-                                let steps = 32
-                                var points: [CGPoint] = []
-                                for i in 0...steps {
-                                    let x = size.width * CGFloat(i) / CGFloat(steps)
-                                    let wave = sin(t * band.speed + band.phase + Double(i) * 0.4) * band.amplitude
-                                    let y = size.height * (band.yBase + wave)
-                                    points.append(CGPoint(x: x, y: y))
-                                }
-                                var path = Path()
-                                path.addLines(points)
-
-                                ctx.stroke(
-                                    path,
-                                    with: .linearGradient(
-                                        Gradient(colors: [
-                                            band.color.opacity(0),
-                                            band.color.opacity(0.75),
-                                            band.color.opacity(0)
-                                        ]),
-                                        startPoint: CGPoint(x: 0, y: 0),
-                                        endPoint: CGPoint(x: size.width, y: 0)
-                                    ),
-                                    lineWidth: band.thickness
-                                )
-                            }
-                        }
-                        .blur(radius: 20)
-                    }
-                    .frame(height: 320)
+                    .frame(height: 420)
                     .allowsHitTesting(false)
                 }
                 .ignoresSafeArea(.all, edges: .top)
