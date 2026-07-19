@@ -216,42 +216,20 @@ struct SettlementRowCard: View {
         ))
     }
 
-    private var payoutA: Double { result.payout[.a] ?? 0 }
-    private var payoutB: Double { result.payout[.b] ?? 0 }
     private var sym: String { household.currencySymbol }
 
     var body: some View {
         HStack(spacing: 14) {
-            // Ownership square: split green/blue by ownership share —
-            // half each at 50/50, fully one colour for sole ownership.
             ZStack {
-                GeometryReader { g in
-                    HStack(spacing: 0) {
-                        Color.cohGreen
-                            .frame(width: g.size.width * asset.ownershipShareA)
-                        Color.cohBlue
-                            .frame(width: g.size.width * (1 - asset.ownershipShareA))
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .frame(width: 42, height: 42)
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(asset.type.color.opacity(0.12))
+                    .frame(width: 42, height: 42)
                 Image(systemName: asset.type.icon)
-                    .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                    .font(.subheadline).foregroundStyle(asset.type.color)
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(asset.label)
-                    .font(.subheadline.weight(.semibold)).foregroundStyle(Color.cohInk)
-                // What each partner is entitled to — the coloured dots map to
-                // the ownership square (green = partner A, blue = partner B).
-                HStack(spacing: 8) {
-                    partnerLine(amount: payoutA, color: .cohGreen)
-                    Text("·").font(.caption).foregroundStyle(Color.cohTertiary)
-                    partnerLine(amount: payoutB, color: Color.cohBlue)
-                }
-                .minimumScaleFactor(0.75)
-                .lineLimit(1)
-            }
+            Text(asset.label)
+                .font(.subheadline.weight(.semibold)).foregroundStyle(Color.cohInk)
 
             Spacer()
 
@@ -267,15 +245,23 @@ struct SettlementRowCard: View {
                 .font(.caption.bold()).foregroundStyle(Color.cohTertiary)
         }
         .padding(14)
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
+        .background(ownershipBackground)
         .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
     }
 
-    private func partnerLine(amount: Double, color: Color) -> some View {
-        HStack(spacing: 4) {
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text(Int(amount).formatted())
-                .font(.caption.monospacedDigit()).foregroundStyle(Color.cohSecondary)
+    /// The whole card is tinted by ownership: left part partner A (green),
+    /// right part partner B (blue) — half each at 50/50, proportional at
+    /// other shares, fully one colour for sole ownership.
+    private var ownershipBackground: some View {
+        GeometryReader { g in
+            HStack(spacing: 0) {
+                Color.cohGreen.opacity(0.14)
+                    .frame(width: g.size.width * asset.ownershipShareA)
+                Color.cohBlue.opacity(0.14)
+                    .frame(width: g.size.width * (1 - asset.ownershipShareA))
+            }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
     }
 }
