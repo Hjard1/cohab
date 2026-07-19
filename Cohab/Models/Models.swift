@@ -295,7 +295,7 @@ extension Color {
 
     // Text scale (all WCAG AA on cohBg)
     static let cohInk       = Color(red: 0.13, green: 0.12, blue: 0.11)   // ~16:1
-    static let cohSecondary = Color(red: 0.40, green: 0.38, blue: 0.36)   // ~5.5:1
+    static let cohSecondary = Color(red: 0.32, green: 0.30, blue: 0.28)   // ~7:1
     static let cohMuted     = Color(red: 0.50, green: 0.48, blue: 0.46)   // ~4.6:1
     static let cohTertiary  = Color(red: 0.58, green: 0.55, blue: 0.52)   // ~3.8:1
 
