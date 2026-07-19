@@ -25,26 +25,16 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Green liquid photo background with a dark scrim at the top
-                // so the white header text stays readable.
+                // Green liquid photo, flipped vertically so its dark half sits
+                // behind the white header text — no scrim needed.
                 ZStack(alignment: .top) {
                     Image("overviewBg")
                         .resizable()
                         .scaledToFill()
+                        .scaleEffect(y: -1)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
                         .ignoresSafeArea(.all, edges: .top)
-
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.02, green: 0.10, blue: 0.07).opacity(0.60),
-                            Color(red: 0.02, green: 0.10, blue: 0.07).opacity(0.30),
-                            .clear
-                        ],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                    .frame(height: 420)
-                    .allowsHitTesting(false)
                 }
                 .ignoresSafeArea(.all, edges: .top)
 
@@ -234,6 +224,7 @@ struct DashboardView: View {
             }
 
         }
+        .shadow(color: .black.opacity(0.35), radius: 4, y: 1)
     }
 
     // Kept for use in other parts
@@ -629,6 +620,7 @@ struct DashboardView: View {
                 .multilineTextAlignment(.center)
                 .frame(width: 70)
         }
+        .shadow(color: .black.opacity(0.35), radius: 4, y: 1)
     }
 
     // MARK: Quick actions — always exactly 4 chips, content rotates with context
