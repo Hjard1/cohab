@@ -14,21 +14,26 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  *   STRIPE_SECRET_KEY         — Stripe secret key (sk_live_... / sk_test_...)
  *   STRIPE_PRICE_ID_FORMAL    — Stripe Price id for the formal product (price_...)
  * Optional:
- *   ALLOWED_WEB_ORIGIN        — allowed origin for the web app, e.g.
- *                               https://mycohab.no. success_url/cancel_url must
- *                               start with this origin, and it is used as the
- *                               CORS Access-Control-Allow-Origin. If unset,
+ *   ALLOWED_WEB_ORIGIN        — comma-separated list of allowed origins for
+ *                               the web app, e.g. "https://mycohab.app,http://localhost:8080".
+ *                               success_url/cancel_url must start with one of
+ *                               them, and a matching request origin is echoed
+ *                               as CORS Access-Control-Allow-Origin. If unset,
  *                               only http://localhost:8080 is allowed (fail-safe).
  */
 
-function allowedOrigin(): string {
-  return Deno.env.get("ALLOWED_WEB_ORIGIN") ?? "http://localhost:8080";
+function allowedOrigins(): string[] {
+  return (Deno.env.get("ALLOWED_WEB_ORIGIN") ?? "http://localhost:8080")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
 }
 
 function corsHeaders(reqOrigin: string | null): Record<string, string> {
-  const allowed = allowedOrigin();
+  const allowed = allowedOrigins();
+  const echo = reqOrigin && allowed.includes(reqOrigin) ? reqOrigin : allowed[0];
   return {
-    "Access-Control-Allow-Origin": reqOrigin === allowed ? reqOrigin : allowed,
+    "Access-Control-Allow-Origin": echo,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   };
 }
@@ -70,13 +75,14 @@ serve(async (req) => {
       return json({ error: "Server misconfigured" }, 500);
     }
 
-    // Validate redirect URLs against the allowed web origin.
+    // Validate redirect URLs against the allowed web origins.
     const body = await req.json().catch(() => ({}));
     const successUrl = String(body?.success_url ?? "");
     const cancelUrl = String(body?.cancel_url ?? "");
-    const origin = allowedOrigin();
-    if (!successUrl.startsWith(origin) || !cancelUrl.startsWith(origin)) {
-      return json({ error: "success_url/cancel_url must start with the allowed web origin" }, 400);
+    const origins = allowedOrigins();
+    const ok = (u: string) => origins.some((o) => u.startsWith(o));
+    if (!ok(successUrl) || !ok(cancelUrl)) {
+      return json({ error: "success_url/cancel_url must start with an allowed web origin" }, 400);
     }
 
     const params = new URLSearchParams({
