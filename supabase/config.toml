@@ -14,6 +14,11 @@ port = 54323
 [functions]
 # Edge functions are in supabase/functions/<name>/index.ts
 
+# Stripe cannot send a Supabase JWT — the webhook does its own HMAC
+# signature verification instead.
+[functions.stripe-webhook]
+verify_jwt = false
+
 [auth.external.google]
 enabled = true
 # Web client ID first, then the iOS client ID used by the app — GoTrue parses
