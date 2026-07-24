@@ -1789,11 +1789,17 @@ struct AgreementSheetView: View {
         Task {
             defer { isPurchasingExtra = false }
             do {
-                let purchased = try await pm.purchaseBankIDExtra()
-                if purchased {
-                    await DealBuilderService.addExtraCredit(household: household)
-                    reviewMode = false
-                    generate()
+                if let jws = try await pm.purchaseBankIDExtra() {
+                    do {
+                        try await DealBuilderService.addExtraCredit(jws: jws)
+                        reviewMode = false
+                        generate()
+                    } catch {
+                        // The purchase went through, but the credit could not
+                        // be activated. Logged (NSLog + server-side) so
+                        // support can follow up and grant it manually.
+                        self.error = strings.bankIDCreditActivationFailed
+                    }
                 }
                 // Not purchased → user cancelled; stay on the review screen.
             } catch {

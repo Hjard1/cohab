@@ -1,4 +1,5 @@
 import Foundation
+import Supabase
 
 // MARK: - Types
 
@@ -94,22 +95,34 @@ enum DealBuilderService {
         )
     }
 
-    /// Grants one extra BankID signing credit after a verified StoreKit
-    /// purchase of `com.hjard.cohab.bankid_extra`.
+    /// Grants one extra BankID signing credit after a StoreKit purchase of
+    /// `com.hjard.cohab.bankid_extra`. The purchase is verified server-side:
+    /// the app sends the transaction's JWS representation to the
+    /// add-bankid-credit edge function, which validates the signature against
+    /// Apple's certificate chain and only then adds the credit (the
+    /// cohab_add_bankid_credit RPC is service-role only and cannot be called
+    /// from the app). Throws when the credit could not be activated — the
+    /// purchase itself is already completed at that point.
     @MainActor
-    static func addExtraCredit(household: Household) async {
-        let urlStr = "\(APIConfig.supabaseURL)/rest/v1/rpc/cohab_add_bankid_credit"
-        guard let url = URL(string: urlStr) else { return }
+    static func addExtraCredit(jws: String) async throws {
+        let session = try await supabase.auth.session
 
-        var req = URLRequest(url: url)
+        var req = URLRequest(url: APIConfig.addBankIDCreditURL)
         req.httpMethod = "POST"
-        req.setValue("Bearer \(APIConfig.supabaseKey)", forHTTPHeaderField: "Authorization")
-        req.setValue(APIConfig.supabaseKey,             forHTTPHeaderField: "apikey")
-        req.setValue("application/json",                forHTTPHeaderField: "Content-Type")
-        req.httpBody = try? JSONSerialization.data(
-            withJSONObject: ["p_household_id": household.id.uuidString])
-        req.timeoutInterval = 10
-        _ = try? await URLSession.shared.data(for: req)
+        req.setValue("application/json",                 forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(session.accessToken)",    forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["jws": jws])
+        req.timeoutInterval = 15
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+            let msg = String(data: data, encoding: .utf8) ?? "unknown"
+            // Logged so support can trace the failed activation and grant
+            // the credit manually (the user has already paid).
+            NSLog("add-bankid-credit failed (%ld): %@", code, msg)
+            throw DealBuilderError.httpError(code, msg)
+        }
     }
 
     /// Number of purchased but unused extra BankID signings.

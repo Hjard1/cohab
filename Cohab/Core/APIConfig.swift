@@ -8,6 +8,7 @@ enum APIConfig {
     static let submitURL = URL(string: "\(supabaseURL)/functions/v1/docuseal-submit")!
     static let dealBuilderSubmitURL = URL(string: "\(supabaseURL)/functions/v1/dealbuilder-submit")!
     static let dealBuilderStatusURL = URL(string: "\(supabaseURL)/functions/v1/dealbuilder-status")!
+    static let addBankIDCreditURL = URL(string: "\(supabaseURL)/functions/v1/add-bankid-credit")!
 
     // Google Sign-In iOS client ID.
     // Get this from Google Cloud Console → same project as Samboappen →

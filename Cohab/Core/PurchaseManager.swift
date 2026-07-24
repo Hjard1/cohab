@@ -1,4 +1,5 @@
 import StoreKit
+import Supabase
 import Foundation
 
 @MainActor
@@ -34,6 +35,9 @@ final class PurchaseManager: ObservableObject {
                 return
             }
         }
+        // No local StoreKit entitlement — check the server-side entitlement
+        // (set by a web purchase via Stripe) before concluding.
+        await refreshServerEntitlement()
         // Load products for price display
         if let products = try? await Product.products(for: [Self.formalProductID, Self.bankIDExtraProductID]) {
             for p in products {
@@ -65,23 +69,25 @@ final class PurchaseManager: ObservableObject {
         }
     }
 
-    /// Purchases one extra BankID signing (consumable). Returns true when
-    /// the transaction verified — the caller is responsible for granting
-    /// the credit server-side after this returns true.
-    func purchaseBankIDExtra() async throws -> Bool {
-        guard let bankIDProduct else { return false }
+    /// Purchases one extra BankID signing (consumable). Returns the verified
+    /// transaction's JWS representation on success — the caller must POST it
+    /// to the add-bankid-credit edge function, which verifies the purchase
+    /// server-side and grants the credit.
+    func purchaseBankIDExtra() async throws -> String? {
+        guard let bankIDProduct else { return nil }
         isLoading = true
         defer { isLoading = false }
         let result = try await bankIDProduct.purchase()
         switch result {
         case .success(let verification):
-            guard case .verified(let tx) = verification else { return false }
+            guard case .verified(let tx) = verification else { return nil }
+            let jws = verification.jwsRepresentation
             await tx.finish()
-            return true
+            return jws
         case .userCancelled, .pending:
-            return false
+            return nil
         @unknown default:
-            return false
+            return nil
         }
     }
 
@@ -96,6 +102,31 @@ final class PurchaseManager: ObservableObject {
                 return
             }
         }
+    }
+
+    /// Checks the server-side entitlement (cohab_entitlements) for the
+    /// signed-in user. A web purchase via Stripe sets formal_unlocked — this
+    /// merges it with the local StoreKit entitlement. Fails silently when
+    /// offline or signed out; local behavior is unchanged in that case.
+    func refreshServerEntitlement() async {
+        guard let session = try? await supabase.auth.session else { return }
+        do {
+            let rows: [EntitlementRow] = try await supabase
+                .from("cohab_entitlements")
+                .select("formal_unlocked")
+                .eq("user_id", value: session.user.id)
+                .limit(1)
+                .execute()
+                .value
+            if rows.first?.formalUnlocked == true { grant() }
+        } catch {
+            // No network or no row — keep the local StoreKit-only behavior.
+        }
+    }
+
+    private struct EntitlementRow: Decodable {
+        let formalUnlocked: Bool
+        enum CodingKeys: String, CodingKey { case formalUnlocked = "formal_unlocked" }
     }
 
     private func grant() {

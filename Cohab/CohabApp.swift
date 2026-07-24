@@ -46,6 +46,13 @@ struct CohabApp: App {
                     await auth.checkSession()   // fast local session check before network
                     auth.listenForAuthChanges() // then stream auth events
                 }
+                // A web purchase (Stripe) unlocks "formal" server-side —
+                // pick it up whenever the user signs in.
+                .onChange(of: auth.isSignedIn) { _, signedIn in
+                    if signedIn {
+                        Task { await purchaseManager.refreshServerEntitlement() }
+                    }
+                }
                 .onOpenURL { url in
                     // cohab://join?token=UUID
                     if url.scheme == "cohab", url.host == "join",
