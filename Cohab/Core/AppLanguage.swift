@@ -418,6 +418,28 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
         fr: "Sachez qui possède quoi. Suivez chaque apport. Évitez les malentendus coûteux.",
         es: "Sabed quién posee qué. Registrad cada aportación. Evitad malentendidos costosos.") }
 
+    // Welcome step (step 0) — matches the "Life together, made clear." landing design.
+
+    var onboardingWelcomeTitle: String { s(
+        en: "Life together, made clear.",
+        nb: "Livet sammen, gjort klart.",
+        sv: "Livet tillsammans, gjort klart.",
+        da: "Livet sammen, gjort klart.",
+        fi: "Yhteinen elämä, selkeästi.",
+        de: "Gemeinsames Leben, klar gemacht.",
+        fr: "La vie à deux, en toute clarté.",
+        es: "La vida juntos, con claridad.") }
+
+    var onboardingWelcomeSub: String { s(
+        en: "Track what you own. Plan together. Agree clearly.",
+        nb: "Spor hva dere eier. Planlegg sammen. Bli tydelig enige.",
+        sv: "Spåra vad ni äger. Planera tillsammans. Kom tydligt överens.",
+        da: "Spor hvad I ejer. Planlæg sammen. Bliv tydeligt enige.",
+        fi: "Seuraa mitä omistatte. Suunnitelkaa yhdessä. Sopikaa selkeästi.",
+        de: "Behaltet den Überblick über euer Eigentum. Plant gemeinsam. Einigt euch klar.",
+        fr: "Suivez ce que vous possédez. Planifiez ensemble. Mettez-vous d'accord clairement.",
+        es: "Registrad lo que poseéis. Planificad juntos. Poneos de acuerdo con claridad.") }
+
     var onboardingAlreadyHaveAccount: String { s(
         en: "I already have an account",
         nb: "Jeg har allerede en konto",

@@ -129,75 +129,71 @@ struct OnboardingView: View {
     }
 
     // MARK: - Step 0: Welcome
-    // GeometryReader gives exact dimensions — avoids the layout offset bug
-    // that ignoresSafeArea(edges:) causes when mixed with maxHeight:.infinity.
+    // Matches the landing design: cream background with soft organic mint
+    // shapes, centered cohab logo + serif headline + subtitle, sign-in CTAs,
+    // and the couple photo pinned to the bottom (its baked-in mint arc is
+    // part of the design). Text is native SwiftUI so all 8 languages work.
+
+    /// Dark forest green used for the welcome headline (design token accent,
+    /// darkened for large serif type).
+    private var welcomeHeadlineGreen: Color { Color(red: 0.07, green: 0.27, blue: 0.17) }
 
     private var welcomeStep: some View {
         GeometryReader { geo in
-            let imageHeight = geo.size.height * 0.52 + geo.safeAreaInsets.top
+            let photoHeight = max(geo.size.height * 0.55, 300)
 
             ZStack(alignment: .top) {
                 Color.cohBg.ignoresSafeArea()
 
-                // PHOTO — explicit size, bleeds under status bar
-                ZStack(alignment: .bottom) {
-                    LinearGradient(
-                        colors: [Color(red: 0.06, green: 0.25, blue: 0.18),
-                                 Color(red: 0.03, green: 0.15, blue: 0.10)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                    Image("onboardingHero")
+                // PHOTO — pinned to the bottom, fades into cream at the top
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    Image("onboardingCouple")
                         .resizable()
                         .scaledToFill()
-                        .frame(width: geo.size.width, height: imageHeight)
+                        .frame(width: geo.size.width,
+                               height: photoHeight + geo.safeAreaInsets.bottom)
                         .clipped()
-
-                    // Gradient fade into cream — no hard cut
-                    LinearGradient(
-                        stops: [
-                            .init(color: .clear, location: 0),
-                            .init(color: .clear, location: 0.45),
-                            .init(color: Color.cohBg.opacity(0.7), location: 0.78),
-                            .init(color: Color.cohBg, location: 1.0)
-                        ],
-                        startPoint: .top, endPoint: .bottom
-                    )
+                        .overlay(alignment: .top) {
+                            LinearGradient(
+                                colors: [Color.cohBg, Color.cohBg.opacity(0.6), .clear],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                            .frame(height: 90)
+                        }
                 }
-                .frame(width: geo.size.width, height: imageHeight)
-                .ignoresSafeArea(edges: .top)
+                .ignoresSafeArea(edges: .bottom)
 
-                // TEXT + CTAs — positioned below the photo fade zone
-                VStack(alignment: .leading, spacing: 0) {
-                    Spacer().frame(height: imageHeight - geo.safeAreaInsets.top - 60)
+                // CONTENT — logo, headline and subtitle at the top; the
+                // sign-in CTAs are pinned to the bottom so they sit on top
+                // of the couple photo (over the bodies), per the design.
+                VStack(spacing: 0) {
+                    Image("cohabLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 168)
+                        .padding(.top, geo.safeAreaInsets.top + 28)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        // Eyebrow
-                        Text(s.onboardingEyebrow.uppercased())
-                            .font(.system(size: 11, weight: .semibold))
-                            .tracking(1.2)
-                            .foregroundStyle(Color.cohGreen)
+                    Text(s.onboardingWelcomeTitle)
+                        .font(.system(size: 34, weight: .bold, design: .serif))
+                        .foregroundStyle(welcomeHeadlineGreen)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(2)
+                        .padding(.top, 28)
 
-                        // H1
-                        Text(s.onboardingHero)
-                            .font(.system(size: 28, weight: .bold, design: .serif))
-                            .foregroundStyle(Color.cohInk)
-                            .fixedSize(horizontal: false, vertical: true)
+                    Text(s.onboardingWelcomeSub)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.cohSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 12)
 
-                        // H2
-                        Text(s.onboardingHeroSub)
-                            .font(.subheadline)
-                            .foregroundStyle(Color.cohMuted)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.horizontal, 28)
+                    Spacer(minLength: 0)
 
-                    Spacer()
-
+                    // Sign-in is the only way forward: the app is cloud-first
+                    // (partner sync + contracts), and the old unsigned
+                    // "Get started" path dead-ended at the final step where
+                    // sign-in was required anyway.
                     VStack(spacing: 12) {
-                        // Sign-in is the only way forward: the app is cloud-first
-                        // (partner sync + contracts), and the old unsigned
-                        // "Get started" path dead-ended at the final step where
-                        // sign-in was required anyway.
                         GoogleSignInButton(label: s.onboardingContinueWithGoogle) { user in
                             if nameA.isEmpty { nameA = user.givenName }
                             if emailA.isEmpty { emailA = user.email }
@@ -217,13 +213,27 @@ struct OnboardingView: View {
                                 .multilineTextAlignment(.center)
                         }
                     }
-                    .padding(.horizontal, 28)
-                    .padding(.bottom, geo.safeAreaInsets.bottom + 28)
+                    .padding(.bottom, geo.safeAreaInsets.bottom + 32)
                 }
-                .frame(width: geo.size.width, height: geo.size.height + geo.safeAreaInsets.top)
+                .padding(.horizontal, 28)
+            }
+            // Decorative soft mint shapes — big circles bleeding off-screen.
+            // They MUST live in a background: as direct ZStack children their
+            // fixed frames (up to ~1.3x screen width) inflate the ZStack,
+            // which then proposes the oversized width to the content column
+            // and pushes headline/subtitle past the screen edge. Background
+            // content never participates in sizing the modified view.
+            .background {
+                Circle()
+                    .fill(Color.cohGreen.opacity(0.08))
+                    .frame(width: geo.size.width * 1.15, height: geo.size.width * 1.15)
+                    .offset(x: -geo.size.width * 0.60, y: -geo.size.width * 0.75)
+                Circle()
+                    .fill(Color.cohGreen.opacity(0.06))
+                    .frame(width: geo.size.width * 1.3, height: geo.size.width * 1.3)
+                    .offset(x: geo.size.width * 0.55, y: geo.size.height * 0.55)
             }
         }
-        .ignoresSafeArea(edges: .top)
     }
 
     // MARK: - Step 1: Country

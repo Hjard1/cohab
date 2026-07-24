@@ -106,6 +106,7 @@ struct GoogleSignInButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 14))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
                     .strokeBorder(Color.cohInk.opacity(0.2), lineWidth: 1.5)
