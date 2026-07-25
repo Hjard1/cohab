@@ -4,19 +4,16 @@ import Foundation
 
 @MainActor
 final class PurchaseManager: ObservableObject {
-    /// Legacy one-time product. Existing buyers keep lifetime access — the
-    /// product stays in App Store Connect and currentEntitlements keeps
-    /// returning it for them. No longer offered in the paywall.
+    /// One-time product that unlocks the formal agreement — what the paywall
+    /// sells. Lifetime access, no subscription.
     static let formalProductID = "com.hjard.cohab.formal"
-    /// Auto-renewable yearly subscription — what the paywall sells now.
-    static let premiumYearlyProductID = "com.hjard.cohab.premium.yearly"
     /// Consumable: one extra BankID signing (125 NOK). The first BankID
     /// signing per household is included; every further one costs a credit.
     static let bankIDExtraProductID = "com.hjard.cohab.bankid_extra"
 
     @Published private(set) var hasFormalAccess: Bool
     @Published private(set) var isLoading = false
-    @Published private(set) var priceDisplay: String = "$29.99"
+    @Published private(set) var priceDisplay: String = "$49"
     @Published private(set) var bankIDPriceDisplay: String = "125 kr"
 
     private var product: Product?
@@ -36,12 +33,11 @@ final class PurchaseManager: ObservableObject {
         // launch and grant only on a verified, unrevoked entitlement.
         hasFormalAccess = false
         UserDefaults.standard.set(false, forKey: "formalUnlocked")
-        // Verify any existing entitlement with StoreKit. Both the legacy
-        // one-time product and the active subscription count.
+        // Verify any existing entitlement with StoreKit.
         var grantedJWS: String?
         for await result in Transaction.currentEntitlements {
             guard case .verified(let tx) = result else { continue }
-            if Self.isAccessProduct(tx.productID) && tx.revocationDate == nil {
+            if tx.productID == Self.formalProductID && tx.revocationDate == nil {
                 grant()
                 grantedJWS = result.jwsRepresentation
                 break
@@ -53,14 +49,14 @@ final class PurchaseManager: ObservableObject {
             await refreshServerEntitlement()
         }
         // Best-effort server sync so a purchase made in the app also unlocks
-        // the web (and renewals push their new expiry to the server).
+        // the web.
         if let jws = grantedJWS {
             await syncAppPurchase(jws: jws)
         }
         // Load products for price display
-        if let products = try? await Product.products(for: [Self.premiumYearlyProductID, Self.bankIDExtraProductID]) {
+        if let products = try? await Product.products(for: [Self.formalProductID, Self.bankIDExtraProductID]) {
             for p in products {
-                if p.id == Self.premiumYearlyProductID {
+                if p.id == Self.formalProductID {
                     product = p
                     priceDisplay = p.displayPrice
                 } else if p.id == Self.bankIDExtraProductID {
@@ -69,10 +65,6 @@ final class PurchaseManager: ObservableObject {
                 }
             }
         }
-    }
-
-    private static func isAccessProduct(_ productID: String) -> Bool {
-        productID == formalProductID || productID == premiumYearlyProductID
     }
 
     // MARK: - Transaction listener
@@ -87,7 +79,7 @@ final class PurchaseManager: ObservableObject {
     }
 
     private func handle(transaction tx: StoreKit.Transaction, jws: String) async {
-        if Self.isAccessProduct(tx.productID) {
+        if tx.productID == Self.formalProductID {
             if tx.revocationDate == nil {
                 grant()
                 await syncAppPurchase(jws: jws)
@@ -105,7 +97,7 @@ final class PurchaseManager: ObservableObject {
     private func recheckEntitlements() async {
         for await result in Transaction.currentEntitlements {
             guard case .verified(let tx) = result else { continue }
-            if Self.isAccessProduct(tx.productID) && tx.revocationDate == nil {
+            if tx.productID == Self.formalProductID && tx.revocationDate == nil {
                 grant()
                 return
             }
@@ -162,7 +154,7 @@ final class PurchaseManager: ObservableObject {
         try? await AppStore.sync()
         for await result in Transaction.currentEntitlements {
             guard case .verified(let tx) = result else { continue }
-            if Self.isAccessProduct(tx.productID) && tx.revocationDate == nil {
+            if tx.productID == Self.formalProductID && tx.revocationDate == nil {
                 grant()
                 await syncAppPurchase(jws: result.jwsRepresentation)
                 return

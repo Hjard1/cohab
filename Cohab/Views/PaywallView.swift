@@ -104,7 +104,7 @@ struct PaywallView: View {
                     } else {
                         Text(strings.paywallCTA)
                             .font(.headline)
-                        Text("— \(pm.priceDisplay)/\(strings.paywallYearSuffix)")
+                        Text("— \(pm.priceDisplay)")
                             .font(.subheadline.weight(.semibold))
                             .opacity(0.85)
                     }
@@ -125,7 +125,7 @@ struct PaywallView: View {
             }
             .disabled(pm.isLoading)
 
-            Text(strings.paywallSubNote)
+            Text(strings.paywallOneTime)
                 .font(.caption)
                 .foregroundStyle(Color.cohSecondary)
                 .multilineTextAlignment(.center)

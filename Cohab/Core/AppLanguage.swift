@@ -2652,18 +2652,15 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
         fr: "Ne remplace pas un conseil juridique. Consultez un avocat pour les questions immobilières importantes.",
         es: "No sustituye el asesoramiento jurídico. Consulta a un abogado para asuntos inmobiliarios importantes.") }
 
-    var paywallSubNote: String { s(
-        en: "Billed yearly · Renews automatically · Cancel anytime",
-        nb: "Belastes årlig · Fornyes automatisk · Si opp når som helst",
-        sv: "Debiteras årligen · Förnyas automatiskt · Säg upp när som helst",
-        da: "Opkræves årligt · Fornyes automatisk · Opsig når som helst",
-        fi: "Veloitetaan vuosittain · Uusiutuu automaattisesti · Peruuta milloin tahansa",
-        de: "Jährliche Abrechnung · Verlängert sich automatisch · Jederzeit kündbar",
-        fr: "Facturation annuelle · Renouvellement automatique · Résiliable à tout moment",
-        es: "Facturación anual · Renovación automática · Cancela cuando quieras") }
-
-    var paywallYearSuffix: String { s(
-        en: "year", nb: "år", sv: "år", da: "år", fi: "vuosi", de: "Jahr", fr: "an", es: "año") }
+    var paywallOneTime: String { s(
+        en: "One-time purchase · No subscription",
+        nb: "Engangsbetaling · Ingen abonnement",
+        sv: "Engångsbetalning · Ingen prenumeration",
+        da: "Engangsbetaling · Intet abonnement",
+        fi: "Kertamaksu · Ei tilausta",
+        de: "Einmalzahlung · Kein Abonnement",
+        fr: "Achat unique · Sans abonnement",
+        es: "Pago único · Sin suscripción") }
 
     var paywallTerms: String { s(
         en: "Terms of Use",
