@@ -63,3 +63,22 @@ targets:
         TEST_TARGET_NAME: Cohab
     dependencies:
       - target: Cohab
+
+schemes:
+  Cohab:
+    build:
+      targets:
+        Cohab: all
+    run:
+      config: Debug
+      storeKitConfiguration: Cohab/Cohab.storekit
+    test:
+      config: Debug
+      targets:
+        - CohabUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

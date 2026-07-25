@@ -1,0 +1,143 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "8C4A2E1D-7B3F-4E5A-9C6D-2F8A1B3C4D5E",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "49.0",
+      "familyShareable" : false,
+      "internalID" : "1A2B3C4D-5E6F-4A7B-8C9D-0E1F2A3B4C5D",
+      "localizations" : [
+        {
+          "description" : "Legacy one-time unlock of the formal agreement.",
+          "displayName" : "Formal Agreement (legacy)",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.hjard.cohab.formal",
+      "referenceName" : "Formal Agreement Legacy",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "12.0",
+      "familyShareable" : false,
+      "internalID" : "2B3C4D5E-6F7A-4B8C-9D0E-1F2A3B4C5D6E",
+      "localizations" : [
+        {
+          "description" : "One extra BankID signing credit.",
+          "displayName" : "Extra BankID signing",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.hjard.cohab.bankid_extra",
+      "referenceName" : "BankID Extra",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6123456789",
+    "_developerTeamID" : "V83XPV3UQD",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 782500000,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "3C4D5E6F-7A8B-4C9D-0E1F-2A3B4C5D6E7F",
+      "localizations" : [
+
+      ],
+      "name" : "Cohab Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "29.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "4D5E6F7A-8B9C-4D0E-1F2A-3B4C5D6E7F8A",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Yearly subscription — formal agreement, signing and ongoing updates.",
+              "displayName" : "Cohab Premium Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.hjard.cohab.premium.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Cohab Premium Yearly",
+          "subscriptionGroupID" : "3C4D5E6F-7A8B-4C9D-0E1F-2A3B4C5D6E7F",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

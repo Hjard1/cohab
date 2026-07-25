@@ -2,9 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
- * Creates a Stripe Checkout Session for the "formal" one-time purchase
- * (same access as the iOS in-app purchase com.hjard.cohab.formal), used by
- * the mycohab web site.
+ * Creates a Stripe Checkout Session for the yearly cohab subscription
+ * (same access as the iOS in-app subscription com.hjard.cohab.premium.yearly),
+ * used by the mycohab web site. The Stripe price behind STRIPE_PRICE_ID_FORMAL
+ * must be a recurring (yearly) price.
  *
  * Request:  POST with `Authorization: Bearer <supabase user JWT>` and a JSON
  *           body { success_url, cancel_url }.
@@ -86,10 +87,11 @@ serve(async (req) => {
     }
 
     const params = new URLSearchParams({
-      mode: "payment",
+      mode: "subscription",
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
       client_reference_id: user.id,
+      "subscription_data[metadata][supabase_user_id]": user.id,
       success_url: successUrl,
       cancel_url: cancelUrl,
     });

@@ -104,7 +104,7 @@ struct PaywallView: View {
                     } else {
                         Text(strings.paywallCTA)
                             .font(.headline)
-                        Text("— \(pm.priceDisplay)")
+                        Text("— \(pm.priceDisplay)/\(strings.paywallYearSuffix)")
                             .font(.subheadline.weight(.semibold))
                             .opacity(0.85)
                     }
@@ -125,9 +125,18 @@ struct PaywallView: View {
             }
             .disabled(pm.isLoading)
 
-            Text(strings.paywallOneTime)
+            Text(strings.paywallSubNote)
                 .font(.caption)
                 .foregroundStyle(Color.cohSecondary)
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 12) {
+                Link(strings.paywallTerms, destination: URL(string: "https://mycohab.app/terms")!)
+                Text("·")
+                Link(strings.paywallPrivacy, destination: URL(string: "https://mycohab.app/privacy")!)
+            }
+            .font(.caption)
+            .foregroundStyle(Color.cohGreen)
 
             Text(strings.paywallNote)
                 .font(.caption)
