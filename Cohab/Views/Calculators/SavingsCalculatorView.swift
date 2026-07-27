@@ -4,9 +4,10 @@ struct SavingsCalculatorView: View {
     let nameA: String
     let nameB: String
     let symbol: String
+    let country: String
 
-    init(nameA: String = "Partner A", nameB: String = "Partner B", symbol: String = "£") {
-        self.nameA = nameA; self.nameB = nameB; self.symbol = symbol
+    init(nameA: String = "Partner A", nameB: String = "Partner B", symbol: String = "£", country: String = "GB") {
+        self.nameA = nameA; self.nameB = nameB; self.symbol = symbol; self.country = country
     }
 
     @ObservedObject private var strings = AppStrings.shared
@@ -310,8 +311,7 @@ struct SavingsCalculatorView: View {
     }
 
     private func fmt(_ v: Double) -> String {
-        let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
-        return f.string(from: NSNumber(value: v)) ?? "0"
+        fmtGroupedAmount(v, country: country)
     }
 }
 

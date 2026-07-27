@@ -212,7 +212,6 @@ struct EquitySummaryCard: View {
     private var shareA: Double { combined > 0 ? totalA / combined : 0.5 }
 
     var body: some View {
-        let sym = household.currencySymbol
         // Keep the displayed partner amounts consistent with the displayed
         // total: B is derived from the rounded total minus rounded A.
         let displayTotal = Int(combined)
@@ -223,7 +222,7 @@ struct EquitySummaryCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(strings.totalCombinedEquity)
                     .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
-                Text(sym + displayTotal.formatted())
+                Text(household.moneyText(Double(displayTotal)))
                     .font(.system(size: 34, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(Color.cohInk)
                     .minimumScaleFactor(0.6)
@@ -242,10 +241,10 @@ struct EquitySummaryCard: View {
 
             HStack(alignment: .top) {
                 PartnerEquitySummary(name: household.partnerAName, color: .cohGreen,
-                                     share: shareA, amount: displayA, sym: sym)
+                                     share: shareA, amount: displayA, household: household)
                 Spacer()
                 PartnerEquitySummary(name: household.partnerBName, color: .cohBlue,
-                                     share: 1 - shareA, amount: displayB, sym: sym,
+                                     share: 1 - shareA, amount: displayB, household: household,
                                      alignment: .trailing)
             }
         }
@@ -262,7 +261,7 @@ struct PartnerEquitySummary: View {
     let color: Color
     let share: Double
     let amount: Int
-    let sym: String
+    let household: Household
     var alignment: HorizontalAlignment = .leading
 
     var body: some View {
@@ -275,7 +274,7 @@ struct PartnerEquitySummary: View {
                 Text(share.formatted(.percent.precision(.fractionLength(1))))
                     .font(.subheadline).foregroundStyle(Color.cohSecondary)
             }
-            Text(sym + amount.formatted())
+            Text(household.moneyText(Double(amount)))
                 .font(.caption.monospacedDigit()).foregroundStyle(Color.cohSecondary)
         }
         .accessibilityElement(children: .combine)
@@ -327,7 +326,6 @@ struct AssetEquityRow: View {
         ))
     }
 
-    private var sym: String { household.currencySymbol }
     private var shareA: Double { asset.ownershipShareA }
     /// Amount tint follows the majority owner (green = A, blue = B).
     private var accent: Color { shareA >= 0.5 ? .cohGreen : .cohBlue }
@@ -347,7 +345,7 @@ struct AssetEquityRow: View {
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.cohInk)
                 Text("\(asset.type.displayName) · \(strings.equityYourOwnership) \(Int((shareA * 100).rounded())) %")
                     .font(.caption).foregroundStyle(Color.cohSecondary)
-                Text("\(strings.equityCombinedNetValue): \(sym)\(Int(asset.netEquity).formatted())")
+                Text("\(strings.equityCombinedNetValue): \(household.moneyText(asset.netEquity))")
                     .font(.caption).foregroundStyle(Color.cohTertiary)
             }
 
@@ -356,7 +354,7 @@ struct AssetEquityRow: View {
             // The app user is partner A — this is THEIR calculated equity
             // from this asset, not a shared total.
             VStack(alignment: .trailing, spacing: 2) {
-                Text(sym + Int(result.payout[.a] ?? 0).formatted())
+                Text(household.moneyText(result.payout[.a] ?? 0))
                     .font(.subheadline.bold().monospacedDigit()).foregroundStyle(accent)
                 Text(strings.equityYourCalculated)
                     .font(.caption2).foregroundStyle(Color.cohTertiary)

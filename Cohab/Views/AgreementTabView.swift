@@ -255,7 +255,7 @@ struct AgreementTabView: View {
                 color: Color.cohBlue,
                 title: "\(totalContribs) \(totalContribs == 1 ? strings.agreementContribTracked : strings.agreementContribsTracked)",
                 detail: totalContribs > 0
-                    ? "\(h.partnerAName): \(h.currencySymbol)\(Int(contribA).formatted())  ·  \(h.partnerBName): \(h.currencySymbol)\(Int(contribB).formatted())"
+                    ? "\(h.partnerAName): \(h.moneyText(contribA))  ·  \(h.partnerBName): \(h.moneyText(contribB))"
                     : strings.agreementNoContribs
             )
 

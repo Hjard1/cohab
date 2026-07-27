@@ -20,3 +20,30 @@ func parseExpenseAmount(_ s: String) -> Double {
     }
     return Double(t) ?? 0
 }
+
+/// Locale identifier for number grouping, derived from the household's
+/// country — amounts read the way the user's country expects even when the
+/// phone runs in another language. Mirrors ContractGenerator's docLocale map.
+func groupingLocaleIdentifier(forCountry country: String) -> String {
+    switch country {
+    case "NO":          return "nb_NO"
+    case "SE":          return "sv_SE"
+    case "DK":          return "da_DK"
+    case "FI":          return "fi_FI"
+    case "DE", "AT", "CH": return "de_DE"
+    case "FR":          return "fr_FR"
+    case "ES":          return "es_ES"
+    case "US":          return "en_US"
+    default:            return "en_GB"
+    }
+}
+
+/// Groups an amount with the household's country conventions
+/// ("2 500 000" for NO/SE, "2.500.000" for DE, "2,500,000" for US/GB).
+func fmtGroupedAmount(_ v: Double, country: String) -> String {
+    let f = NumberFormatter()
+    f.numberStyle = .decimal
+    f.maximumFractionDigits = 0
+    f.locale = Locale(identifier: groupingLocaleIdentifier(forCountry: country))
+    return f.string(from: NSNumber(value: v.rounded())) ?? "0"
+}

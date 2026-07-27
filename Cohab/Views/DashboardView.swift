@@ -213,7 +213,7 @@ struct DashboardView: View {
                     Text(sym)
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(Color.cohInk.opacity(0.6))
-                    Text(Int(total).formatted())
+                    Text(fmtGroupedAmount(total, country: h.country))
                         .font(.system(size: 42, weight: .bold, design: .serif).monospacedDigit())
                         .foregroundStyle(Color.cohInk)
                 }
@@ -227,7 +227,7 @@ struct DashboardView: View {
 
     // Kept for use in other parts
     private func equityPartnerRow(name: String, amount: Double,
-                                  symbol: String, color: Color) -> some View {
+                                  symbol: String, country: String, color: Color) -> some View {
         HStack(spacing: 14) {
             Circle().fill(color).frame(width: 10, height: 10)
                 .padding(.leading, 20)
@@ -236,7 +236,7 @@ struct DashboardView: View {
                 .foregroundStyle(Color.cohInk)
                 .lineLimit(1)
             Spacer()
-            Text(symbol + Int(amount).formatted())
+            Text(symbol + fmtGroupedAmount(amount, country: country))
                 .font(.subheadline.bold().monospacedDigit())
                 .foregroundStyle(Color.cohInk)
                 .padding(.trailing, 20)
@@ -478,7 +478,7 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(strings.dashboardTotalContributed)
                         .font(.caption).foregroundStyle(Color.cohSecondary)
-                    Text("\(h.currencySymbol)\(Int(total).formatted())")
+                    Text(h.moneyText(total))
                         .font(.title3.bold().monospacedDigit())
                         .foregroundStyle(Color.cohInk)
                 }
@@ -486,7 +486,7 @@ struct DashboardView: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     Text(strings.dashboardThisMonth)
                         .font(.caption).foregroundStyle(Color.cohSecondary)
-                    Text("\(h.currencySymbol)\(Int(month).formatted())")
+                    Text(h.moneyText(month))
                         .font(.title3.bold().monospacedDigit())
                         .foregroundStyle(Color.cohInk)
                 }
@@ -508,9 +508,9 @@ struct DashboardView: View {
                 .frame(height: 10)
                 HStack(spacing: 16) {
                     splitLegend(name: h.partnerAName, color: .cohGreen,
-                                amount: "\(h.currencySymbol)\(Int(sumA).formatted())")
+                                amount: h.moneyText(sumA))
                     splitLegend(name: h.partnerBName, color: .cohBlue.opacity(0.6),
-                                amount: "\(h.currencySymbol)\(Int(sumB).formatted())")
+                                amount: h.moneyText(sumB))
                     Spacer()
                 }
             }
@@ -555,7 +555,7 @@ struct DashboardView: View {
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 3) {
-                            Text("\(h.currencySymbol)\(Int(row.contrib.amount).formatted())")
+                            Text(h.moneyText(row.contrib.amount))
                                 .font(.subheadline.bold().monospacedDigit())
                                 .foregroundStyle(ownerColor)
                             Text(row.contrib.date.formatted(date: .abbreviated, time: .omitted))
@@ -1013,7 +1013,7 @@ struct AssetCard: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Text(household.currencySymbol + fmt(asset.currentValue))
+                Text(household.moneyText(asset.currentValue))
                     .font(.subheadline.bold().monospacedDigit())
                 if asset.remainingLoan > 0 {
                     Text(strings.dashboardLoan + ": −" + fmt(asset.remainingLoan))
@@ -1050,7 +1050,7 @@ struct AssetCard: View {
     private func equityColumn(_ name: String, equity: Double, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(name).font(.caption.weight(.medium)).foregroundStyle(color)
-            Text(household.currencySymbol + fmt(equity))
+            Text(household.moneyText(equity))
                 .font(.title3.bold().monospacedDigit())
         }
     }
@@ -1128,11 +1128,11 @@ struct AssetCard: View {
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 1) {
-                        Text(household.currencySymbol + fmt(row.withInterest))
+                        Text(household.moneyText(row.withInterest))
                             .font(.caption.monospacedDigit().weight(.medium))
                             .foregroundStyle(color)
                         if row.interest > 1 {
-                            Text("+\(household.currencySymbol)\(fmt(row.interest)) \(strings.interestWord)")
+                            Text("+" + household.moneyText(row.interest) + " \(strings.interestWord)")
                                 .font(.caption.monospacedDigit()).foregroundStyle(Color.cohSecondary)
                         }
                     }
@@ -1151,8 +1151,8 @@ struct AssetCard: View {
             if result.shortfall {
                 sectionLabel(strings.shortfallSection)
                 Text(String(format: strings.shortfallExplanation,
-                            household.currencySymbol + fmt(result.netProceeds),
-                            household.currencySymbol + fmt(totalAccrued)))
+                            household.moneyText(result.netProceeds),
+                            household.moneyText(totalAccrued)))
                     .font(.caption).foregroundStyle(Color.cohSecondary)
             } else {
                 let surplus = result.netProceeds - totalAccrued
@@ -1180,13 +1180,13 @@ struct AssetCard: View {
             sectionLabel(strings.assetTotalPayout)
             calcRow(household.partnerAName, fmt(result.payout[.a] ?? 0), bold: true, tint: .cohGreen)
             if hasContribs && accruedA > 0 {
-                Text("  \(strings.assetContribInterestLine) \(household.currencySymbol)\(fmt(accruedA))")
+                Text("  \(strings.assetContribInterestLine) \(household.moneyText(accruedA))")
                     .font(.caption).foregroundStyle(Color.cohMuted)
             }
             calcRow(household.partnerBName, fmt(result.payout[.b] ?? 0), bold: true,
                     tint: Color(red: 0.20, green: 0.49, blue: 0.96))
             if hasContribs && accruedB > 0 {
-                Text("  \(strings.assetContribInterestLine) \(household.currencySymbol)\(fmt(accruedB))")
+                Text("  \(strings.assetContribInterestLine) \(household.moneyText(accruedB))")
                     .font(.caption).foregroundStyle(Color.cohMuted)
             }
             Text("\(strings.assetRateLine) \(String(format: "%.1f%%", household.annualInterestRate * 100)) p.a. · \(strings.assetPerAgreement)")
@@ -1240,8 +1240,7 @@ struct AssetCard: View {
     }
 
     private func fmt(_ v: Double) -> String {
-        let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
-        return f.string(from: NSNumber(value: v)) ?? "0"
+        fmtGroupedAmount(v, country: household.country)
     }
 }
 
@@ -3012,7 +3011,7 @@ struct ContributionRow: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
-                Text(household.currencySymbol + fmtAmount(c.amount))
+                Text(household.moneyText(c.amount))
                     .font(.subheadline.bold().monospacedDigit())
                 Text(c.ownerKey == "A" ? household.partnerAName : household.partnerBName)
                     .font(.caption)
@@ -3028,11 +3027,6 @@ struct ContributionRow: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
-    }
-
-    private func fmtAmount(_ v: Double) -> String {
-        let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
-        return f.string(from: NSNumber(value: v)) ?? "0"
     }
 }
 
@@ -3079,7 +3073,7 @@ struct ContribAssetPickerView: View {
                                     Text("\(Int(asset.ownershipShareA * 100))/\(100 - Int(asset.ownershipShareA * 100))")
                                         .font(.caption.bold().monospacedDigit())
                                         .foregroundStyle(Color.cohSecondary)
-                                    Text(household.currencySymbol + "\(Int(asset.currentValue).formatted())")
+                                    Text(household.moneyText(asset.currentValue))
                                         .font(.caption.monospacedDigit())
                                         .foregroundStyle(Color.cohSecondary)
                                 }

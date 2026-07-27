@@ -7,6 +7,7 @@ struct ExpenseSplitView: View {
     let nameA: String
     let nameB: String
     let symbol: String
+    let country: String
 
     @Query private var households: [Household]
     private var household: Household? { households.first }
@@ -35,8 +36,8 @@ struct ExpenseSplitView: View {
     }
     private let presetIcons = ["house.fill", "car.fill", "cart.fill", "bolt.fill", "wifi"]
 
-    init(nameA: String = "Partner A", nameB: String = "Partner B", symbol: String = "£") {
-        self.nameA = nameA; self.nameB = nameB; self.symbol = symbol
+    init(nameA: String = "Partner A", nameB: String = "Partner B", symbol: String = "£", country: String = "GB") {
+        self.nameA = nameA; self.nameB = nameB; self.symbol = symbol; self.country = country
     }
 
     // MARK: Calculations
@@ -653,8 +654,7 @@ struct ExpenseSplitView: View {
     /// round-trip correctly (e.g. "12,000" and "12 000" both parse to 12000).
     private func parse(_ s: String) -> Double { parseExpenseAmount(s) }
     private func fmt(_ v: Double) -> String {
-        let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
-        return f.string(from: NSNumber(value: v)) ?? "0"
+        fmtGroupedAmount(v, country: country)
     }
     private func fmtInc(_ v: Double) -> String { v == 0 ? "" : fmt(v) }
 }

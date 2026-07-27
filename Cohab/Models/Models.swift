@@ -481,6 +481,12 @@ final class Household {
         default: return currency + "\u{00A0}"
         }
     }
+
+    /// Money string ("kr 2 500 000") grouped the way the household's country
+    /// expects, independent of the phone's language settings.
+    func moneyText(_ v: Double) -> String {
+        currencySymbol + fmtGroupedAmount(v, country: country)
+    }
 }
 
 @Model

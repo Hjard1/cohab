@@ -133,8 +133,8 @@ struct SettlementView: View {
                 Spacer()
                 let net = result.netProceeds
                 Text(net >= 0
-                     ? "\(sym)\(Int(net).formatted())"
-                     : "-\(sym)\(Int(-net).formatted())")
+                     ? household.moneyText(net)
+                     : "-" + household.moneyText(-net))
                     .font(.subheadline.bold().monospacedDigit())
                     .foregroundStyle(net >= 0 ? Color.cohGreen : .red)
             }
@@ -197,7 +197,6 @@ struct SettlementView: View {
     }
 
     private var waterfallCard: some View {
-        let sym = household.currencySymbol
         return VStack(alignment: .leading, spacing: 16) {
             Text(strings.settlementWaterfall)
                 .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
@@ -210,10 +209,10 @@ struct SettlementView: View {
                 if hasContributions {
                     contribRow(name: household.partnerAName,
                                accrued: accruedA, interest: interestA,
-                               symbol: sym, color: Color.cohGreen)
+                               color: Color.cohGreen)
                     contribRow(name: household.partnerBName,
                                accrued: accruedB, interest: interestB,
-                               symbol: sym, color: Color.cohBlue)
+                               color: Color.cohBlue)
                 } else {
                     Text(strings.settlementNoContributions)
                         .font(.subheadline).foregroundStyle(Color.cohSecondary)
@@ -235,14 +234,14 @@ struct SettlementView: View {
                     let ratioA = totalAccrued > 0 ? accruedA / totalAccrued : asset.ownershipShareA
                     let ratioB = 1 - ratioA
                     shortfallRow(name: household.partnerAName,
-                                 ratio: ratioA, amount: payoutA, symbol: sym)
+                                 ratio: ratioA, amount: payoutA)
                     shortfallRow(name: household.partnerBName,
-                                 ratio: ratioB, amount: payoutB, symbol: sym)
+                                 ratio: ratioB, amount: payoutB)
                 } else {
                     surplusRow(name: household.partnerAName,
-                               share: asset.ownershipShareA, amount: surplusA, symbol: sym)
+                               share: asset.ownershipShareA, amount: surplusA)
                     surplusRow(name: household.partnerBName,
-                               share: 1 - asset.ownershipShareA, amount: surplusB, symbol: sym)
+                               share: 1 - asset.ownershipShareA, amount: surplusB)
                 }
             }
             .padding(14)
@@ -254,39 +253,39 @@ struct SettlementView: View {
     }
 
     private func contribRow(name: String, accrued: Double, interest: Double,
-                             symbol: String, color: Color) -> some View {
+                             color: Color) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
                     .font(.caption.weight(.medium)).foregroundStyle(Color.cohInk).lineLimit(1)
                 if interest > 0.5 {
                     Text(String(format: strings.settlementInterestEarned,
-                                symbol + Int(interest).formatted()))
+                                household.moneyText(interest)))
                         .font(.caption).foregroundStyle(Color.cohSecondary)
                 }
             }
             Spacer()
-            Text(symbol + Int(accrued).formatted())
+            Text(household.moneyText(accrued))
                 .font(.subheadline.bold().monospacedDigit()).foregroundStyle(color)
         }
     }
 
-    private func surplusRow(name: String, share: Double, amount: Double, symbol: String) -> some View {
+    private func surplusRow(name: String, share: Double, amount: Double) -> some View {
         HStack {
             Text("\(name)  (\(Int(share * 100))%)")
                 .font(.caption).foregroundStyle(Color.cohSecondary).lineLimit(1)
             Spacer()
-            Text(symbol + Int(amount).formatted())
+            Text(household.moneyText(amount))
                 .font(.caption.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
         }
     }
 
-    private func shortfallRow(name: String, ratio: Double, amount: Double, symbol: String) -> some View {
+    private func shortfallRow(name: String, ratio: Double, amount: Double) -> some View {
         HStack {
             Text("\(name)  (\(Int(ratio * 100))%)")
                 .font(.caption).foregroundStyle(Color.cohSecondary).lineLimit(1)
             Spacer()
-            Text(symbol + Int(max(0, amount)).formatted())
+            Text(household.moneyText(max(0, amount)))
                 .font(.caption.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
         }
     }
@@ -294,17 +293,16 @@ struct SettlementView: View {
     // MARK: - Payout card
 
     private var payoutCard: some View {
-        let sym = household.currencySymbol
         return VStack(alignment: .leading, spacing: 14) {
             Text(strings.settlementTotalPayout)
                 .font(.caption.bold()).tracking(0.5).foregroundStyle(Color.cohSecondary)
 
             HStack(spacing: 20) {
                 payoutPartner(name: household.partnerAName, amount: payoutA,
-                              symbol: sym, color: Color.cohGreen)
+                              color: Color.cohGreen)
                 Divider().frame(height: 44)
                 payoutPartner(name: household.partnerBName, amount: payoutB,
-                              symbol: sym, color: Color.cohBlue)
+                              color: Color.cohBlue)
             }
         }
         .frame(maxWidth: .infinity)
@@ -314,13 +312,13 @@ struct SettlementView: View {
     }
 
     private func payoutPartner(name: String, amount: Double,
-                                symbol: String, color: Color) -> some View {
+                                color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 5) {
                 Circle().fill(color).frame(width: 8, height: 8)
                 Text(name).font(.caption).foregroundStyle(Color.cohSecondary).lineLimit(1)
             }
-            Text(symbol + Int(max(0, amount)).formatted())
+            Text(household.moneyText(max(0, amount)))
                 .font(.system(size: 24, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(Color.cohInk)
         }
@@ -330,10 +328,9 @@ struct SettlementView: View {
     // MARK: - Transfer card
 
     private var transferCard: some View {
-        let sym = household.currencySymbol
         let payer    = aTransfersToB ? household.partnerAName : household.partnerBName
         let receiver = aTransfersToB ? household.partnerBName : household.partnerAName
-        let amtStr   = sym + Int(transferAmount).formatted()
+        let amtStr   = household.moneyText(transferAmount)
 
         return VStack(alignment: .leading, spacing: 10) {
             Label(strings.settlementTransferTitle,

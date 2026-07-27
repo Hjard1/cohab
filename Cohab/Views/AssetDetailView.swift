@@ -332,7 +332,7 @@ struct AssetDetailView: View {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(household.currencySymbol)
                     .font(.title3.bold()).foregroundStyle(Color.cohSecondary)
-                Text("\(Int(netEquity).formatted())")
+                Text(fmtGroupedAmount(netEquity, country: household.country))
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.cohInk)
             }
@@ -368,7 +368,7 @@ struct AssetDetailView: View {
                 .font(.caption).foregroundStyle(Color.cohSecondary).lineLimit(1)
             HStack(spacing: 3) {
                 Circle().fill(color).frame(width: 7, height: 7)
-                Text("\(household.currencySymbol)\(Int(amount).formatted())")
+                Text(household.moneyText(amount))
                     .font(.subheadline.bold()).foregroundStyle(Color.cohInk)
             }
         }
@@ -409,7 +409,7 @@ struct AssetDetailView: View {
                                                      householdId: household.id,
                                                      assetId: asset.id,
                                                      signedIn: auth.isSignedIn)
-                            Text("\(household.currencySymbol)\(Int(contrib.amount).formatted())")
+                            Text(household.moneyText(contrib.amount))
                                 .font(.subheadline.bold())
                                 .foregroundStyle(contribColor)
                             Button {

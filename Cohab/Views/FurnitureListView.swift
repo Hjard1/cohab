@@ -10,8 +10,6 @@ struct FurnitureListView: View {
     @State private var showAdd = false
     @State private var editingItem: FurnitureItem? = nil
 
-    private var sym: String { household.currencySymbol }
-
     private var sortedItems: [FurnitureItem] {
         asset.furnitureItems.sorted { $0.label < $1.label }
     }
@@ -96,7 +94,7 @@ struct FurnitureListView: View {
                 Text(strings.furnTotalValue)
                     .font(.caption).foregroundStyle(Color.cohSecondary)
                 Spacer()
-                Text(sym + Int(totalValue).formatted())
+                Text(household.moneyText(totalValue))
                     .font(.title3.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
             }
             HStack(spacing: 8) {
@@ -112,7 +110,7 @@ struct FurnitureListView: View {
     private func partnerPill(_ name: String, amount: Double, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(name).font(.caption.weight(.semibold)).foregroundStyle(color)
-            Text(sym + Int(amount).formatted()).font(.subheadline.bold().monospacedDigit())
+            Text(household.moneyText(amount)).font(.subheadline.bold().monospacedDigit())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
@@ -131,7 +129,7 @@ struct FurnitureListView: View {
             }
             Spacer()
             if item.currentValue > 0 {
-                Text(sym + Int(item.currentValue).formatted())
+                Text(household.moneyText(item.currentValue))
                     .font(.subheadline.monospacedDigit()).foregroundStyle(Color.cohSecondary)
             }
             Button {

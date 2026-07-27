@@ -8,6 +8,7 @@ struct CalculatorsView: View {
     private var nameA: String { households.first?.partnerAName ?? "Partner A" }
     private var nameB: String { households.first?.partnerBName ?? "Partner B" }
     private var symbol: String { households.first?.currencySymbol ?? "£" }
+    private var country: String { households.first?.country ?? "GB" }
 
     var body: some View {
         NavigationStack {
@@ -32,28 +33,28 @@ struct CalculatorsView: View {
                             color: Color.cohGreen,
                             title: strings.calcOwnershipTitle,
                             subtitle: strings.calcOwnershipSub,
-                            destination: { OwnershipCalculatorView(nameA: nameA, nameB: nameB, symbol: symbol) }
+                            destination: { OwnershipCalculatorView(nameA: nameA, nameB: nameB, symbol: symbol, country: country) }
                         )
                         calcCard(
                             icon: "dollarsign.circle.fill",
                             color: Color.cohBlue,
                             title: strings.calcExpenseTitle,
                             subtitle: strings.calcExpenseSub,
-                            destination: { ExpenseSplitView(nameA: nameA, nameB: nameB, symbol: symbol) }
+                            destination: { ExpenseSplitView(nameA: nameA, nameB: nameB, symbol: symbol, country: country) }
                         )
                         calcCard(
                             icon: "xmark.circle.fill",
                             color: Color(red: 0.93, green: 0.50, blue: 0.18),
                             title: strings.calcRebalanceTitle,
                             subtitle: strings.calcRebalanceSub,
-                            destination: { RebalanceView(nameA: nameA, nameB: nameB, symbol: symbol) }
+                            destination: { RebalanceView(nameA: nameA, nameB: nameB, symbol: symbol, country: country) }
                         )
                         calcCard(
                             icon: "banknote.fill",
                             color: Color(red: 0.04, green: 0.65, blue: 0.75),
                             title: strings.calcSavingsTitle,
                             subtitle: strings.calcSavingsSub,
-                            destination: { SavingsCalculatorView(nameA: nameA, nameB: nameB, symbol: symbol) }
+                            destination: { SavingsCalculatorView(nameA: nameA, nameB: nameB, symbol: symbol, country: country) }
                         )
                     }
                     .padding(.horizontal, 20)
