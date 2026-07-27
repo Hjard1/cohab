@@ -481,19 +481,6 @@ enum ContractGenerator {
                               es: "Dirección", en: "Address")
             // Norwegian convention: space before the percent sign.
             let pctSuffix = isNO ? " %" : "%"
-            // Ownership share below is the registered/legal split — it does not
-            // show who actually paid in what. Each asset block points to the
-            // section that does, so the two aren't read as contradicting.
-            let contribSectionNumber = n + (isRental ? 1 : 0)
-            let contribRef = t(household,
-                no: "Egenkapital ved kjøp og senere bidrag fremgår av punkt \(contribSectionNumber).",
-                sv: "Eget kapital vid köp och senare bidrag framgår av punkt \(contribSectionNumber).",
-                da: "Egenkapital ved køb og senere bidrag fremgår af punkt \(contribSectionNumber).",
-                fi: "Oma pääoma oston yhteydessä ja myöhemmät panokset käyvät ilmi kohdasta \(contribSectionNumber).",
-                de: "Eigenkapital beim Kauf und spätere Einzahlungen sind in Abschnitt \(contribSectionNumber) aufgeführt.",
-                fr: "Les fonds propres à l'achat et les apports ultérieurs figurent au point \(contribSectionNumber).",
-                es: "El capital propio en la compra y las aportaciones posteriores figuran en el punto \(contribSectionNumber).",
-                en: "Purchase equity and later contributions are listed in section \(contribSectionNumber).")
             let list = household.assets.map { a -> String in
                 let category = assetCategory(a, isNO: isNO)
                 // Same (disambiguated) name as in the contributions section.
@@ -547,7 +534,6 @@ enum ContractGenerator {
                         line += "\n    – \(item.label)\(valuePart): \(ownerName(item.ownerKey))"
                     }
                 }
-                line += "\n\(contribRef)"
                 return line
             }.joined(separator: "\n\n")
             return "\(intro)\n\n\(list)\n\n\(valuationClause)"
@@ -740,26 +726,6 @@ enum ContractGenerator {
                                                from: c.date, to: now)
             }
 
-            let purchaseHeading = t(household, no: "Egenkapital ved kjøp", sv: "Eget kapital vid köp",
-                                    da: "Egenkapital ved køb", fi: "Oma pääoma oston yhteydessä",
-                                    de: "Eigenkapital beim Kauf", fr: "Fonds propres à l'achat",
-                                    es: "Capital propio en la compra", en: "Purchase equity")
-            let noPurchase = t(household, no: "Ingen egenkapital ved kjøp er registrert.",
-                               sv: "Inget eget kapital vid köp är registrerat.",
-                               da: "Ingen egenkapital ved køb er registreret.",
-                               fi: "Omaa pääomaa oston yhteydessä ei ole rekisteröity.",
-                               de: "Kein Eigenkapital beim Kauf erfasst.",
-                               fr: "Aucun fonds propres à l'achat n'est enregistré.",
-                               es: "No se ha registrado capital propio en la compra.",
-                               en: "No purchase equity recorded.")
-            let laterHeading = t(household, no: "Senere bidrag", sv: "Senare bidrag",
-                                 da: "Senere bidrag", fi: "Myöhemmät panokset",
-                                 de: "Spätere Einzahlungen", fr: "Apports ultérieurs",
-                                 es: "Aportaciones posteriores", en: "Later contributions")
-            let summaryHeading = t(household, no: "Oppsummering", sv: "Sammanfattning",
-                                   da: "Opsummering", fi: "Yhteenveto",
-                                   de: "Zusammenfassung", fr: "Résumé",
-                                   es: "Resumen", en: "Summary")
             let ekShort = t(household, no: "egenkapital ved kjøp", sv: "eget kapital vid köp",
                             da: "egenkapital ved køb", fi: "oma pääoma oston yhteydessä",
                             de: "Eigenkapital beim Kauf", fr: "fonds propres à l'achat",
@@ -781,33 +747,15 @@ enum ContractGenerator {
                 return "  \(ownerName(key)): \(ekShort) \(money(ek)) · \(laterShort) \(money(later)) · \(interestShort) \(money(interest)) · \(totalShort) \(money(accrued))"
             }
 
-            // Organised per asset, using the same asset names as the shared-assets section.
+            // Per asset: ONLY the summary — itemised purchase-equity and
+            // later-contribution rows would just repeat what the app shows.
             var blocks: [String] = []
             var totEk: [String: Double] = ["A": 0, "B": 0]
             var totLater: [String: Double] = ["A": 0, "B": 0]
             var totAcc: [String: Double] = ["A": 0, "B": 0]
             for asset in assetsWithContribs {
-                let contribs = asset.contributions.sorted { $0.date < $1.date }
-                let purchase = contribs.filter(isPurchaseEquity)
-                let later = contribs.filter { !isPurchaseEquity($0) }
-                var lines = [assetNames[asset.id] ?? asset.label, "", purchaseHeading]
-                if purchase.isEmpty {
-                    lines.append(noPurchase)
-                } else {
-                    for c in purchase {
-                        lines.append("  \(ownerName(c.ownerKey)): \(money(c.amount)) (\(fmtDate(c.date)))")
-                    }
-                }
-                if !later.isEmpty {
-                    lines.append("")
-                    lines.append(laterHeading)
-                    for c in later {
-                        // Category + any custom note records what the payment was for.
-                        lines.append("  \(ownerName(c.ownerKey)) — \(displayLabel(for: c, household: household)), \(fmtDate(c.date))  –  \(money(c.amount))")
-                    }
-                }
-                lines.append("")
-                lines.append(summaryHeading)
+                let contribs = asset.contributions
+                var lines = [assetNames[asset.id] ?? asset.label]
                 for key in ["A", "B"] {
                     let all = contribs.filter { $0.ownerKey == key }
                     guard !all.isEmpty else { continue }
@@ -1054,33 +1002,6 @@ enum ContractGenerator {
         case .furniture:  return isNO ? "Møbler og inventar"       : "Furniture and furnishings"
         case .pet:        return isNO ? "Kjæledyr"                 : "Pet"
         case .other:      return isNO ? "Øvrig eiendel"            : "Other asset"
-        }
-    }
-
-    private static func displayLabel(for contrib: ContributionRecord, household: Household) -> String {
-        let catLabel = contributionCategoryLabel(contrib.category, household: household)
-        let userLabel = contrib.label.trimmingCharacters(in: .whitespaces)
-        // Don't repeat when user label equals the category label
-        guard !userLabel.isEmpty, userLabel.lowercased() != catLabel.lowercased() else {
-            return catLabel
-        }
-        return "\(userLabel) — \(catLabel)"
-    }
-
-    /// Localized human name for a contribution category, in all 8 languages.
-    private static func contributionCategoryLabel(_ category: String, household h: Household) -> String {
-        switch category {
-        case "deposit":         return t(h, no: "Innskudd", sv: "Insättning", da: "Indskud", fi: "Talletus", de: "Einlage", fr: "Dépôt initial", es: "Depósito inicial", en: "Initial deposit")
-        case "down_payment":    return t(h, no: "Egenkapital", sv: "Kontantinsats", da: "Udbetaling", fi: "Käsiraha", de: "Anzahlung", fr: "Apport initial", es: "Entrada", en: "Down payment")
-        case "extra_repayment": return t(h, no: "Ekstra nedbetaling", sv: "Extra amortering", da: "Ekstra afdrag", fi: "Ylimääräinen lyhennys", de: "Sondertilgung", fr: "Remboursement supplémentaire", es: "Amortización extraordinaria", en: "Extra loan repayment")
-        case "renovation":      return t(h, no: "Oppussing / forbedring", sv: "Renovering / förbättring", da: "Renovering / forbedring", fi: "Remontti / parannus", de: "Renovierung / Verbesserung", fr: "Rénovation / amélioration", es: "Reforma / mejora", en: "Renovation / improvement")
-        case "maintenance":     return t(h, no: "Vedlikehold", sv: "Underhåll", da: "Vedligeholdelse", fi: "Ylläpito", de: "Instandhaltung", fr: "Entretien", es: "Mantenimiento", en: "Maintenance")
-        case "extra_payment":   return t(h, no: "Ekstra nedbetaling", sv: "Extra amortering", da: "Ekstra afdrag", fi: "Ylimääräinen lyhennys", de: "Sondertilgung", fr: "Paiement supplémentaire", es: "Pago extraordinario", en: "Extra mortgage payment")
-        case "inheritance":     return t(h, no: "Arv eller gave", sv: "Arv eller gåva", da: "Arv eller gave", fi: "Perintö tai lahja", de: "Erbe oder Schenkung", fr: "Héritage ou don", es: "Herencia o donación", en: "Inheritance or gift")
-        case "improvement":     return t(h, no: "Boligforbedring", sv: "Bostadsförbättring", da: "Boligforbedring", fi: "Asunnon parannus", de: "Wohnungsverbesserung", fr: "Amélioration du logement", es: "Mejora de la vivienda", en: "Home improvement")
-        case "repair":          return t(h, no: "Reparasjon", sv: "Reparation", da: "Reparation", fi: "Korjaus", de: "Reparatur", fr: "Réparation", es: "Reparación", en: "Repair")
-        case "other":           return t(h, no: "Annet", sv: "Övrigt", da: "Andet", fi: "Muu", de: "Sonstiges", fr: "Autre", es: "Otro", en: "Other")
-        default:                return category.capitalized
         }
     }
 
