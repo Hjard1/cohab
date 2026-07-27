@@ -1823,7 +1823,10 @@ struct AgreementSheetView: View {
                     .font(.subheadline).foregroundStyle(Color.cohSecondary)
                     .multilineTextAlignment(.center).padding(.horizontal, 32)
             }
-            if !dbCase.appUrl.isEmpty, let url = URL(string: dbCase.appUrl) {
+            // Personal signing link (login-free). appUrl is only a fallback
+            // for cases created before personal links were stored.
+            let myLink = dbCase.signingUrlA?.isEmpty == false ? dbCase.signingUrlA! : dbCase.appUrl
+            if !myLink.isEmpty, let url = URL(string: myLink) {
                 Button {
                     openURL(url)
                 } label: {
@@ -1836,6 +1839,17 @@ struct AgreementSheetView: View {
                     .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
                 }
                 .padding(.horizontal, 32)
+            }
+            // Partner B's personal link — share it if the DealBuilder email
+            // didn't reach them (spam folder, wrong address, …).
+            if let bLink = dbCase.signingUrlB, !bLink.isEmpty, let url = URL(string: bLink) {
+                ShareLink(item: url) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.and.arrow.up")
+                        Text(strings.bankIDSharePartnerLink)
+                    }
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Color.cohGreen)
+                }
             }
             HStack(spacing: 8) {
                 ProgressView()

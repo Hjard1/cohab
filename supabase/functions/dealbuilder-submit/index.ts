@@ -142,6 +142,31 @@ serve(async (req) => {
       return json({ error: "DealBuilder create returned no document id" }, 502);
     }
 
+    // Personal, login-free signing links per signatory. Matched by email —
+    // never hand out appUrl (that is the DealBuilder admin view and
+    // requires a login, which signatories must never need).
+    const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
+    let parties: { email?: string; signingUrl?: string }[] = doc?.parties ?? [];
+    let signingUrlA =
+      parties.find((p) => norm(p.email) === norm(email_a))?.signingUrl ?? "";
+    let signingUrlB =
+      parties.find((p) => norm(p.email) === norm(email_b))?.signingUrl ?? "";
+
+    // Some responses omit the party links at creation time — refetch once.
+    if (!signingUrlA || !signingUrlB) {
+      const detailResp = await fetch(`${DEALBUILDER_BASE_URL}/v1/Documents/${documentId}`, {
+        headers: { "X-API-Key": DEALBUILDER_API_KEY },
+      });
+      if (detailResp.ok) {
+        const detail = await detailResp.json();
+        parties = (detail?.data ?? detail)?.parties ?? [];
+        signingUrlA = signingUrlA ||
+          parties.find((p) => norm(p.email) === norm(email_a))?.signingUrl || "";
+        signingUrlB = signingUrlB ||
+          parties.find((p) => norm(p.email) === norm(email_b))?.signingUrl || "";
+      }
+    }
+
     // ── Step 3: Track in Supabase DB ─────────────────────────────────────────
     // Supersede any previous case for this household.
     await supabase
@@ -156,12 +181,20 @@ serve(async (req) => {
       status: "sent",
       app_url: appUrl,
       preview_url: previewUrl,
+      signing_url_a: signingUrlA,
+      signing_url_b: signingUrlB,
       email_a,
       email_b,
       is_current: true,
     });
 
-    return json({ document_id: documentId, app_url: appUrl, preview_url: previewUrl });
+    return json({
+      document_id: documentId,
+      app_url: appUrl,
+      preview_url: previewUrl,
+      signing_url_a: signingUrlA,
+      signing_url_b: signingUrlB,
+    });
   } catch (err) {
     return json({ error: String(err) }, 500);
   }

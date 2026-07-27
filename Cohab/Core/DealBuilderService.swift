@@ -7,6 +7,10 @@ struct DealBuilderCase: Codable {
     let documentId: String
     let appUrl: String
     let previewUrl: String
+    /// Personal, login-free signing links per signatory (nil for cases
+    /// created before these were stored — fall back to appUrl then).
+    let signingUrlA: String?
+    let signingUrlB: String?
 }
 
 enum DealBuilderError: LocalizedError {
@@ -75,7 +79,7 @@ enum DealBuilderService {
     static func currentCase(household: Household) async -> DealBuilderCase? {
         let urlStr = "\(APIConfig.supabaseURL)/rest/v1/cohab_dealbuilder_cases"
             + "?household_id=eq.\(household.id.uuidString)&is_current=eq.true"
-            + "&select=document_id,app_url,preview_url&limit=1"
+            + "&select=document_id,app_url,preview_url,signing_url_a,signing_url_b&limit=1"
         guard let url = URL(string: urlStr) else { return nil }
 
         var req = URLRequest(url: url)
@@ -91,7 +95,9 @@ enum DealBuilderService {
         return DealBuilderCase(
             documentId: documentId,
             appUrl: row["app_url"] as? String ?? "",
-            previewUrl: row["preview_url"] as? String ?? ""
+            previewUrl: row["preview_url"] as? String ?? "",
+            signingUrlA: row["signing_url_a"] as? String,
+            signingUrlB: row["signing_url_b"] as? String
         )
     }
 
