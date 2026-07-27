@@ -2208,7 +2208,10 @@ struct HouseholdSetupView: View {
     }
 
     private func deleteAll() {
-        if let h = household { modelContext.delete(h) }
+        // Delete EVERY local household, not just the current one — leftovers
+        // from an earlier account would otherwise survive and break invites.
+        let all = (try? modelContext.fetch(FetchDescriptor<Household>())) ?? []
+        for h in all { modelContext.delete(h) }
         try? modelContext.save()
         wasSignedOut = false         // full reset — go to OnboardingView
         onboardingComplete = false
@@ -2221,7 +2224,8 @@ struct HouseholdSetupView: View {
                 // actually gone, otherwise a failed delete would leave the
                 // user signed in with their local data already removed.
                 try await auth.deleteAccount()
-                if let h = household { modelContext.delete(h) }
+                let all = (try? modelContext.fetch(FetchDescriptor<Household>())) ?? []
+                for h in all { modelContext.delete(h) }
                 try? modelContext.save()
                 wasSignedOut = false         // full reset — go to OnboardingView
                 onboardingComplete = false
