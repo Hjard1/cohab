@@ -660,8 +660,8 @@ enum ContractGenerator {
             }(), .plain))
         }
 
-        // § PURCHASE EQUITY AND LATER CONTRIBUTIONS
-        sections.append(("\(n).  \(t(household, no: "EGENKAPITAL VED KJØP OG SENERE BIDRAG", sv: "EGET KAPITAL VID KÖP OCH SENARE BIDRAG", da: "EGENKAPITAL VED KØB OG SENERE BIDRAG", fi: "OMA PÄÄOMA OSTON YHTEYDESSÄ JA MYÖHEMMÄT PANOKSET", de: "EIGENKAPITAL BEIM KAUF UND SPÄTERE EINZAHLUNGEN", fr: "FONDS PROPRES À L'ACHAT ET APPORTS ULTÉRIEURS", es: "CAPITAL PROPIO EN LA COMPRA Y APORTACIONES POSTERIORES", en: "PURCHASE EQUITY AND LATER CONTRIBUTIONS"))", {
+        // § RECORDED CONTRIBUTIONS
+        sections.append(("\(n).  \(t(household, no: "REGISTRERTE BIDRAG", sv: "REGISTRERADE BIDRAG", da: "REGISTREREDE BIDRAG", fi: "REKISTERÖIDYT PANOKSET", de: "ERFASSTE EINZAHLUNGEN", fr: "APPORTS ENREGISTRÉS", es: "APORTACIONES REGISTRADAS", en: "RECORDED CONTRIBUTIONS"))", {
             n += 1
             let assetsWithContribs = household.assets.filter { !$0.contributions.isEmpty }
             if assetsWithContribs.isEmpty {
@@ -708,12 +708,9 @@ enum ContractGenerator {
                 interestNote = "All amounts accrue interest at \(rateStr) per annum from the date of payment, compounded annually.\n"
             }
 
-            // "Egenkapital ved kjøp" is sourced from the contribution category:
-            // deposits and down payments are purchase equity; everything else is
-            // a later contribution.
-            func isPurchaseEquity(_ c: ContributionRecord) -> Bool {
-                c.category == "deposit" || c.category == "down_payment"
-            }
+            // Purchase equity (deposits/down payments) and later contributions
+            // are presented as one combined "contributions" figure — simpler
+            // to read, and the split is visible in the app for those who care.
             func ownerName(_ key: String) -> String {
                 key == "A" ? household.partnerAName : household.partnerBName
             }
@@ -726,32 +723,27 @@ enum ContractGenerator {
                                                from: c.date, to: now)
             }
 
-            let ekShort = t(household, no: "egenkapital ved kjøp", sv: "eget kapital vid köp",
-                            da: "egenkapital ved køb", fi: "oma pääoma oston yhteydessä",
-                            de: "Eigenkapital beim Kauf", fr: "fonds propres à l'achat",
-                            es: "capital propio en la compra", en: "purchase equity")
-            let laterShort = t(household, no: "senere bidrag", sv: "senare bidrag",
-                               da: "senere bidrag", fi: "myöhemmät panokset",
-                               de: "spätere Einzahlungen", fr: "apports ultérieurs",
-                               es: "aportaciones posteriores", en: "later contributions")
+            let contribShort = t(household, no: "bidrag", sv: "bidrag",
+                                 da: "bidrag", fi: "panokset",
+                                 de: "Einzahlungen", fr: "apports",
+                                 es: "aportaciones", en: "contributions")
             let interestShort = t(household, no: "renter", sv: "ränta", da: "renter",
                                   fi: "korkoa", de: "Zinsen", fr: "intérêts",
                                   es: "intereses", en: "interest")
             let totalShort = t(household, no: "samlet", sv: "totalt", da: "i alt",
                                fi: "yhteensä", de: "gesamt", fr: "total",
                                es: "total", en: "total")
-            // One summary line per partner: principal split into purchase equity
-            // and later contributions, with accrued interest shown separately.
-            func summaryLine(_ key: String, ek: Double, later: Double, accrued: Double) -> String {
-                let interest = accrued - ek - later
-                return "  \(ownerName(key)): \(ekShort) \(money(ek)) · \(laterShort) \(money(later)) · \(interestShort) \(money(interest)) · \(totalShort) \(money(accrued))"
+            // One summary line per partner: total paid in, accrued interest
+            // separately, and the combined registered value.
+            func summaryLine(_ key: String, principal: Double, accrued: Double) -> String {
+                let interest = accrued - principal
+                return "  \(ownerName(key)): \(contribShort) \(money(principal)) · \(interestShort) \(money(interest)) · \(totalShort) \(money(accrued))"
             }
 
-            // Per asset: ONLY the summary — itemised purchase-equity and
-            // later-contribution rows would just repeat what the app shows.
+            // Per asset: ONLY the summary — itemised rows would just repeat
+            // what the app shows.
             var blocks: [String] = []
-            var totEk: [String: Double] = ["A": 0, "B": 0]
-            var totLater: [String: Double] = ["A": 0, "B": 0]
+            var totPrincipal: [String: Double] = ["A": 0, "B": 0]
             var totAcc: [String: Double] = ["A": 0, "B": 0]
             for asset in assetsWithContribs {
                 let contribs = asset.contributions
@@ -759,12 +751,10 @@ enum ContractGenerator {
                 for key in ["A", "B"] {
                     let all = contribs.filter { $0.ownerKey == key }
                     guard !all.isEmpty else { continue }
-                    let ek = all.filter(isPurchaseEquity).reduce(0.0) { $0 + $1.amount }
-                    let lat = all.filter { !isPurchaseEquity($0) }.reduce(0.0) { $0 + $1.amount }
+                    let principal = all.reduce(0.0) { $0 + $1.amount }
                     let acc = all.reduce(0.0) { $0 + accruedValue($1) }
-                    lines.append(summaryLine(key, ek: ek, later: lat, accrued: acc))
-                    totEk[key, default: 0] += ek
-                    totLater[key, default: 0] += lat
+                    lines.append(summaryLine(key, principal: principal, accrued: acc))
+                    totPrincipal[key, default: 0] += principal
                     totAcc[key, default: 0] += acc
                 }
                 blocks.append(lines.joined(separator: "\n"))
@@ -793,7 +783,7 @@ enum ContractGenerator {
             var lines = [interestNote, blocks.joined(separator: "\n\n"), "", combinedHeading]
             for key in ["A", "B"] {
                 guard (totAcc[key] ?? 0) > 0 else { continue }
-                lines.append(summaryLine(key, ek: totEk[key] ?? 0, later: totLater[key] ?? 0, accrued: totAcc[key] ?? 0))
+                lines.append(summaryLine(key, principal: totPrincipal[key] ?? 0, accrued: totAcc[key] ?? 0))
             }
             lines.append("")
             lines.append(note)
