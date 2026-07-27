@@ -534,41 +534,69 @@ struct DashboardView: View {
         VStack(spacing: 0) {
             ForEach(rows) { row in
                 let ownerColor: Color = row.contrib.ownerKey == "A" ? .cohGreen : .cohBlue
-                Button { navigatingToAsset = row.asset } label: {
-                    HStack(spacing: 12) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(row.asset.type.color.opacity(0.12))
-                                .frame(width: 38, height: 38)
-                            Image(systemName: row.asset.type.icon)
-                                .font(.subheadline)
-                                .foregroundStyle(row.asset.type.color)
+                HStack(spacing: 4) {
+                    Button { navigatingToAsset = row.asset } label: {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(row.asset.type.color.opacity(0.12))
+                                    .frame(width: 38, height: 38)
+                                Image(systemName: row.asset.type.icon)
+                                    .font(.subheadline)
+                                    .foregroundStyle(row.asset.type.color)
+                            }
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(row.contrib.label.isEmpty ? row.contrib.category.capitalized : row.contrib.label)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(Color.cohInk)
+                                Text(row.asset.label)
+                                    .font(.caption)
+                                    .foregroundStyle(Color.cohSecondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 3) {
+                                Text(h.moneyText(row.contrib.amount))
+                                    .font(.subheadline.bold().monospacedDigit())
+                                    .foregroundStyle(ownerColor)
+                                Text(row.contrib.date.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.caption)
+                                    .foregroundStyle(Color.cohSecondary)
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.caption.bold())
+                                .foregroundStyle(Color.cohTertiary)
                         }
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(row.contrib.label.isEmpty ? row.contrib.category.capitalized : row.contrib.label)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(Color.cohInk)
-                            Text(row.asset.label)
-                                .font(.caption)
-                                .foregroundStyle(Color.cohSecondary)
-                                .lineLimit(1)
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 3) {
-                            Text(h.moneyText(row.contrib.amount))
-                                .font(.subheadline.bold().monospacedDigit())
-                                .foregroundStyle(ownerColor)
-                            Text(row.contrib.date.formatted(date: .abbreviated, time: .omitted))
-                                .font(.caption)
-                                .foregroundStyle(Color.cohSecondary)
-                        }
-                        Image(systemName: "chevron.right")
-                            .font(.caption.bold())
-                            .foregroundStyle(Color.cohTertiary)
+                        .padding(.vertical, 12)
                     }
-                    .padding(.vertical, 12)
+                    .buttonStyle(.plain)
+
+                    // Delete — remote first, local row removed only on success
+                    // (otherwise the next sync would resurrect it).
+                    Button {
+                        let id = row.contrib.id
+                        let householdId = h.id
+                        let assetId = row.asset.id
+                        let signedIn = auth.isSignedIn
+                        Task { @MainActor in
+                            do {
+                                try await SupabaseService.deleteContribution(id)
+                                modelContext.delete(row.contrib)
+                                await AssetImageStore.deleteReceipt(
+                                    contributionId: id, householdId: householdId,
+                                    assetId: assetId, signedIn: signedIn)
+                            } catch {
+                                print("[Cohab] Delete contribution failed: \(error.localizedDescription)")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(Color(.quaternaryLabel))
+                            .padding(.leading, 4)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
                 if row.id != rows.last?.id {
                     Divider()
