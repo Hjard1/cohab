@@ -432,9 +432,10 @@ struct AssetDetailView: View {
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.title3)
-                                    .foregroundStyle(Color(.quaternaryLabel))
+                                    .foregroundStyle(Color.red.opacity(0.55))
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel(strings.contribDelete)
                         }
                         .padding(.vertical, 12)
 

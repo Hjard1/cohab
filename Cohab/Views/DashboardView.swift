@@ -16,6 +16,7 @@ struct DashboardView: View {
     @State private var showRateSaved = false
     @State private var navigatingToAsset: Asset?
     @State private var showContribPicker = false
+    @State private var contributionError: String?
     @State private var showInvitePartner = false
     @State private var showSignInSheet = false
     @EnvironmentObject private var auth: AuthManager
@@ -559,30 +560,21 @@ struct DashboardView: View {
                     .buttonStyle(.plain)
 
                     // Delete — remote first, local row removed only on success
-                    // (otherwise the next sync would resurrect it).
-                    Button {
-                        let id = row.contrib.id
-                        let householdId = h.id
-                        let assetId = row.asset.id
-                        let signedIn = auth.isSignedIn
-                        Task { @MainActor in
-                            do {
-                                try await SupabaseService.deleteContribution(id)
-                                modelContext.delete(row.contrib)
-                                await AssetImageStore.deleteReceipt(
-                                    contributionId: id, householdId: householdId,
-                                    assetId: assetId, signedIn: signedIn)
-                            } catch {
-                                print("[Cohab] Delete contribution failed: \(error.localizedDescription)")
-                            }
-                        }
-                    } label: {
+                    // (otherwise the next sync would resurrect it). A failure
+                    // is shown to the user, not swallowed.
+                    Button { deleteContribution(row, in: h) } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title3)
-                            .foregroundStyle(Color(.quaternaryLabel))
+                            .foregroundStyle(Color.red.opacity(0.55))
                             .padding(.leading, 4)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(strings.contribDelete)
+                }
+                .contextMenu {
+                    Button(role: .destructive) { deleteContribution(row, in: h) } label: {
+                        Label(strings.contribDelete, systemImage: "trash")
+                    }
                 }
 
                 if row.id != rows.last?.id {
@@ -593,6 +585,36 @@ struct DashboardView: View {
         .padding(.horizontal, 18)
         .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+        .alert(strings.error, isPresented: Binding(
+            get: { contributionError != nil },
+            set: { if !$0 { contributionError = nil } }
+        )) {
+            Button(strings.ok, role: .cancel) { contributionError = nil }
+        } message: {
+            Text(contributionError ?? "")
+        }
+    }
+
+    /// Deletes a contribution remotely first; the local row is removed only
+    /// on success (otherwise the next sync would resurrect it). Any attached
+    /// receipt is cleaned up best-effort. Failures surface an alert.
+    private func deleteContribution(_ row: ContribRow, in h: Household) {
+        let id = row.contrib.id
+        let householdId = h.id
+        let assetId = row.asset.id
+        let signedIn = auth.isSignedIn
+        Task { @MainActor in
+            do {
+                try await SupabaseService.deleteContribution(id)
+                modelContext.delete(row.contrib)
+                await AssetImageStore.deleteReceipt(
+                    contributionId: id, householdId: householdId,
+                    assetId: assetId, signedIn: signedIn)
+            } catch {
+                print("[Cohab] Delete contribution failed: \(error.localizedDescription)")
+                contributionError = error.localizedDescription
+            }
+        }
     }
 
     private func noAssetsPrompt(action: @escaping () -> Void) -> some View {
@@ -3149,9 +3171,10 @@ struct ContributionRow: View {
             Button(action: onDelete) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title3)
-                    .foregroundStyle(Color(.quaternaryLabel))
+                    .foregroundStyle(Color.red.opacity(0.55))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(AppStrings.shared.contribDelete)
         }
         .padding(.vertical, 4)
     }
