@@ -20,13 +20,15 @@ struct SettlementTabView: View {
         assets.sorted { (Self.typeOrder.firstIndex(of: $0.type) ?? 99) < (Self.typeOrder.firstIndex(of: $1.type) ?? 99) }
     }
 
-    /// Same default assumptions as the per-asset detail view (SettlementView):
-    /// sale at current value, loan repaid, sale costs = salesCostFraction.
+    /// Same assumptions as the Overview header and the asset detail view:
+    /// no sale costs, so payout[A]+payout[B] = net equity (value − loan) and
+    /// every equity number in the app agrees. Sale-cost simulation lives in
+    /// the explicit settlement calculator (SettlementView).
     private func computeTotals(_ h: Household) -> (a: Double, b: Double) {
         h.assets.reduce((a: 0.0, b: 0.0)) { acc, asset in
             let r = SettlementEngine.settle(SettlementInput(
                 salePrice: asset.currentValue, remainingLoan: asset.remainingLoan,
-                salesCosts: asset.currentValue * asset.salesCostFraction,
+                salesCosts: 0,
                 ownershipShareA: asset.ownershipShareA,
                 annualRate: h.annualInterestRate,
                 contributions: asset.contributions.map {
@@ -309,13 +311,12 @@ struct AssetEquityRow: View {
     let household: Household
     @ObservedObject private var strings = AppStrings.shared
 
-    // Same default assumptions as SettlementView (sale at current value,
-    // loan repaid, sale costs = salesCostFraction) so the row and the
-    // detail view always agree.
+    // Same assumptions as the summary card, the Overview header and the
+    // asset detail view: no sale costs, so all equity numbers agree.
     private var result: SettlementResult {
         SettlementEngine.settle(SettlementInput(
             salePrice: asset.currentValue, remainingLoan: asset.remainingLoan,
-            salesCosts: asset.currentValue * asset.salesCostFraction,
+            salesCosts: 0,
             ownershipShareA: asset.ownershipShareA,
             annualRate: household.annualInterestRate,
             contributions: asset.contributions.map {
