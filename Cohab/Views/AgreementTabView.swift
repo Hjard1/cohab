@@ -4,6 +4,7 @@ import SwiftData
 struct AgreementTabView: View {
     @Query private var households: [Household]
     @EnvironmentObject private var pm: PurchaseManager
+    @Environment(\.modelContext) private var modelContext
     @AppStorage("agreementIntroSeen") private var introSeen = false
     @State private var showSigningSheet = false
     @State private var showContractPreview = false
@@ -821,6 +822,23 @@ struct AgreementTabView: View {
 
                 // What this agreement protects — always visible
                 howItWorksCard
+
+                // Onboarding's "skip for now" must not lock the user out —
+                // offer the upgrade to formal mode here.
+                if let h = household {
+                    Button {
+                        h.setupMode = "formal"
+                        try? modelContext.save()
+                        let id = h.id
+                        Task { try? await SupabaseService.updateSetupMode(householdId: id, mode: "formal") }
+                    } label: {
+                        Text(strings.agreementSetUp)
+                            .font(.headline).foregroundStyle(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 16)
+                            .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 Spacer(minLength: 20)
             }

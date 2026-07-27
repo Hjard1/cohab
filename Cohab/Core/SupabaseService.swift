@@ -93,6 +93,18 @@ enum SupabaseService {
             .execute()
     }
 
+    /// Switches the household between "memory" (tracker only) and "formal"
+    /// mode — onboarding's "skip for now" must not lock the user out of
+    /// creating an agreement later.
+    static func updateSetupMode(householdId: UUID, mode: String) async throws {
+        struct Row: Encodable { let setup_mode: String }
+        try await supabase
+            .from("households")
+            .update(Row(setup_mode: mode))
+            .eq("id", value: householdId.uuidString)
+            .execute()
+    }
+
     static func insertAssetPreservingId(
         id: UUID, householdId: UUID, assetType: String, label: String, address: String,
         currentValue: Double, remainingLoan: Double, salesCostFraction: Double,
