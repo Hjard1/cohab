@@ -224,15 +224,24 @@ struct AgreementTabView: View {
                 .font(.subheadline.bold())
                 .foregroundStyle(Color.cohInk)
 
-            // Assets
-            summaryRow(
-                icon: "house.fill",
-                color: Color.cohGreen,
-                title: h.assets.isEmpty
-                    ? strings.agreementNoAssetsYet
-                    : "\(h.assets.count) \(h.assets.count == 1 ? strings.agreementSharedAsset : strings.agreementSharedAssets)",
-                detail: h.assets.map { "\($0.label) — \(h.partnerAName) \(Int($0.ownershipShareA * 100))% · \(h.partnerBName) \(Int((1 - $0.ownershipShareA) * 100))%" }.joined(separator: "\n")
-            )
+            // Assets — one compact row per asset instead of a long text block
+            if h.assets.isEmpty {
+                summaryRow(
+                    icon: "house.fill",
+                    color: Color.cohGreen,
+                    title: strings.agreementNoAssetsYet,
+                    detail: ""
+                )
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(h.assets) { asset in
+                        agreementAssetRow(asset, h)
+                        if asset.id != h.assets.last?.id {
+                            Divider()
+                        }
+                    }
+                }
+            }
 
             Divider()
 
@@ -333,6 +342,40 @@ struct AgreementTabView: View {
                 }
             }
         }
+    }
+
+    // Compact per-asset row: type icon, label + secondary info, ownership split
+    private func agreementAssetRow(_ asset: Asset, _ h: Household) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(asset.type.color.opacity(0.10))
+                    .frame(width: 38, height: 38)
+                Image(systemName: asset.type.icon)
+                    .font(.subheadline).foregroundStyle(asset.type.color)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(asset.label)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.cohInk)
+                if !asset.address.isEmpty {
+                    Text(asset.address)
+                        .font(.caption)
+                        .foregroundStyle(Color.cohSecondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 3) {
+                Text("\(h.partnerAName) \(Int(asset.ownershipShareA * 100))%")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.cohGreen)
+                Text("\(h.partnerBName) \(Int((1 - asset.ownershipShareA) * 100))%")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.cohBlue)
+            }
+        }
+        .padding(.vertical, 8)
     }
 
     // MARK: - Rental details card

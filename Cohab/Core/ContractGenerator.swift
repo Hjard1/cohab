@@ -161,9 +161,9 @@ enum ContractGenerator {
             y += 22
 
             // Record signature position BEFORE drawing (this is where DocuSeal fields go).
-            // DocuSeal expects 1-indexed pages (1 = first page).
+            // DocuSeal expects 0-indexed pages (0 = first page).
             layout.sigY    = y
-            layout.sigPage = layout.currentPage   // 1-indexed
+            layout.sigPage = layout.currentPage   // 0-indexed
 
             let nameAttrs: Attrs = [.font: UIFont.systemFont(ofSize: 11, weight: .medium),
                                     .foregroundColor: UIColor(white: 0.18, alpha: 1)]

@@ -1105,6 +1105,12 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
     // MARK: Dashboard
 
     var dashboardAssets: String       { s(en: "Assets",    nb: "Eiendeler",  sv: "Tillgångar",  da: "Aktiver",     fi: "Varat",       de: "Vermögenswerte", fr: "Actifs",       es: "Activos") }
+    var dashboardHistory: String      { s(en: "History",   nb: "Historikk",  sv: "Historik",    da: "Historik",    fi: "Historia",    de: "Verlauf",        fr: "Historique",   es: "Historial") }
+    var dashboardTotalContributed: String { s(en: "Total contributed", nb: "Totalt bidratt", sv: "Totalt bidraget", da: "Samlet bidrag", fi: "Kokonaispanos", de: "Gesamte Beiträge", fr: "Total contribué", es: "Total aportado") }
+    var dashboardThisMonth: String    { s(en: "This month", nb: "Denne måneden", sv: "Denna månad", da: "Denne måned", fi: "Tässä kuussa", de: "Diesen Monat", fr: "Ce mois-ci", es: "Este mes") }
+    var dashboardContribSplit: String { s(en: "Contribution split", nb: "Bidragsfordeling", sv: "Bidragsfördelning", da: "Bidragsfordeling", fi: "Maksujen jako", de: "Beitragsverteilung", fr: "Répartition des contributions", es: "Reparto de aportaciones") }
+    var dashboardContrib: String      { s(en: "contribution", nb: "bidrag", sv: "bidrag", da: "bidrag", fi: "maksu", de: "Beitrag", fr: "contribution", es: "aportación") }
+    var dashboardContribs: String     { s(en: "contributions", nb: "bidrag", sv: "bidrag", da: "bidrag", fi: "maksua", de: "Beiträge", fr: "contributions", es: "aportaciones") }
     var dashboardNetEquity: String    { s(en: "Net equity", nb: "Netto egenkapital", sv: "Nettoeget kapital", da: "Netto egenkapital", fi: "Netto oma pääoma", de: "Nettoeigenkapital", fr: "Fonds propres nets", es: "Patrimonio neto") }
     var dashboardContribFirst: String { s(en: "Contributions returned first, surplus split by ownership",
                                            nb: "Bidrag utbetales først, deretter fordeles overskuddet etter eierandel",

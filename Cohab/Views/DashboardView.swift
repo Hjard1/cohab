@@ -10,7 +10,6 @@ struct DashboardView: View {
     @ObservedObject private var strings = AppStrings.shared
     @State private var showSetup = false
     @State private var showAddAsset = false
-    @State private var editingAsset: Asset?
     @State private var availableRate: CentralBankRate?
     @State private var showRateSaved = false
     @State private var navigatingToAsset: Asset?
@@ -28,14 +27,14 @@ struct DashboardView: View {
                 if let h = household {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
-                            // GREEN HEADER + quick actions inside green zone
+                            // HEADER + quick actions over the photo background
                             VStack(spacing: 0) {
                                 headerSection(h)
                                     .padding(.horizontal, 24)
                                     .padding(.top, 8)
                                     .padding(.bottom, 32)
 
-                                // Quick actions — inside green, Revolut-style
+                                // Quick actions — over the photo, Revolut-style
                                 quickActionsOnGreen(h)
                                     .padding(.horizontal, 20)
                                     .padding(.bottom, 32)
@@ -64,11 +63,11 @@ struct DashboardView: View {
                                         .padding(.top, 16)
                                 }
 
-                                assetsList(h).padding(.top, 20)
+                                historySection(h).padding(.top, 20)
                                 if h.hasBudget && !h.budgetHidden {
                                     // Budget is its own section — same header
-                                    // style as "Eiendeler" so it doesn't read
-                                    // as part of the assets list.
+                                    // style as "Historikk" so it doesn't read
+                                    // as part of the history list.
                                     VStack(spacing: 0) {
                                         HStack {
                                             Text(strings.budgetOverviewTitle)
@@ -96,7 +95,7 @@ struct DashboardView: View {
                             .clipShape(.rect(topLeadingRadius: 28, topTrailingRadius: 28))
                         }
                     }
-                    // Green liquid photo behind the header — attached as the
+                    // Light photo behind the header — attached as the
                     // ScrollView's background so it bleeds under the status bar
                     // WITHOUT disturbing the scroll view's safe-area insets
                     // (a ZStack sibling pushed content under the notch).
@@ -135,7 +134,7 @@ struct DashboardView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.clear, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
             .toolbarBackground(Color.cohBg, for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
             .toolbar { toolbarContent }
@@ -150,16 +149,6 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showAddAsset) {
             if let h = household { AddAssetView(household: h) }
-        }
-        .sheet(item: $editingAsset) { asset in
-            if let h = household {
-                // Unconfigured asset (no value set) → wizard, otherwise normal edit
-                if asset.currentValue == 0 && asset.contributions.isEmpty {
-                    AddAssetView(household: h, existingAsset: asset)
-                } else {
-                    EditAssetView(asset: asset, household: h)
-                }
-            }
         }
         .sheet(isPresented: $showContribPicker) {
             if let h = household {
@@ -187,13 +176,13 @@ struct DashboardView: View {
         ToolbarItem(placement: .topBarTrailing) {
             Button { showSetup = true } label: {
                 Image(systemName: "gearshape.fill")
-                    .foregroundStyle(.white.opacity(0.85))
+                    .foregroundStyle(Color.cohInk.opacity(0.75))
                     .font(.body)
             }
         }
     }
 
-    // MARK: Header section (Revolut-style green hero)
+    // MARK: Header section (hero over light photo background)
 
     private func headerSection(_ h: Household) -> some View {
         let (equityA, equityB) = totalNetEquity(h)
@@ -204,19 +193,19 @@ struct DashboardView: View {
             // Partner names
             HStack {
                 HStack(spacing: 6) {
-                    Circle().fill(.white).frame(width: 8, height: 8)
+                    Circle().fill(Color.cohGreen).frame(width: 8, height: 8)
                     Text(h.partnerAName)
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.cohInk)
                         .lineLimit(1)
                 }
                 Spacer()
                 HStack(spacing: 6) {
                     Text(h.partnerBName)
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.70))
+                        .foregroundStyle(Color.cohSecondary)
                         .lineLimit(1)
-                    Circle().fill(.white.opacity(0.55)).frame(width: 8, height: 8)
+                    Circle().fill(Color.cohBlue.opacity(0.6)).frame(width: 8, height: 8)
                 }
             }
 
@@ -225,18 +214,17 @@ struct DashboardView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(sym)
                         .font(.title2.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.75))
+                        .foregroundStyle(Color.cohInk.opacity(0.6))
                     Text(Int(total).formatted())
                         .font(.system(size: 42, weight: .bold, design: .serif).monospacedDigit())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.cohInk)
                 }
                 Text(strings.dashboardNetEquity.lowercased())
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.55))
+                    .foregroundStyle(Color.cohSecondary)
             }
 
         }
-        .shadow(color: .black.opacity(0.35), radius: 4, y: 1)
     }
 
     // Kept for use in other parts
@@ -464,16 +452,29 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: Assets list
+    // MARK: History — contribution feed across all assets
 
-    private func assetsList(_ h: Household) -> some View {
-        VStack(spacing: 0) {
+    private struct ContribRow: Identifiable {
+        let asset: Asset
+        let contrib: ContributionRecord
+        var id: UUID { contrib.id }
+    }
+
+    private func contributionRows(_ h: Household) -> [ContribRow] {
+        h.assets
+            .flatMap { asset in asset.contributions.map { ContribRow(asset: asset, contrib: $0) } }
+            .sorted { $0.contrib.date > $1.contrib.date }
+    }
+
+    private func historySection(_ h: Household) -> some View {
+        let rows = contributionRows(h)
+        return VStack(spacing: 0) {
             HStack {
-                Text(strings.dashboardAssets)
+                Text(strings.dashboardHistory)
                     .font(.headline)
                     .foregroundStyle(.primary)
                 Spacer()
-                Text("\(h.assets.count) \(h.assets.count == 1 ? strings.dashboardItem : strings.dashboardItems)")
+                Text("\(rows.count) \(rows.count == 1 ? strings.dashboardContrib : strings.dashboardContribs)")
                     .font(.caption)
                     .foregroundStyle(Color.cohSecondary)
             }
@@ -482,22 +483,154 @@ struct DashboardView: View {
             if h.assets.isEmpty {
                 noAssetsPrompt { showAddAsset = true }
                     .padding(.top, 16)
+            } else if rows.isEmpty {
+                noContribsPrompt
+                    .padding(.top, 16)
             } else {
-                VStack(spacing: 16) {
-                    ForEach(sortedAssets(h.assets)) { asset in
-                        HouseholdStoryCard(asset: asset, household: h,
-                                          onTap: {
-                                              if asset.currentValue == 0 && asset.contributions.isEmpty {
-                                                  editingAsset = asset
-                                              } else {
-                                                  navigatingToAsset = asset
-                                              }
-                                          })
-                    }
-                }
-                .padding(.top, 16)
+                contributionSummary(h, rows: rows)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                contributionList(h, rows: rows)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
             }
         }
+    }
+
+    private var noContribsPrompt: some View {
+        VStack(spacing: 14) {
+            Text(strings.assetNoContribs)
+                .font(.subheadline)
+                .foregroundStyle(Color.cohSecondary)
+            Button { showContribPicker = true } label: {
+                Label(strings.addContribTitle, systemImage: "plus")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.cohGreen, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+    }
+
+    // Totals + A/B split bar, like the top of the contributions design
+    private func contributionSummary(_ h: Household, rows: [ContribRow]) -> some View {
+        let total = rows.reduce(0) { $0 + $1.contrib.amount }
+        let month = rows
+            .filter { Calendar.current.isDate($0.contrib.date, equalTo: Date(), toGranularity: .month) }
+            .reduce(0) { $0 + $1.contrib.amount }
+        let sumA = rows.filter { $0.contrib.ownerKey == "A" }.reduce(0) { $0 + $1.contrib.amount }
+        let sumB = total - sumA
+        let fracA = total > 0 ? sumA / total : 0.5
+
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(strings.dashboardTotalContributed)
+                        .font(.caption).foregroundStyle(Color.cohSecondary)
+                    Text("\(h.currencySymbol)\(Int(total).formatted())")
+                        .font(.title3.bold().monospacedDigit())
+                        .foregroundStyle(Color.cohInk)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(strings.dashboardThisMonth)
+                        .font(.caption).foregroundStyle(Color.cohSecondary)
+                    Text("\(h.currencySymbol)\(Int(month).formatted())")
+                        .font(.title3.bold().monospacedDigit())
+                        .foregroundStyle(Color.cohInk)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(strings.dashboardContribSplit)
+                    .font(.caption).foregroundStyle(Color.cohSecondary)
+                GeometryReader { geo in
+                    HStack(spacing: 3) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.cohGreen)
+                            .frame(width: max(geo.size.width * fracA - 1.5, 8))
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.cohBlue.opacity(0.35))
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: 10)
+                HStack(spacing: 16) {
+                    splitLegend(name: h.partnerAName, color: .cohGreen,
+                                amount: "\(h.currencySymbol)\(Int(sumA).formatted())")
+                    splitLegend(name: h.partnerBName, color: .cohBlue.opacity(0.6),
+                                amount: "\(h.currencySymbol)\(Int(sumB).formatted())")
+                    Spacer()
+                }
+            }
+        }
+        .padding(18)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
+    private func splitLegend(name: String, color: Color, amount: String) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(name)
+                .font(.caption.weight(.medium)).foregroundStyle(Color.cohInk)
+            Text(amount)
+                .font(.caption.monospacedDigit()).foregroundStyle(Color.cohSecondary)
+        }
+    }
+
+    private func contributionList(_ h: Household, rows: [ContribRow]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(rows) { row in
+                let ownerColor: Color = row.contrib.ownerKey == "A" ? .cohGreen : .cohBlue
+                Button { navigatingToAsset = row.asset } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(row.asset.type.color.opacity(0.12))
+                                .frame(width: 38, height: 38)
+                            Image(systemName: row.asset.type.icon)
+                                .font(.subheadline)
+                                .foregroundStyle(row.asset.type.color)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(row.contrib.label.isEmpty ? row.contrib.category.capitalized : row.contrib.label)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(Color.cohInk)
+                            Text(row.asset.label)
+                                .font(.caption)
+                                .foregroundStyle(Color.cohSecondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 3) {
+                            Text("\(h.currencySymbol)\(Int(row.contrib.amount).formatted())")
+                                .font(.subheadline.bold().monospacedDigit())
+                                .foregroundStyle(ownerColor)
+                            Text(row.contrib.date.formatted(date: .abbreviated, time: .omitted))
+                                .font(.caption)
+                                .foregroundStyle(Color.cohSecondary)
+                        }
+                        Image(systemName: "chevron.right")
+                            .font(.caption.bold())
+                            .foregroundStyle(Color.cohTertiary)
+                    }
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+
+                if row.id != rows.last?.id {
+                    Divider()
+                }
+            }
+        }
+        .padding(.horizontal, 18)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
     }
 
     private func noAssetsPrompt(action: @escaping () -> Void) -> some View {
@@ -538,13 +671,6 @@ struct DashboardView: View {
     }
 
     // MARK: Floating add button
-
-    // MARK: Helpers
-
-    private func sortedAssets(_ assets: [Asset]) -> [Asset] {
-        let order: [AssetType] = [.home, .cabin, .car, .savings, .investment, .furniture, .pet, .other]
-        return assets.sorted { (order.firstIndex(of: $0.type) ?? 99) < (order.firstIndex(of: $1.type) ?? 99) }
-    }
 
     // MARK: Quick actions on green — Revolut-style circles with white icons
 
@@ -617,20 +743,20 @@ struct DashboardView: View {
         VStack(spacing: 8) {
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(0.18))
+                    .fill(Color.white)
                     .frame(width: 52, height: 52)
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.cohGreen)
             }
             Text(label)
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.90))
+                .foregroundStyle(Color.cohInk)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .frame(width: 70)
         }
-        .shadow(color: .black.opacity(0.35), radius: 4, y: 1)
+        .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
     }
 
     // MARK: Quick actions — always exactly 4 chips, content rotates with context
@@ -780,77 +906,6 @@ struct DashboardView: View {
                 .frame(width: 56, height: 56)
                 .background(Self.fabColor, in: Circle())
                 .shadow(color: Self.fabColor.opacity(0.45), radius: 16, y: 6)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Household story card (dashboard)
-
-struct HouseholdStoryCard: View {
-    let asset: Asset
-    let household: Household
-    let onTap: () -> Void
-    @ObservedObject private var strings = AppStrings.shared
-
-    private var ownershipLine: String {
-        guard asset.currentValue > 0 else { return strings.assetTapToSetUp }
-        let shareA = asset.ownershipShareA
-        let nameA = household.partnerAName
-        let nameB = household.partnerBName
-        if shareA >= 0.99 { return "\(nameA)'s" }
-        if shareA <= 0.01 { return "\(nameB)'s" }
-        let pA = Int((shareA * 100).rounded())
-        let pB = 100 - pA
-        if abs(pA - 50) <= 2 { return strings.assetSharedEqually }
-        return "\(strings.assetSharedFormat) \(pA)/\(pB)"
-    }
-
-    private var ownershipColor: Color {
-        guard asset.currentValue > 0 else { return Color.cohGreen }
-        let shareA = asset.ownershipShareA
-        if shareA >= 0.99 { return Color.cohGreen }
-        if shareA <= 0.01 { return Color(red: 0.20, green: 0.49, blue: 0.96) }
-        return Color(.secondaryLabel)
-    }
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 16) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(asset.type.color.opacity(0.10))
-                        .frame(width: 56, height: 56)
-                    Image(systemName: asset.type.icon)
-                        .font(.title2.weight(.medium))
-                        .foregroundStyle(asset.type.color)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(asset.label)
-                        .font(.headline)
-                        .foregroundStyle(Color.cohInk)
-                    if !asset.address.isEmpty {
-                        Text(asset.address)
-                            .font(.caption)
-                            .foregroundStyle(Color.cohSecondary)
-                            .lineLimit(1)
-                    }
-                    Text(ownershipLine)
-                        .font(.subheadline)
-                        .foregroundStyle(ownershipColor)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption.bold())
-                    .foregroundStyle(Color(.tertiaryLabel))
-            }
-            .padding(18)
-            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
-            .padding(.horizontal, 20)
         }
         .buttonStyle(.plain)
     }

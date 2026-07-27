@@ -11,6 +11,7 @@ struct DocuSealSubmission: Codable {
 
 enum DocuSealError: LocalizedError {
     case missingEmail
+    case sameEmail
     case monthlyLimit
     case httpError(Int, String)
     case decodingError(String)
@@ -19,6 +20,8 @@ enum DocuSealError: LocalizedError {
         switch self {
         case .missingEmail:
             return "Both partners need an email address to receive signing links."
+        case .sameEmail:
+            return "Both partners must sign with their own email address — the same address can't be used for both."
         case .monthlyLimit:
             return "DocuSeal includes 10 free signings per month. The limit resets on the 1st."
         case .httpError(let code, let msg):
@@ -77,6 +80,11 @@ enum DocuSealService {
         guard isValidEmail(emailA), isValidEmail(emailB) else {
             throw DocuSealError.missingEmail
         }
+        // Two distinct signers are mandatory — the same address on both
+        // roles would let one person complete the whole agreement alone.
+        guard emailA.lowercased() != emailB.lowercased() else {
+            throw DocuSealError.sameEmail
+        }
 
         let output = ContractGenerator.generate(household: household)
 
@@ -87,7 +95,7 @@ enum DocuSealService {
             "name_b":       household.partnerBName,
             "email_b":      emailB,
             "sig_y":        output.sigYFraction,   // fraction 0–1, from top
-            "sig_page":     output.sigPage,         // 1-indexed (DocuSeal: 1 = first page)
+            "sig_page":     output.sigPage,         // 0-indexed (DocuSeal: 0 = first page)
             "household_id": household.id.uuidString,
             // [cohab] prefix keeps templates distinct from Samboappen on the
             // shared DocuSeal account dashboard.
