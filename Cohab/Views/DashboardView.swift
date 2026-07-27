@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 // MARK: - Dashboard
 
@@ -3120,6 +3121,7 @@ struct AddContributionView: View {
     let household: Household
     var onComplete: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var auth: AuthManager
     @ObservedObject private var strings = AppStrings.shared
 
     @State private var ownerKey        = "A"
@@ -3130,6 +3132,8 @@ struct AddContributionView: View {
     @State private var category        = "deposit"
     @State private var adjustOwnership = false
     @State private var ownershipShareA = 0.5
+    @State private var receiptImage: UIImage?
+    @State private var receiptPickItem: PhotosPickerItem?
 
     private struct ContribCategory {
         let key: String
@@ -3286,6 +3290,40 @@ struct AddContributionView: View {
                     }
                     DatePicker(strings.contribDateLabel, selection: $date, displayedComponents: .date)
                     TextField(strings.contribLabelPlaceholder, text: $label)
+
+                    // Optional receipt attached to this contribution
+                    if let receiptImage {
+                        HStack(spacing: 12) {
+                            Image(uiImage: receiptImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 44, height: 44)
+                                .clipped()
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            Text(strings.assetReceipt)
+                                .font(.subheadline).foregroundStyle(Color.cohInk)
+                            Spacer()
+                            Button { self.receiptImage = nil } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(Color(.quaternaryLabel))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(strings.assetReceipt)
+                        }
+                    } else {
+                        PhotosPicker(selection: $receiptPickItem, matching: .images) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(Color.cohGreen)
+                                Text(strings.assetAddReceipt)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Color.cohGreen)
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
                 Section {
@@ -3333,6 +3371,15 @@ struct AddContributionView: View {
             }
         }
         .onAppear { ownershipShareA = asset.ownershipShareA }
+        .onChange(of: receiptPickItem) { _, item in
+            guard let item else { return }
+            Task { @MainActor in
+                defer { receiptPickItem = nil }
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    receiptImage = UIImage(data: data)
+                }
+            }
+        }
     }
 
     private func add() {
@@ -3382,6 +3429,21 @@ struct AddContributionView: View {
                     // failed is removed locally on the next sync — log the
                     // failure so it is at least visible in the console.
                     print("[Cohab] Contribution push failed: \(error.localizedDescription)")
+                }
+            }
+        }
+        // Best-effort receipt upload for the new contribution — a failure
+        // never blocks keeping the contribution itself.
+        if let receipt = receiptImage, let first = created.first {
+            let rid = first.id, hhId = household.id
+            let signedIn = auth.isSignedIn
+            Task {
+                do {
+                    try await AssetImageStore.saveReceipt(
+                        receipt, contributionId: rid, householdId: hhId,
+                        assetId: assetId, signedIn: signedIn)
+                } catch {
+                    print("[Cohab] Receipt upload failed: \(error.localizedDescription)")
                 }
             }
         }

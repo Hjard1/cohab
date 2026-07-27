@@ -97,6 +97,9 @@ enum DocuSealService {
             "sig_y":        output.sigYFraction,   // fraction 0–1, from top
             "sig_page":     output.sigPage,         // 0-indexed (DocuSeal: 0 = first page)
             "household_id": household.id.uuidString,
+            // The edge function localizes the invitation email and document
+            // title based on the app's current language.
+            "language":     AppStrings.shared.language.rawValue,
             // [cohab] prefix keeps templates distinct from Samboappen on the
             // shared DocuSeal account dashboard.
             "title": "\(household.partnerAName) & \(household.partnerBName) — Cohabitation Agreement"

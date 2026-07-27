@@ -10,10 +10,7 @@ struct AssetDetailView: View {
     @State private var showSettlement = false
     @State private var editingOwnership = false
     @State private var photoImage: UIImage?
-    @State private var receiptImage: UIImage?
     @State private var photoPickItem: PhotosPickerItem?
-    @State private var receiptPickItem: PhotosPickerItem?
-    @State private var showReceiptFull = false
     @State private var imageUploadFailed = false
     @Environment(\.modelContext) private var modelContext
     @Environment(HouseholdStore.self) private var store
@@ -46,9 +43,6 @@ struct AssetDetailView: View {
                 // Themed visual header — icon + colour per asset type,
                 // so a home, a car, and a sofa don't all look like the same row of text.
                 heroHeader
-
-                // Uploaded receipt (purchase / renovation documentation)
-                receiptCard
 
                 // Settlement value + split (primary info first)
                 equityCard
@@ -85,19 +79,21 @@ struct AssetDetailView: View {
         .sheet(isPresented: $showSettlement) {
             SettlementView(asset: asset, household: household)
         }
-        .fullScreenCover(isPresented: $showReceiptFull) {
-            receiptFullScreen
-        }
         .task(id: asset.id) {
             let signedIn = auth.isSignedIn
-            let hhId = household.id, aId = asset.id
-            async let p = AssetImageStore.load(kind: .photo, householdId: hhId, assetId: aId, signedIn: signedIn)
-            async let r = AssetImageStore.load(kind: .receipt, householdId: hhId, assetId: aId, signedIn: signedIn)
-            photoImage = await p
-            receiptImage = await r
+            // Show the disk-cached photo instantly, then refresh from remote;
+            // on failure keep the cached image (signed out is local-only).
+            if let cached = AssetImageStore.loadCached(assetId: asset.id) {
+                photoImage = cached
+            }
+            guard signedIn else { return }
+            if let fresh = await AssetImageStore.load(
+                kind: .photo, householdId: household.id,
+                assetId: asset.id, signedIn: true) {
+                photoImage = fresh
+            }
         }
-        .onChange(of: photoPickItem) { _, item in handlePick(item, kind: .photo) }
-        .onChange(of: receiptPickItem) { _, item in handlePick(item, kind: .receipt) }
+        .onChange(of: photoPickItem) { _, item in handlePick(item) }
         .alert(strings.assetImageUploadFailed, isPresented: $imageUploadFailed) {
             Button(strings.ok, role: .cancel) {}
         }
@@ -186,100 +182,18 @@ struct AssetDetailView: View {
         }
     }
 
-    // MARK: - Receipt
+    // MARK: - Photo picking
 
-    private var receiptCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "doc.text.image")
-                    .foregroundStyle(Color.cohGreen)
-                Text(strings.assetReceipt)
-                    .font(.headline).foregroundStyle(Color.cohInk)
-                Spacer()
-                PhotosPicker(selection: $receiptPickItem, matching: .images) {
-                    Text(receiptImage == nil ? strings.assetAddReceipt : strings.assetChangePhoto)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.cohGreen)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .overlay(Capsule().strokeBorder(Color.cohGreen.opacity(0.4), lineWidth: 1))
-                }
-            }
-
-            if let receiptImage {
-                Button { showReceiptFull = true } label: {
-                    Image(uiImage: receiptImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(maxWidth: .infinity, maxHeight: 160)
-                        .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(alignment: .bottomTrailing) {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.white)
-                                .padding(7)
-                                .background(.black.opacity(0.45), in: Circle())
-                                .padding(8)
-                        }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(strings.assetReceipt)
-            } else {
-                PhotosPicker(selection: $receiptPickItem, matching: .images) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(Color.cohGreen)
-                        Text(strings.assetReceiptHint)
-                            .font(.subheadline)
-                            .foregroundStyle(Color.cohSecondary)
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 8)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
-        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
-    }
-
-    private var receiptFullScreen: some View {
-        ZStack(alignment: .topTrailing) {
-            Color.black.ignoresSafeArea()
-            if let receiptImage {
-                Image(uiImage: receiptImage)
-                    .resizable()
-                    .scaledToFit()
-                    .ignoresSafeArea()
-            }
-            Button { showReceiptFull = false } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title)
-                    .foregroundStyle(.white.opacity(0.9))
-                    .padding(20)
-            }
-            .accessibilityLabel(strings.close)
-        }
-    }
-
-    private func handlePick(_ item: PhotosPickerItem?, kind: AssetImageStore.Kind) {
+    private func handlePick(_ item: PhotosPickerItem?) {
         guard let item else { return }
         Task { @MainActor in
-            defer {
-                if kind == .photo { photoPickItem = nil } else { receiptPickItem = nil }
-            }
+            defer { photoPickItem = nil }
             guard let data = try? await item.loadTransferable(type: Data.self),
                   let uiImage = UIImage(data: data) else { return }
             do {
-                let saved = try await AssetImageStore.save(
-                    uiImage, kind: kind, householdId: household.id,
+                photoImage = try await AssetImageStore.save(
+                    uiImage, kind: .photo, householdId: household.id,
                     assetId: asset.id, signedIn: auth.isSignedIn)
-                if kind == .photo { photoImage = saved } else { receiptImage = saved }
             } catch {
                 print("[Cohab] Asset image upload failed: \(error.localizedDescription)")
                 imageUploadFailed = true
@@ -491,6 +405,10 @@ struct AssetDetailView: View {
                                     .font(.caption).foregroundStyle(Color.cohSecondary)
                             }
                             Spacer()
+                            ContributionReceiptBadge(contributionId: contrib.id,
+                                                     householdId: household.id,
+                                                     assetId: asset.id,
+                                                     signedIn: auth.isSignedIn)
                             Text("\(household.currencySymbol)\(Int(contrib.amount).formatted())")
                                 .font(.subheadline.bold())
                                 .foregroundStyle(contribColor)
@@ -503,6 +421,10 @@ struct AssetDetailView: View {
                                     do {
                                         try await SupabaseService.deleteContribution(id)
                                         modelContext.delete(contrib)
+                                        // Best-effort cleanup of any attached receipt
+                                        await AssetImageStore.deleteReceipt(
+                                            contributionId: id, householdId: household.id,
+                                            assetId: asset.id, signedIn: auth.isSignedIn)
                                     } catch {
                                         print("[Cohab] Delete contribution failed: \(error.localizedDescription)")
                                     }
@@ -553,5 +475,62 @@ struct AssetDetailView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(Color.cohBg.ignoresSafeArea(edges: .bottom))
+    }
+}
+
+// MARK: - Contribution receipt badge
+
+/// Paperclip shown on contribution rows that have a receipt; tap to view it
+/// full screen. Existence is discovered by attempting a load — the local disk
+/// cache and the store's memory cache make repeat checks cheap, so no storage
+/// listing is needed.
+private struct ContributionReceiptBadge: View {
+    let contributionId: UUID
+    let householdId: UUID
+    let assetId: UUID
+    let signedIn: Bool
+
+    @State private var checked = false
+    @State private var image: UIImage?
+    @State private var showFull = false
+    @ObservedObject private var strings = AppStrings.shared
+
+    var body: some View {
+        Group {
+            if checked, let image {
+                Button { showFull = true } label: {
+                    Image(systemName: "paperclip")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.cohSecondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(strings.assetReceipt)
+                .fullScreenCover(isPresented: $showFull) {
+                    ZStack(alignment: .topTrailing) {
+                        Color.black.ignoresSafeArea()
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .ignoresSafeArea()
+                        Button { showFull = false } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title)
+                                .foregroundStyle(.white.opacity(0.9))
+                                .padding(20)
+                        }
+                        .accessibilityLabel(strings.close)
+                    }
+                }
+            } else if !checked {
+                // Nothing to show until the receipt lookup finishes
+                EmptyView()
+            }
+        }
+        .task {
+            image = await AssetImageStore.loadReceipt(
+                contributionId: contributionId, householdId: householdId,
+                assetId: assetId, signedIn: signedIn)
+            checked = true
+        }
     }
 }

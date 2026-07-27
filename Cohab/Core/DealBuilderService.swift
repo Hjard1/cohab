@@ -187,6 +187,9 @@ enum DealBuilderService {
             "name_b":       household.partnerBName,
             "email_b":      emailB,
             "household_id": household.id.uuidString,
+            // The edge function localizes the document title based on the
+            // app's current language.
+            "language":     AppStrings.shared.language.rawValue,
             "title": "\(household.partnerAName) & \(household.partnerBName) — Cohabitation Agreement"
         ]
 

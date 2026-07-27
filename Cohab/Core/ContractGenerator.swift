@@ -269,13 +269,15 @@ enum ContractGenerator {
     /// Formats an annual rate (0.045) as a clean percentage string ("4.5%"),
     /// trimming trailing zeros — never rounding to a whole number, so the signed
     /// contract states exactly the rate the settlement engine uses.
-    private static func formatRate(_ rate: Double) -> String {
+    private static func formatRate(_ rate: Double, norwegian: Bool = false) -> String {
         let pct = rate * 100
         var s = String(format: "%.2f", pct)
         if s.contains(".") {
             while s.hasSuffix("0") { s.removeLast() }
             if s.hasSuffix(".") { s.removeLast() }
         }
+        // Norwegian convention: decimal comma and a space before the percent sign.
+        if norwegian { return s.replacingOccurrences(of: ".", with: ",") + " %" }
         return s + "%"
     }
 
@@ -308,9 +310,6 @@ enum ContractGenerator {
     }
 
     private static func buildSections(household: Household) -> [(title: String, body: String, kind: ContractSectionKind)] {
-        // Print the exact rate (e.g. "4.5%"), not a rounded integer — the signed
-        // document must state the same rate the settlement engine actually uses.
-        let rateStr = formatRate(household.annualInterestRate)
         let isRental = household.agreementType == "rental"
         let isNO = isNorwegian(household)
         let isSV = isSwedish(household)
@@ -319,6 +318,26 @@ enum ContractGenerator {
         let isDe = isGerman(household)
         let isFr = isFrench(household)
         let isEs = isSpanish(household)
+        // Print the exact rate (e.g. "4,5 %"), not a rounded integer — the signed
+        // document must state the same rate the settlement engine actually uses.
+        let rateStr = formatRate(household.annualInterestRate, norwegian: isNO)
+        let docLocale: Locale
+        if isNO { docLocale = Locale(identifier: "nb_NO") }
+        else if isSV { docLocale = Locale(identifier: "sv_SE") }
+        else if isDA { docLocale = Locale(identifier: "da_DK") }
+        else if isFI { docLocale = Locale(identifier: "fi_FI") }
+        else if isDe { docLocale = Locale(identifier: "de_DE") }
+        else if isFr { docLocale = Locale(identifier: "fr_FR") }
+        else if isEs { docLocale = Locale(identifier: "es_ES") }
+        else if isUS(household) { docLocale = Locale(identifier: "en_US") }
+        else { docLocale = Locale(identifier: "en_GB") }
+        /// Money formatted in the document's own locale ("kr 2 500 000" for
+        /// Norwegian), independent of the device locale.
+        let money: (Double) -> String = { v in
+            "\(household.currencySymbol)\(Int(v).formatted(.number.locale(docLocale)))"
+        }
+        // Disambiguated asset names, shared by the assets and contributions sections.
+        let assetNames = assetDisplayNames(household: household)
         var n = 1
         var sections: [(title: String, body: String, kind: ContractSectionKind)] = []
 
@@ -451,65 +470,75 @@ enum ContractGenerator {
             } else {
                 intro = "The parties jointly hold the following assets as registered in cohab at the time of signing:"
             }
+            // Each asset is presented as its own block, in a fixed field order.
+            let typeLabel = t(household, no: "Type", sv: "Typ", da: "Type",
+                              fi: "Tyyppi", de: "Typ", fr: "Type",
+                              es: "Tipo", en: "Type")
+            let addrLabel = t(household, no: "Adresse", sv: "Adress", da: "Adresse",
+                              fi: "Osoite", de: "Adresse", fr: "Adresse",
+                              es: "Dirección", en: "Address")
+            let mvLabel = t(household, no: "Markedsverdi", sv: "Marknadsvärde", da: "Markedsværdi",
+                            fi: "Markkina-arvo", de: "Marktwert", fr: "Valeur marchande",
+                            es: "Valor de mercado", en: "Market value")
+            let loanLabel = t(household, no: "Gjenstående lån", sv: "Återstående lån", da: "Resterende lån",
+                              fi: "Jäljellä oleva laina", de: "Restschuld", fr: "Emprunt restant",
+                              es: "Préstamo pendiente", en: "Remaining loan")
+            let eqLabel = t(household, no: "Netto egenkapital", sv: "Netto eget kapital", da: "Netto egenkapital",
+                            fi: "Netto oma pääoma", de: "Nettoeigenkapital", fr: "Fonds propres nets",
+                            es: "Patrimonio neto", en: "Net equity")
+            // Norwegian convention: space before the percent sign.
+            let pctSuffix = isNO ? " %" : "%"
+            // Ownership share below is the registered/legal split — it does not
+            // show who actually paid in what. Each asset block points to the
+            // section that does, so the two aren't read as contradicting.
+            let contribSectionNumber = n + (isRental ? 1 : 0)
+            let contribRef = t(household,
+                no: "Egenkapital ved kjøp og senere bidrag fremgår av punkt \(contribSectionNumber).",
+                sv: "Eget kapital vid köp och senare bidrag framgår av punkt \(contribSectionNumber).",
+                da: "Egenkapital ved køb og senere bidrag fremgår af punkt \(contribSectionNumber).",
+                fi: "Oma pääoma oston yhteydessä ja myöhemmät panokset käyvät ilmi kohdasta \(contribSectionNumber).",
+                de: "Eigenkapital beim Kauf und spätere Einzahlungen sind in Abschnitt \(contribSectionNumber) aufgeführt.",
+                fr: "Les fonds propres à l'achat et les apports ultérieurs figurent au point \(contribSectionNumber).",
+                es: "El capital propio en la compra y las aportaciones posteriores figuran en el punto \(contribSectionNumber).",
+                en: "Purchase equity and later contributions are listed in section \(contribSectionNumber).")
             let list = household.assets.map { a -> String in
                 let equity = a.currentValue - a.remainingLoan
                 let category = assetCategory(a, isNO: isNO)
-                var line = "• \(a.label)  [\(category)]"
+                // Same (disambiguated) name as in the contributions section.
+                var line = assetNames[a.id] ?? a.label
+                line += "\n\(typeLabel): \(category)"
                 // Name the property by its registered address when one exists —
                 // essential for a property agreement to identify the asset.
                 let addr = a.address.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !addr.isEmpty {
-                    let addrLabel = t(household, no: "Adresse", sv: "Adress", da: "Adresse",
-                                      fi: "Osoite", de: "Adresse", fr: "Adresse",
-                                      es: "Dirección", en: "Address")
-                    line += "\n  \(addrLabel): \(addr)"
+                    line += "\n\(addrLabel): \(addr)"
                 }
+                line += "\n\(mvLabel): \(money(a.currentValue))"
+                if a.remainingLoan > 0 { line += "\n\(loanLabel): \(money(a.remainingLoan))" }
+                line += "\n\(eqLabel): \(money(equity))"
                 // Use explicit flag; fall back to type-based for legacy assets without the field
                 // nil = not explicitly set → fall back to type-based default
                 let isRegisteredProperty = a.isOwnershipRegistered ?? (a.type == .home || a.type == .cabin)
                 let reg = landRegistry(household)
+                let regLabel: String
                 if isNO {
-                    line += "\n  Markedsverdi: \(sym)\(Int(a.currentValue).formatted())"
-                    if a.remainingLoan > 0 { line += "  |  Gjenstående lån: \(sym)\(Int(a.remainingLoan).formatted())" }
-                    line += "  |  Netto egenkapital: \(sym)\(Int(equity).formatted())"
-                    let regLabel = isRegisteredProperty ? "Eierbrøk (tinglyst)" : "Eierbrøk"
-                    line += "\n  \(regLabel): \(household.partnerAName) \(Int(a.ownershipShareA * 100))%  —  \(household.partnerBName) \(Int((1 - a.ownershipShareA) * 100))%"
+                    regLabel = isRegisteredProperty ? "Eierbrøk (tinglyst)" : "Eierbrøk"
                 } else if isSV {
-                    line += "\n  Marknadsvärde: \(sym)\(Int(a.currentValue).formatted())"
-                    if a.remainingLoan > 0 { line += "  |  Återstående lån: \(sym)\(Int(a.remainingLoan).formatted())" }
-                    line += "  |  Netto eget kapital: \(sym)\(Int(equity).formatted())"
-                    line += "\n  Ägarandel\(isRegisteredProperty ? " (registrerat hos \(reg))" : ""): \(household.partnerAName) \(Int(a.ownershipShareA * 100))%  —  \(household.partnerBName) \(Int((1 - a.ownershipShareA) * 100))%"
+                    regLabel = "Ägarandel\(isRegisteredProperty ? " (registrerat hos \(reg))" : "")"
                 } else if isDA {
-                    line += "\n  Markedsværdi: \(sym)\(Int(a.currentValue).formatted())"
-                    if a.remainingLoan > 0 { line += "  |  Resterende lån: \(sym)\(Int(a.remainingLoan).formatted())" }
-                    line += "  |  Netto egenkapital: \(sym)\(Int(equity).formatted())"
-                    line += "\n  Ejerandel\(isRegisteredProperty ? " (tinglyst)" : ""): \(household.partnerAName) \(Int(a.ownershipShareA * 100))%  —  \(household.partnerBName) \(Int((1 - a.ownershipShareA) * 100))%"
+                    regLabel = "Ejerandel\(isRegisteredProperty ? " (tinglyst)" : "")"
                 } else if isFI {
-                    line += "\n  Markkina-arvo: \(sym)\(Int(a.currentValue).formatted())"
-                    if a.remainingLoan > 0 { line += "  |  Jäljellä oleva laina: \(sym)\(Int(a.remainingLoan).formatted())" }
-                    line += "  |  Netto oma pääoma: \(sym)\(Int(equity).formatted())"
-                    line += "\n  Omistusosuus\(isRegisteredProperty ? " (\(reg))" : ""): \(household.partnerAName) \(Int(a.ownershipShareA * 100))%  —  \(household.partnerBName) \(Int((1 - a.ownershipShareA) * 100))%"
+                    regLabel = "Omistusosuus\(isRegisteredProperty ? " (\(reg))" : "")"
                 } else if isDe {
-                    line += "\n  Marktwert: \(sym)\(Int(a.currentValue).formatted())"
-                    if a.remainingLoan > 0 { line += "  |  Restschuld: \(sym)\(Int(a.remainingLoan).formatted())" }
-                    line += "  |  Nettoeigenkapital: \(sym)\(Int(equity).formatted())"
-                    line += "\n  Eigentumsanteil\(isRegisteredProperty ? " (lt. \(reg))" : ""): \(household.partnerAName) \(Int(a.ownershipShareA * 100))%  —  \(household.partnerBName) \(Int((1 - a.ownershipShareA) * 100))%"
+                    regLabel = "Eigentumsanteil\(isRegisteredProperty ? " (lt. \(reg))" : "")"
                 } else if isFr {
-                    line += "\n  Valeur marchande: \(sym)\(Int(a.currentValue).formatted())"
-                    if a.remainingLoan > 0 { line += "  |  Emprunt restant: \(sym)\(Int(a.remainingLoan).formatted())" }
-                    line += "  |  Fonds propres nets: \(sym)\(Int(equity).formatted())"
-                    line += "\n  Quote-part\(isRegisteredProperty ? " (selon \(reg))" : ""): \(household.partnerAName) \(Int(a.ownershipShareA * 100))%  —  \(household.partnerBName) \(Int((1 - a.ownershipShareA) * 100))%"
+                    regLabel = "Quote-part\(isRegisteredProperty ? " (selon \(reg))" : "")"
                 } else if isEs {
-                    line += "\n  Valor de mercado: \(sym)\(Int(a.currentValue).formatted())"
-                    if a.remainingLoan > 0 { line += "  |  Préstamo pendiente: \(sym)\(Int(a.remainingLoan).formatted())" }
-                    line += "  |  Patrimonio neto: \(sym)\(Int(equity).formatted())"
-                    line += "\n  Cuota de propiedad\(isRegisteredProperty ? " (\(reg))" : ""): \(household.partnerAName) \(Int(a.ownershipShareA * 100))%  —  \(household.partnerBName) \(Int((1 - a.ownershipShareA) * 100))%"
+                    regLabel = "Cuota de propiedad\(isRegisteredProperty ? " (\(reg))" : "")"
                 } else {
-                    line += "\n  Market value: \(sym)\(Int(a.currentValue).formatted())"
-                    if a.remainingLoan > 0 { line += "  |  Remaining loan: \(sym)\(Int(a.remainingLoan).formatted())" }
-                    line += "  |  Net equity: \(sym)\(Int(equity).formatted())"
-                    line += "\n  Ownership\(isRegisteredProperty ? " (as registered at \(reg))" : ""): \(household.partnerAName) \(Int(a.ownershipShareA * 100))%  —  \(household.partnerBName) \(Int((1 - a.ownershipShareA) * 100))%"
+                    regLabel = "Ownership\(isRegisteredProperty ? " (as registered at \(reg))" : "")"
                 }
+                line += "\n\(regLabel): \(household.partnerAName) \(Int(a.ownershipShareA * 100))\(pctSuffix) · \(household.partnerBName) \(Int((1 - a.ownershipShareA) * 100))\(pctSuffix)"
                 // Itemised assets (furniture): record per-item ownership rather
                 // than collapsing to a single aggregate %, so the allocation the
                 // user entered survives into the signed document.
@@ -529,31 +558,10 @@ enum ContractGenerator {
                         line += "\n    – \(item.label)\(valuePart): \(ownerName(item.ownerKey))"
                     }
                 }
+                line += "\n\(contribRef)"
                 return line
             }.joined(separator: "\n\n")
-            // Ownership share above is the registered/legal split — it does not
-            // show who actually paid in what. Point explicitly to the section
-            // that does, so the two aren't read as contradicting each other.
-            let contribSectionNumber = n + (isRental ? 1 : 0)
-            let contribRef: String
-            if isNO {
-                contribRef = "Se § \(contribSectionNumber) for oversikt over hvilket beløp hver av partene har bidratt med til hver eiendel."
-            } else if isSV {
-                contribRef = "Se § \(contribSectionNumber) för en översikt över vilket belopp var och en av parterna har bidragit med till varje tillgång."
-            } else if isDA {
-                contribRef = "Se § \(contribSectionNumber) for en oversigt over, hvilket beløb hver af parterne har bidraget med til hvert aktiv."
-            } else if isFI {
-                contribRef = "Katso § \(contribSectionNumber), josta näet, kuinka paljon kukin osapuoli on maksanut kutakin omaisuutta kohden."
-            } else if isDe {
-                contribRef = "Siehe § \(contribSectionNumber) für eine Übersicht, welchen Betrag jede Partei zu welchem Vermögenswert beigetragen hat."
-            } else if isFr {
-                contribRef = "Voir § \(contribSectionNumber) pour le détail des montants versés par chaque partie pour chaque actif."
-            } else if isEs {
-                contribRef = "Véase el § \(contribSectionNumber) para el detalle de lo que ha aportado cada parte a cada activo."
-            } else {
-                contribRef = "See § \(contribSectionNumber) for a breakdown of what each party has actually paid in toward each asset."
-            }
-            return "\(intro)\n\n\(list)\n\n\(valuationClause)\n\n\(contribRef)"
+            return "\(intro)\n\n\(list)\n\n\(valuationClause)"
         }(), .assets))
 
         // § RENTAL ARRANGEMENT — added when the household is renting rather than co-owning a home
@@ -677,15 +685,11 @@ enum ContractGenerator {
             }(), .plain))
         }
 
-        // § FINANCIAL CONTRIBUTIONS
-        sections.append(("\(n).  \(t(household, no: "INNBETALTE BIDRAG", sv: "EKONOMISKA BIDRAG", da: "FINANSIELLE BIDRAG", fi: "TALOUDELLISET PANOKSET", de: "FINANZIELLE EINZAHLUNGEN", fr: "APPORTS FINANCIERS", es: "APORTACIONES ECONÓMICAS", en: "FINANCIAL CONTRIBUTIONS"))", {
+        // § PURCHASE EQUITY AND LATER CONTRIBUTIONS
+        sections.append(("\(n).  \(t(household, no: "EGENKAPITAL VED KJØP OG SENERE BIDRAG", sv: "EGET KAPITAL VID KÖP OCH SENARE BIDRAG", da: "EGENKAPITAL VED KØB OG SENERE BIDRAG", fi: "OMA PÄÄOMA OSTON YHTEYDESSÄ JA MYÖHEMMÄT PANOKSET", de: "EIGENKAPITAL BEIM KAUF UND SPÄTERE EINZAHLUNGEN", fr: "FONDS PROPRES À L'ACHAT ET APPORTS ULTÉRIEURS", es: "CAPITAL PROPIO EN LA COMPRA Y APORTACIONES POSTERIORES", en: "PURCHASE EQUITY AND LATER CONTRIBUTIONS"))", {
             n += 1
-            let sym = household.currencySymbol
-            let allContribs = household.assets.flatMap { asset in
-                asset.contributions.map { (asset: asset, contrib: $0) }
-            }.sorted { $0.contrib.date < $1.contrib.date }
-
-            if allContribs.isEmpty {
+            let assetsWithContribs = household.assets.filter { !$0.contributions.isEmpty }
+            if assetsWithContribs.isEmpty {
                 if isNO {
                     return "Ingen innbetalinger er registrert ved signering. Innskudd, ekstra nedbetalinger og oppussing kan registreres når som helst og forrentes med \(rateStr) per år."
                 } else if isSV {
@@ -705,22 +709,9 @@ enum ContractGenerator {
                 }
             }
 
-            let contribA = allContribs.filter { $0.contrib.ownerKey == "A" }
-            let contribB = allContribs.filter { $0.contrib.ownerKey == "B" }
-            let totalA = contribA.reduce(0) { $0 + $1.contrib.amount }
-            let totalB = contribB.reduce(0) { $0 + $1.contrib.amount }
             let fmtDate: (Date) -> String = { d in
                 let f = DateFormatter()
-                f.dateStyle = .medium; f.timeStyle = .none
-                if isNO { f.locale = Locale(identifier: "nb_NO") }
-                else if isSV { f.locale = Locale(identifier: "sv_SE") }
-                else if isDA { f.locale = Locale(identifier: "da_DK") }
-                else if isFI { f.locale = Locale(identifier: "fi_FI") }
-                else if isDe { f.locale = Locale(identifier: "de_DE") }
-                else if isFr { f.locale = Locale(identifier: "fr_FR") }
-                else if isEs { f.locale = Locale(identifier: "es_ES") }
-                else if isUS(household) { f.locale = Locale(identifier: "en_US") }
-                else { f.locale = Locale(identifier: "en_GB") }
+                f.dateStyle = .medium; f.timeStyle = .none; f.locale = docLocale
                 return f.string(from: d)
             }
             let interestNote: String
@@ -742,81 +733,117 @@ enum ContractGenerator {
                 interestNote = "All amounts accrue interest at \(rateStr) per annum from the date of payment, compounded annually.\n"
             }
 
-            func formatRows(_ rows: [(asset: Asset, contrib: ContributionRecord)]) -> [String] {
-                rows.map { r in
-                    // Name the asset AND the nature of the payment (category + any
-                    // custom note), so the signed document records what each
-                    // contribution was for — not just the asset it went toward.
-                    let detail = displayLabel(for: r.contrib, household: household)
-                    let name = "\(r.asset.label) · \(detail)"
-                    // Format: "  Home · Down payment, 1 July 2024  –  £50,000"
-                    return "  \(name), \(fmtDate(r.contrib.date))  –  \(sym)\(Int(r.contrib.amount).formatted())"
-                }
+            // "Egenkapital ved kjøp" is sourced from the contribution category:
+            // deposits and down payments are purchase equity; everything else is
+            // a later contribution.
+            func isPurchaseEquity(_ c: ContributionRecord) -> Bool {
+                c.category == "deposit" || c.category == "down_payment"
             }
-
-            let totalWordA: String
-            let totalWordB: String
-            if isNO {
-                totalWordA = "totalt"
-                totalWordB = "totalt"
-            } else if isSV {
-                totalWordA = "totalt"
-                totalWordB = "totalt"
-            } else if isDA {
-                totalWordA = "i alt"
-                totalWordB = "i alt"
-            } else if isFI {
-                totalWordA = "yhteensä"
-                totalWordB = "yhteensä"
-            } else if isDe {
-                totalWordA = "gesamt"
-                totalWordB = "gesamt"
-            } else if isFr {
-                totalWordA = "total"
-                totalWordB = "total"
-            } else if isEs {
-                totalWordA = "total"
-                totalWordB = "total"
-            } else {
-                totalWordA = "total"
-                totalWordB = "total"
+            func ownerName(_ key: String) -> String {
+                key == "A" ? household.partnerAName : household.partnerBName
             }
-
-            var lines = [interestNote]
-            lines.append("\(household.partnerAName)  (\(totalWordA) \(sym)\(Int(totalA).formatted())):")
-            lines += formatRows(contribA)
-            if !contribB.isEmpty {
-                lines.append("")
-                lines.append("\(household.partnerBName)  (\(totalWordB) \(sym)\(Int(totalB).formatted())):")
-                lines += formatRows(contribB)
-            }
-
-            // Accrued value as of signing — makes the interest clause concrete by
-            // showing the same compound-interest math the settlement engine uses.
             let now = Date()
-            func accrued(_ rows: [(asset: Asset, contrib: ContributionRecord)]) -> Double {
-                rows.reduce(0.0) {
-                    $0 + SettlementEngine.accrue($1.contrib.amount,
-                                                 rate: household.annualInterestRate,
-                                                 from: $1.contrib.date, to: now)
-                }
+            // Same-day interest is noise (a few kroner) — amounts registered the
+            // day the contract is created count at face value.
+            func accruedValue(_ c: ContributionRecord) -> Double {
+                if Calendar.current.isDate(c.date, inSameDayAs: now) { return c.amount }
+                return SettlementEngine.accrue(c.amount, rate: household.annualInterestRate,
+                                               from: c.date, to: now)
             }
-            let accA = accrued(contribA)
-            let accB = accrued(contribB)
+
+            let purchaseHeading = t(household, no: "Egenkapital ved kjøp", sv: "Eget kapital vid köp",
+                                    da: "Egenkapital ved køb", fi: "Oma pääoma oston yhteydessä",
+                                    de: "Eigenkapital beim Kauf", fr: "Fonds propres à l'achat",
+                                    es: "Capital propio en la compra", en: "Purchase equity")
+            let noPurchase = t(household, no: "Ingen egenkapital ved kjøp er registrert.",
+                               sv: "Inget eget kapital vid köp är registrerat.",
+                               da: "Ingen egenkapital ved køb er registreret.",
+                               fi: "Omaa pääomaa oston yhteydessä ei ole rekisteröity.",
+                               de: "Kein Eigenkapital beim Kauf erfasst.",
+                               fr: "Aucun fonds propres à l'achat n'est enregistré.",
+                               es: "No se ha registrado capital propio en la compra.",
+                               en: "No purchase equity recorded.")
+            let laterHeading = t(household, no: "Senere bidrag", sv: "Senare bidrag",
+                                 da: "Senere bidrag", fi: "Myöhemmät panokset",
+                                 de: "Spätere Einzahlungen", fr: "Apports ultérieurs",
+                                 es: "Aportaciones posteriores", en: "Later contributions")
+            let summaryHeading = t(household, no: "Oppsummering", sv: "Sammanfattning",
+                                   da: "Opsummering", fi: "Yhteenveto",
+                                   de: "Zusammenfassung", fr: "Résumé",
+                                   es: "Resumen", en: "Summary")
+            let ekShort = t(household, no: "egenkapital ved kjøp", sv: "eget kapital vid köp",
+                            da: "egenkapital ved køb", fi: "oma pääoma oston yhteydessä",
+                            de: "Eigenkapital beim Kauf", fr: "fonds propres à l'achat",
+                            es: "capital propio en la compra", en: "purchase equity")
+            let laterShort = t(household, no: "senere bidrag", sv: "senare bidrag",
+                               da: "senere bidrag", fi: "myöhemmät panokset",
+                               de: "spätere Einzahlungen", fr: "apports ultérieurs",
+                               es: "aportaciones posteriores", en: "later contributions")
+            let interestShort = t(household, no: "renter", sv: "ränta", da: "renter",
+                                  fi: "korkoa", de: "Zinsen", fr: "intérêts",
+                                  es: "intereses", en: "interest")
+            let totalShort = t(household, no: "samlet", sv: "totalt", da: "i alt",
+                               fi: "yhteensä", de: "gesamt", fr: "total",
+                               es: "total", en: "total")
+            // One summary line per partner: principal split into purchase equity
+            // and later contributions, with accrued interest shown separately.
+            func summaryLine(_ key: String, ek: Double, later: Double, accrued: Double) -> String {
+                let interest = accrued - ek - later
+                return "  \(ownerName(key)): \(ekShort) \(money(ek)) · \(laterShort) \(money(later)) · \(interestShort) \(money(interest)) · \(totalShort) \(money(accrued))"
+            }
+
+            // Organised per asset, using the same asset names as the shared-assets section.
+            var blocks: [String] = []
+            var totEk: [String: Double] = ["A": 0, "B": 0]
+            var totLater: [String: Double] = ["A": 0, "B": 0]
+            var totAcc: [String: Double] = ["A": 0, "B": 0]
+            for asset in assetsWithContribs {
+                let contribs = asset.contributions.sorted { $0.date < $1.date }
+                let purchase = contribs.filter(isPurchaseEquity)
+                let later = contribs.filter { !isPurchaseEquity($0) }
+                var lines = [assetNames[asset.id] ?? asset.label, "", purchaseHeading]
+                if purchase.isEmpty {
+                    lines.append(noPurchase)
+                } else {
+                    for c in purchase {
+                        lines.append("  \(ownerName(c.ownerKey)): \(money(c.amount)) (\(fmtDate(c.date)))")
+                    }
+                }
+                if !later.isEmpty {
+                    lines.append("")
+                    lines.append(laterHeading)
+                    for c in later {
+                        // Category + any custom note records what the payment was for.
+                        lines.append("  \(ownerName(c.ownerKey)) — \(displayLabel(for: c, household: household)), \(fmtDate(c.date))  –  \(money(c.amount))")
+                    }
+                }
+                lines.append("")
+                lines.append(summaryHeading)
+                for key in ["A", "B"] {
+                    let all = contribs.filter { $0.ownerKey == key }
+                    guard !all.isEmpty else { continue }
+                    let ek = all.filter(isPurchaseEquity).reduce(0.0) { $0 + $1.amount }
+                    let lat = all.filter { !isPurchaseEquity($0) }.reduce(0.0) { $0 + $1.amount }
+                    let acc = all.reduce(0.0) { $0 + accruedValue($1) }
+                    lines.append(summaryLine(key, ek: ek, later: lat, accrued: acc))
+                    totEk[key, default: 0] += ek
+                    totLater[key, default: 0] += lat
+                    totAcc[key, default: 0] += acc
+                }
+                blocks.append(lines.joined(separator: "\n"))
+            }
+
+            // Per-person totals across all assets, at the very bottom.
             let asOf = fmtDate(now)
-            let header = t(household,
-                no: "Verdi inkludert opptjente renter per \(asOf):",
-                sv: "Värde inklusive upplupen ränta per \(asOf):",
-                da: "Værdi inklusive påløbne renter pr. \(asOf):",
-                fi: "Arvo kertyneine korkoineen \(asOf):",
-                de: "Wert inklusive aufgelaufener Zinsen zum \(asOf):",
-                fr: "Valeur avec intérêts courus au \(asOf) :",
-                es: "Valor con intereses devengados al \(asOf):",
-                en: "Value including accrued interest as of \(asOf):")
-            let ofWhich = t(household,
-                no: "hvorav renter", sv: "varav ränta", da: "heraf renter",
-                fi: "josta korkoa", de: "davon Zinsen", fr: "dont intérêts",
-                es: "de los cuales intereses", en: "of which interest")
+            let combinedHeading = t(household,
+                no: "Samlet for alle eiendeler per \(asOf)",
+                sv: "Totalt för alla tillgångar per \(asOf)",
+                da: "Samlet for alle aktiver pr. \(asOf)",
+                fi: "Yhteensä kaikista varoista \(asOf)",
+                de: "Gesamt über alle Vermögenswerte zum \(asOf)",
+                fr: "Total pour tous les actifs au \(asOf)",
+                es: "Total de todos los activos al \(asOf)",
+                en: "Combined totals across all assets as of \(asOf)")
             let note = t(household,
                 no: "Endelig utbetaling avhenger av tilgjengelig verdi ved oppgjør (se fordelingsrekkefølgen).",
                 sv: "Slutlig utbetalning beror på tillgängligt värde vid uppgörelsen (se fördelningsordningen).",
@@ -826,11 +853,10 @@ enum ContractGenerator {
                 fr: "Le versement final dépend de la valeur disponible lors du règlement (voir l'ordre de répartition).",
                 es: "El pago final depende del valor disponible en la liquidación (véase el orden de reparto).",
                 en: "Final payout depends on the value available at settlement (see the distribution order).")
-            lines.append("")
-            lines.append(header)
-            lines.append("  \(household.partnerAName): \(sym)\(Int(accA).formatted())  (\(ofWhich) \(sym)\(Int(accA - totalA).formatted()))")
-            if !contribB.isEmpty {
-                lines.append("  \(household.partnerBName): \(sym)\(Int(accB).formatted())  (\(ofWhich) \(sym)\(Int(accB - totalB).formatted()))")
+            var lines = [interestNote, blocks.joined(separator: "\n\n"), "", combinedHeading]
+            for key in ["A", "B"] {
+                guard (totAcc[key] ?? 0) > 0 else { continue }
+                lines.append(summaryLine(key, ek: totEk[key] ?? 0, later: totLater[key] ?? 0, accrued: totAcc[key] ?? 0))
             }
             lines.append("")
             lines.append(note)
@@ -1006,6 +1032,28 @@ enum ContractGenerator {
     }
 
     // MARK: - Contribution label helper
+
+    /// Display names for the contract's asset sections. When several assets
+    /// share the same label, the address (or the asset type when no address is
+    /// registered) is appended so the same name can identify the asset in both
+    /// the assets overview and the contributions section.
+    private static func assetDisplayNames(household: Household) -> [UUID: String] {
+        func key(_ a: Asset) -> String {
+            a.label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+        var counts: [String: Int] = [:]
+        for a in household.assets { counts[key(a), default: 0] += 1 }
+        var names: [UUID: String] = [:]
+        for a in household.assets where (counts[key(a)] ?? 0) > 1 {
+            let addr = a.address.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !addr.isEmpty {
+                names[a.id] = "\(a.label) (\(addr))"
+            } else {
+                names[a.id] = "\(a.label) (\(assetCategory(a, isNO: isNorwegian(household))))"
+            }
+        }
+        return names
+    }
 
     private static func assetCategory(_ asset: Asset, isNO: Bool) -> String {
         switch AssetType(rawValue: asset.assetType) ?? .other {

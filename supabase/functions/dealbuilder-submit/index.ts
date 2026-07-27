@@ -21,6 +21,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Document title per language — shown in DealBuilder emails and the signing
+// UI. Keys match the AppLanguage rawValues in the iOS app.
+const AGREEMENT_TITLES: Record<string, string> = {
+  en: "Cohabitation Agreement",
+  nb: "Samboeravtale",
+  sv: "Samboavtal",
+  da: "Samleveraftale",
+  fi: "Avoliittosopimus",
+  de: "Partnerschaftsvertrag",
+  fr: "Contrat de vie commune",
+  es: "Acuerdo de convivencia",
+};
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -42,7 +55,15 @@ serve(async (req) => {
       email_b,
       title,
       household_id,
+      language,    // app language (en, nb, sv, da, fi, de, fr, es)
     } = await req.json();
+
+    // Localized title wins over the client-supplied one when the app sends
+    // its language; older app versions keep working via the title field.
+    const lang = String(language ?? "").toLowerCase();
+    const docTitle = lang
+      ? `${name_a} & ${name_b} — ${AGREEMENT_TITLES[lang] ?? AGREEMENT_TITLES.en}`
+      : (title || "Cohabitation Agreement");
 
     if (!DEALBUILDER_API_KEY || !DEALBUILDER_TEMPLATE_ID) {
       return json({ error: "DealBuilder not configured (API key / template missing)" }, 500);
@@ -90,7 +111,7 @@ serve(async (req) => {
     const pdfBytes = Uint8Array.from(atob(pdf_base64), (c) => c.charCodeAt(0));
     const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
     const formData = new FormData();
-    formData.append("files", pdfBlob, `${title || "agreement"}.pdf`);
+    formData.append("files", pdfBlob, `${docTitle}.pdf`);
 
     const uploadResp = await fetch(`${DEALBUILDER_BASE_URL}/v1/uploads`, {
       method: "POST",
@@ -118,7 +139,7 @@ serve(async (req) => {
       body: JSON.stringify({
         mode: "SendByEmail",
         templateId: DEALBUILDER_TEMPLATE_ID,
-        title: title || "Cohabitation Agreement",
+        title: docTitle,
         validUntil,
         creatorEmail: DEALBUILDER_SENDER_EMAIL,
         senderEmail: DEALBUILDER_SENDER_EMAIL,
