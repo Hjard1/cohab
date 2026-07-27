@@ -34,14 +34,17 @@
 - **DocuSeal** (gratis, maks 10 signeringer/mnd per household): `docuseal-submit` /
   `docuseal-webhook` edge functions, sporing i `cohab_docuseal_submissions`.
   Grensen håndheves i `docuseal-submit` (429 `DOCUSEAL_MONTHLY_LIMIT`).
-- **BankID via DealBuilder** (kun `DealBuilderService.supportedCountries`, p.t. NO):
+- **BankID via DealBuilder** (`DealBuilderService.supportedCountries`, p.t. NO og SE):
   `dealbuilder-submit` / `dealbuilder-status` / `dealbuilder-webhook` edge functions,
   sporing i `cohab_dealbuilder_cases`. 1 signering inkludert per household (totalt,
   ingen måneds-reset); deretter 1 kreditt per signering (`cohab_household_credits`,
   RPC `cohab_add_bankid_credit`, consumable IAP `com.hjard.cohab.bankid_extra`, 125 NOK).
   Kredittsjekk i `dealbuilder-submit` (402 `BANKID_CREDITS_EXHAUSTED`).
+  Svenske signeringer (language=sv) bruker `DEALBUILDER_TEMPLATE_ID_SV` hvis satt,
+  ellers standardmalen.
 - Secrets (Supabase project `yvckcujoopwqjjnoxsze`): `DEALBUILDER_API_KEY_P`,
-  `DEALBUILDER_TEMPLATE_ID_P`, `DEALBUILDER_SENDER_EMAIL_P`, `DEALBUILDER_WEBHOOK_SECRET`.
+  `DEALBUILDER_TEMPLATE_ID_P`, `DEALBUILDER_TEMPLATE_ID_SV` (valgfri),
+  `DEALBUILDER_SENDER_EMAIL_P`, `DEALBUILDER_WEBHOOK_SECRET`.
   Webhook-URL i DealBuilder-dashboard:
   `https://yvckcujoopwqjjnoxsze.supabase.co/functions/v1/dealbuilder-webhook?token=<DEALBUILDER_WEBHOOK_SECRET>`
 

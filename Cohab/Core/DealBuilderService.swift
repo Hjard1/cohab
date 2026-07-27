@@ -39,11 +39,12 @@ enum DealBuilderError: LocalizedError {
 /// partners; the signing itself happens in their browser with BankID —
 /// nothing native is required in the app.
 enum DealBuilderService {
-    /// Countries where BankID signing is offered. The DealBuilder template
-    /// is configured for Norwegian BankID (same account as Samboappen).
-    /// Extend this set if the DealBuilder account adds templates for other
-    /// eIDs (Swedish BankID, MitID, Finnish Trust Network, ...).
-    static let supportedCountries: Set<String> = ["NO"]
+    /// Countries where BankID signing is offered. NO uses the Norwegian
+    /// BankID template; SE uses the Swedish template when the account has
+    /// one configured (`DEALBUILDER_TEMPLATE_ID_SV`), otherwise falls back
+    /// to the default template. Extend this set if the DealBuilder account
+    /// adds templates for other eIDs (MitID, Finnish Trust Network, ...).
+    static let supportedCountries: Set<String> = ["NO", "SE"]
 
     static func isSupported(country: String) -> Bool {
         supportedCountries.contains(country)

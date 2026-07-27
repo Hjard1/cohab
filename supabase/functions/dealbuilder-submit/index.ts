@@ -12,6 +12,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const DEALBUILDER_BASE_URL = "https://api.dealbuilder.io";
 const DEALBUILDER_API_KEY = Deno.env.get("DEALBUILDER_API_KEY_P") ?? "";
 const DEALBUILDER_TEMPLATE_ID = Deno.env.get("DEALBUILDER_TEMPLATE_ID_P") ?? "";
+// Optional Swedish template — used for sv language requests so recipient
+// emails and the signing UI come out in Swedish (and with Swedish BankID,
+// per the template's DealBuilder settings). Falls back to the default
+// template when not configured.
+const DEALBUILDER_TEMPLATE_ID_SV = Deno.env.get("DEALBUILDER_TEMPLATE_ID_SV") ?? "";
 // Must be a real user inside the DealBuilder organization.
 const DEALBUILDER_SENDER_EMAIL =
   Deno.env.get("DEALBUILDER_SENDER_EMAIL_P") ?? "fredrik@samboappen.no";
@@ -64,6 +69,11 @@ serve(async (req) => {
     const docTitle = lang
       ? `${name_a} & ${name_b} — ${AGREEMENT_TITLES[lang] ?? AGREEMENT_TITLES.en}`
       : (title || "Cohabitation Agreement");
+    // Swedish signings use the Swedish template when one is configured.
+    const templateId =
+      lang === "sv" && DEALBUILDER_TEMPLATE_ID_SV
+        ? DEALBUILDER_TEMPLATE_ID_SV
+        : DEALBUILDER_TEMPLATE_ID;
 
     if (!DEALBUILDER_API_KEY || !DEALBUILDER_TEMPLATE_ID) {
       return json({ error: "DealBuilder not configured (API key / template missing)" }, 500);
@@ -138,7 +148,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         mode: "SendByEmail",
-        templateId: DEALBUILDER_TEMPLATE_ID,
+        templateId: templateId,
         title: docTitle,
         validUntil,
         creatorEmail: DEALBUILDER_SENDER_EMAIL,
