@@ -2193,26 +2193,6 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
         fr: "Budget mensuel",
         es: "Presupuesto mensual") }
 
-    var budgetHideFromOverview: String { s(
-        en: "Hide from Overview",
-        nb: "Skjul fra Oversikt",
-        sv: "Dölj från Översikt",
-        da: "Skjul fra Oversigt",
-        fi: "Piilota Yleiskatsauksesta",
-        de: "In Übersicht ausblenden",
-        fr: "Masquer de l'Aperçu",
-        es: "Ocultar de Resumen") }
-
-    var budgetShowOnOverview: String { s(
-        en: "Show on Overview",
-        nb: "Vis på Oversikt",
-        sv: "Visa på Översikt",
-        da: "Vis på Oversigt",
-        fi: "Näytä Yleiskatsauksessa",
-        de: "In Übersicht anzeigen",
-        fr: "Afficher dans l'Aperçu",
-        es: "Mostrar en Resumen") }
-
     func budgetTransfer(_ from: String, _ amount: String, _ to: String) -> String { s(
         en: "\(from) transfers \(amount) to \(to) each month",
         nb: "\(from) overfører \(amount) til \(to) hver måned",
@@ -2349,25 +2329,25 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
         fr: "RÉPARTITION ENTRE VOUS",
         es: "DIVISIÓN ENTRE USTEDES") }
 
-    var expenseSaveToOverview: String { s(
-        en: "Save to Overview",
-        nb: "Lagre til Oversikt",
-        sv: "Spara till Översikt",
-        da: "Gem til Oversigt",
-        fi: "Tallenna Yhteenvetoon",
-        de: "In Übersicht speichern",
-        fr: "Enregistrer dans Vue d'ensemble",
-        es: "Guardar en Resumen") }
+    var expenseSaveSummary: String { s(
+        en: "Save summary",
+        nb: "Lagre oppsummering",
+        sv: "Spara sammanfattning",
+        da: "Gem oversigt",
+        fi: "Tallenna yhteenveto",
+        de: "Zusammenfassung speichern",
+        fr: "Enregistrer le résumé",
+        es: "Guardar resumen") }
 
-    var expenseSavedToOverview: String { s(
-        en: "Saved to Overview",
-        nb: "Lagret til Oversikt",
-        sv: "Sparat till Översikt",
-        da: "Gemt til Oversigt",
-        fi: "Tallennettu Yhteenvetoon",
-        de: "In Übersicht gespeichert",
-        fr: "Enregistré dans Vue d'ensemble",
-        es: "Guardado en Resumen") }
+    var expenseSummarySaved: String { s(
+        en: "Summary saved",
+        nb: "Oppsummering lagret",
+        sv: "Sammanfattning sparad",
+        da: "Oversigt gemt",
+        fi: "Yhteenveto tallennettu",
+        de: "Zusammenfassung gespeichert",
+        fr: "Résumé enregistré",
+        es: "Resumen guardado") }
 
     var expenseMonthlyTotal: String { s(
         en: "Monthly total",

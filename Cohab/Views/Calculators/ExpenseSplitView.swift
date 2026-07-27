@@ -101,6 +101,7 @@ struct ExpenseSplitView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
+                if let h = household, h.hasBudget { savedBudgetCard(h) }
                 incomeCard
                 expensesCard
                 if hasAnyExpense { resultCard }
@@ -121,25 +122,6 @@ struct ExpenseSplitView: View {
         .background(Color.cohBg.ignoresSafeArea())
         .navigationTitle(strings.calcExpenseTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            // Hide/show the budget card on the dashboard — synced, so it
-            // applies to both partners. Only relevant when a budget exists.
-            if !isReadOnly, let h = household, h.hasBudget {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button {
-                            toggleBudgetHidden()
-                        } label: {
-                            Label(h.budgetHidden ? strings.budgetShowOnOverview : strings.budgetHideFromOverview,
-                                  systemImage: h.budgetHidden ? "eye" : "eye.slash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .foregroundStyle(Color.cohInk)
-                    }
-                }
-            }
-        }
         .sheet(isPresented: $showAdd) {
             AddExpenseSheet(nameA: nameA, nameB: nameB, symbol: symbol) { label, amount, paidBy, splitA, recurring in
                 Task {
@@ -401,6 +383,47 @@ struct ExpenseSplitView: View {
                            nameA: nameA, nameB: nameB)
     }
 
+    // MARK: Saved budget summary
+
+    /// The last saved budget snapshot, pinned to the top of the page — the
+    /// "overview" lives here, inside the expense split screen.
+    private func savedBudgetCard(_ h: Household) -> some View {
+        let blueColor = Color(red: 0.20, green: 0.49, blue: 0.96)
+        return VStack(spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(strings.budgetOverviewTitle)
+                    .font(.caption.bold()).tracking(1).foregroundStyle(Color.cohSecondary)
+                Spacer()
+                if let savedAt = h.budgetSavedAt {
+                    Text(strings.budgetUpdated(fmtDate(savedAt)))
+                        .font(.caption2).foregroundStyle(Color.cohMuted)
+                }
+            }
+            HStack {
+                Text(strings.expenseMonthlyTotal)
+                    .font(.subheadline).foregroundStyle(Color.cohSecondary)
+                Spacer()
+                Text(symbol + fmt(h.budgetTotalExpenses))
+                    .font(.title3.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
+            }
+            HStack(spacing: 12) {
+                payoutPanel(nameA, amount: h.budgetPaysA, color: Color.cohGreen)
+                payoutPanel(nameB, amount: h.budgetPaysB, color: blueColor)
+            }
+            if h.budgetIncomeA > 0 || h.budgetIncomeB > 0 {
+                Divider()
+                HStack {
+                    leftoverView(nameA, income: h.budgetIncomeA, share: h.budgetPaysA, color: Color.cohGreen)
+                    Spacer()
+                    leftoverView(nameB, income: h.budgetIncomeB, share: h.budgetPaysB, color: blueColor)
+                }
+            }
+        }
+        .padding(20)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.05), radius: 12, y: 3)
+    }
+
     // MARK: Result card
 
     private var resultCard: some View {
@@ -514,13 +537,13 @@ struct ExpenseSplitView: View {
                 }
             }
 
-            // Save to overview
+            // Save summary
             if household != nil {
                 Divider()
-                Button { saveToOverview() } label: {
+                Button { saveSummary() } label: {
                     HStack(spacing: 8) {
                         Image(systemName: savedBudget ? "checkmark.circle.fill" : "square.and.arrow.down")
-                        Text(savedBudget ? strings.expenseSavedToOverview : strings.expenseSaveToOverview)
+                        Text(savedBudget ? strings.expenseSummarySaved : strings.expenseSaveSummary)
                             .font(.subheadline.weight(.semibold))
                     }
                     .foregroundStyle(savedBudget ? Color.cohGreen : Color.cohSecondary)
@@ -581,26 +604,10 @@ struct ExpenseSplitView: View {
         }
     }
 
-    /// Toggles the dashboard visibility of the budget card and pushes the
-    /// flag to Supabase so the partner's dashboard matches.
-    private func toggleBudgetHidden() {
-        guard let h = household else { return }
-        h.budgetHidden.toggle()
-        try? modelContext.save()
-        guard h.hasBudget, let savedAt = h.budgetSavedAt else { return }
-        Task {
-            try? await SupabaseService.updateHouseholdBudget(
-                householdId: h.id,
-                incomeA: h.budgetIncomeA, incomeB: h.budgetIncomeB,
-                totalExpenses: h.budgetTotalExpenses, splitA: h.budgetSplitA,
-                paysA: h.budgetPaysA, paysB: h.budgetPaysB,
-                netTransfer: h.budgetNetTransfer, savedAt: savedAt,
-                hidden: h.budgetHidden
-            )
-        }
-    }
-
-    private func saveToOverview() {
+    /// Saves the current numbers as the household's budget snapshot — shown
+    /// pinned at the top of this page — and pushes it to Supabase so the
+    /// partner sees the same summary.
+    private func saveSummary() {
         guard let h = household else { return }
         let t = totals
         let total = t.paysA + t.paysB
@@ -615,7 +622,7 @@ struct ExpenseSplitView: View {
         h.budgetFairnessMode = "custom"
         h.budgetSavedAt     = now
         try? modelContext.save()
-        // Push the snapshot to Supabase so the partner's dashboard matches.
+        // Push the snapshot to Supabase so the partner sees the same summary.
         Task {
             try? await SupabaseService.updateHouseholdBudget(
                 householdId: h.id,
@@ -657,6 +664,12 @@ struct ExpenseSplitView: View {
         fmtGroupedAmount(v, country: country)
     }
     private func fmtInc(_ v: Double) -> String { v == 0 ? "" : fmt(v) }
+    private func fmtDate(_ d: Date) -> String {
+        let df = DateFormatter()
+        df.dateStyle = .medium; df.timeStyle = .none
+        df.locale = Locale(identifier: strings.language.localeIdentifier)
+        return df.string(from: d)
+    }
 }
 
 // MARK: - Shared amount helpers (Norwegian-tolerant)
