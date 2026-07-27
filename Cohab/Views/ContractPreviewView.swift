@@ -160,13 +160,13 @@ struct ContractPreviewView: View {
 
     private func sectionView(_ section: (title: String, body: String, kind: ContractSectionKind), idx: Int) -> some View {
         let vis = visibility(for: section, idx: idx)
-        return VStack(alignment: .leading, spacing: 10) {
-            // Section title
+        return VStack(alignment: .leading, spacing: 12) {
+            // Section title — editorial heading, clearly separated from the
+            // body text so the document is scannable.
             Text(section.title)
-                .font(.caption.bold())
-                .tracking(0.5)
-                .foregroundStyle(Color.cohGreen)
-                .padding(.top, 4)
+                .font(.system(size: 18, weight: .bold, design: .serif))
+                .foregroundStyle(Color.cohInk)
+                .fixedSize(horizontal: false, vertical: true)
 
             // Body text
             switch vis {
@@ -184,9 +184,9 @@ struct ContractPreviewView: View {
             }
 
             Divider()
-                .padding(.top, 8)
+                .padding(.top, 10)
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, 18)
     }
 
     private func bodyText(_ text: String) -> some View {
