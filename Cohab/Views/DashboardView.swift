@@ -466,30 +466,17 @@ struct DashboardView: View {
     // Totals + A/B split bar, like the top of the contributions design
     private func contributionSummary(_ h: Household, rows: [ContribRow]) -> some View {
         let total = rows.reduce(0) { $0 + $1.contrib.amount }
-        let month = rows
-            .filter { Calendar.current.isDate($0.contrib.date, equalTo: Date(), toGranularity: .month) }
-            .reduce(0) { $0 + $1.contrib.amount }
         let sumA = rows.filter { $0.contrib.ownerKey == "A" }.reduce(0) { $0 + $1.contrib.amount }
         let sumB = total - sumA
         let fracA = total > 0 ? sumA / total : 0.5
 
         return VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(strings.dashboardTotalContributed)
-                        .font(.caption).foregroundStyle(Color.cohSecondary)
-                    Text(h.moneyText(total))
-                        .font(.title3.bold().monospacedDigit())
-                        .foregroundStyle(Color.cohInk)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(strings.dashboardThisMonth)
-                        .font(.caption).foregroundStyle(Color.cohSecondary)
-                    Text(h.moneyText(month))
-                        .font(.title3.bold().monospacedDigit())
-                        .foregroundStyle(Color.cohInk)
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(strings.dashboardTotalContributed)
+                    .font(.caption).foregroundStyle(Color.cohSecondary)
+                Text(h.moneyText(total))
+                    .font(.title3.bold().monospacedDigit())
+                    .foregroundStyle(Color.cohInk)
             }
 
             VStack(alignment: .leading, spacing: 8) {
