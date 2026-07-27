@@ -30,9 +30,11 @@ final class AuthManager: ObservableObject {
             throw AuthError.missingIdToken
         }
 
-        try await supabase.auth.signInWithIdToken(
-            credentials: .init(provider: .google, idToken: idToken)
-        )
+        try await withAuthExchangeTimeout {
+            try await supabase.auth.signInWithIdToken(
+                credentials: .init(provider: .google, idToken: idToken)
+            )
+        }
         let session = try await supabase.auth.session
         currentUserId = session.user.id
         isSignedIn = true
@@ -41,9 +43,11 @@ final class AuthManager: ObservableObject {
     /// Sign in with Apple ID token (exchanged from ASAuthorizationAppleIDCredential).
     /// The raw nonce must match the SHA-256 nonce sent in the original Apple request.
     func signInWithApple(idToken: String, rawNonce: String) async throws {
-        try await supabase.auth.signInWithIdToken(
-            credentials: .init(provider: .apple, idToken: idToken, nonce: rawNonce)
-        )
+        try await withAuthExchangeTimeout {
+            try await supabase.auth.signInWithIdToken(
+                credentials: .init(provider: .apple, idToken: idToken, nonce: rawNonce)
+            )
+        }
         let session = try await supabase.auth.session
         currentUserId = session.user.id
         isSignedIn = true

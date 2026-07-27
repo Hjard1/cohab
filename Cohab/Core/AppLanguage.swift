@@ -1019,6 +1019,16 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
         fr: "Impossible d'extraire le jeton d'identité Apple.",
         es: "No se pudo extraer el token de identidad de Apple.") }
 
+    var authSignInTimeout: String { s(
+        en: "Sign-in timed out. Check your connection and try again.",
+        nb: "Innloggingen tok for lang tid. Sjekk tilkoblingen og prøv igjen.",
+        sv: "Inloggningen tog för lång tid. Kontrollera anslutningen och försök igen.",
+        da: "Login tog for lang tid. Tjek forbindelsen og prøv igen.",
+        fi: "Kirjautuminen kesti liian kauan. Tarkista yhteys ja yritä uudelleen.",
+        de: "Die Anmeldung hat zu lange gedauert. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        fr: "La connexion a expiré. Vérifiez votre connexion et réessayez.",
+        es: "El inicio de sesión tardó demasiado. Comprueba tu conexión e inténtalo de nuevo.") }
+
     // MARK: Join household (deep link)
 
     var joiningHousehold: String { s(

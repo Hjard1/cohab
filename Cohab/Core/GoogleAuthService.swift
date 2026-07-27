@@ -19,6 +19,37 @@ enum GoogleAuthError: LocalizedError {
     }
 }
 
+enum AuthExchangeError: LocalizedError {
+    case timeout
+    var errorDescription: String? { AppStrings.shared.authSignInTimeout }
+}
+
+/// Runs a Supabase auth exchange with a timeout and ONE automatic retry.
+/// Works around the occasional first-attempt stall where the Supabase
+/// client's initial session processing (stored-session load / token refresh)
+/// serializes ahead of the exchange — the retry goes through immediately
+/// once that has finished. signInWithIdToken is idempotent, so a retry is safe.
+func withAuthExchangeTimeout<T>(
+    seconds: UInt64 = 20,
+    operation: @escaping () async throws -> T
+) async throws -> T {
+    do {
+        return try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+                try Task.checkCancellation()
+                throw AuthExchangeError.timeout
+            }
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
+        }
+    } catch AuthExchangeError.timeout {
+        return try await operation()
+    }
+}
+
 enum GoogleAuthService {
     /// Sign in with Google and return the user's basic profile.
     /// Call this from the Welcome screen so email is pre-filled in onboarding.
@@ -39,9 +70,11 @@ enum GoogleAuthService {
         guard let idToken = result.user.idToken?.tokenString else {
             throw GoogleAuthError.missingIdToken
         }
-        try await supabase.auth.signInWithIdToken(
-            credentials: .init(provider: .google, idToken: idToken)
-        )
+        try await withAuthExchangeTimeout {
+            try await supabase.auth.signInWithIdToken(
+                credentials: .init(provider: .google, idToken: idToken)
+            )
+        }
 
         return GoogleUser(
             email: profile?.email ?? "",
