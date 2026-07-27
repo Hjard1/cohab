@@ -10,6 +10,7 @@ struct DashboardView: View {
     @ObservedObject private var strings = AppStrings.shared
     @State private var showSetup = false
     @State private var showAddAsset = false
+    @State private var editingAsset: Asset?
     @State private var availableRate: CentralBankRate?
     @State private var showRateSaved = false
     @State private var navigatingToAsset: Asset?
@@ -63,25 +64,11 @@ struct DashboardView: View {
                                         .padding(.top, 16)
                                 }
 
-                                historySection(h).padding(.top, 20)
-                                if h.hasBudget && !h.budgetHidden {
-                                    // Budget is its own section — same header
-                                    // style as "Historikk" so it doesn't read
-                                    // as part of the history list.
-                                    VStack(spacing: 0) {
-                                        HStack {
-                                            Text(strings.budgetOverviewTitle)
-                                                .font(.headline)
-                                                .foregroundStyle(.primary)
-                                            Spacer()
-                                        }
-                                        .padding(.horizontal, 24)
-
-                                        monthlyBudgetCard(h)
-                                            .padding(.horizontal, 20)
-                                            .padding(.top, 16)
-                                    }
-                                    .padding(.top, 28)
+                                assetsList(h).padding(.top, 20)
+                                if !h.assets.isEmpty {
+                                    // History lives under the assets list —
+                                    // budget is intentionally NOT shown here.
+                                    historySection(h).padding(.top, 28)
                                 }
                                 if h.isFormalMode {
                                     agreementStatusRow(h)
@@ -149,6 +136,16 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showAddAsset) {
             if let h = household { AddAssetView(household: h) }
+        }
+        .sheet(item: $editingAsset) { asset in
+            if let h = household {
+                // Unconfigured asset (no value set) → wizard, otherwise normal edit
+                if asset.currentValue == 0 && asset.contributions.isEmpty {
+                    AddAssetView(household: h, existingAsset: asset)
+                } else {
+                    EditAssetView(asset: asset, household: h)
+                }
+            }
         }
         .sheet(isPresented: $showContribPicker) {
             if let h = household {
@@ -267,95 +264,6 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: Monthly budget overview (saved from the expense split calculator)
-
-    private func monthlyBudgetCard(_ h: Household) -> some View {
-        let strings = AppStrings.shared
-        let sym = h.currencySymbol
-        let total = h.budgetTotalExpenses
-        let blue = Color(red: 0.20, green: 0.49, blue: 0.96)
-        // Fall back to the split ratio for budgets saved before pays/transfer existed.
-        let hasDetail = (h.budgetPaysA + h.budgetPaysB) > 0
-        let paysA = hasDetail ? h.budgetPaysA : total * h.budgetSplitA
-        let paysB = hasDetail ? h.budgetPaysB : total * (1 - h.budgetSplitA)
-        let net = hasDetail ? h.budgetNetTransfer : 0
-        // "Left over" uses each partner's borne share (= pays − net). The net
-        // itself is never displayed — we don't suggest how partners settle up.
-        let leftA = h.budgetIncomeA - (paysA - net)
-        let leftB = h.budgetIncomeB - (paysB + net)
-        let hasIncome = h.budgetIncomeA > 0 || h.budgetIncomeB > 0
-        let partnerB = h.partnerBName.isEmpty ? "Partner" : h.partnerBName
-
-        func money(_ v: Double) -> String {
-            let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
-            return sym + (f.string(from: NSNumber(value: v)) ?? "0")
-        }
-
-        return NavigationLink(destination: ExpenseSplitView(nameA: h.partnerAName, nameB: partnerB, symbol: sym)) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 5) {
-                    Image(systemName: "chart.pie.fill").font(.subheadline).foregroundStyle(Color.cohGreen)
-                    Spacer()
-                    Text(money(total)).font(.subheadline.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.bold()).foregroundStyle(Color.cohTertiary)
-                }
-
-                if hasIncome {
-                    HStack(spacing: 12) {
-                        budgetPartnerColumn(name: h.partnerAName, income: h.budgetIncomeA,
-                                            pays: paysA, left: leftA, color: Color.cohGreen, money: money)
-                        Divider().frame(height: 54)
-                        budgetPartnerColumn(name: h.partnerBName, income: h.budgetIncomeB,
-                                            pays: paysB, left: leftB, color: blue, money: money)
-                    }
-
-                    Divider()
-                }
-
-                if !hasIncome {
-                    Text(strings.budgetNoIncomeNote)
-                        .font(.caption).foregroundStyle(Color.cohMuted)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else if let saved = h.budgetSavedAt {
-                    Text(strings.budgetUpdated(saved.formatted(date: .abbreviated, time: .omitted)))
-                        .font(.caption).foregroundStyle(Color.cohMuted)
-                }
-            }
-            .padding(18)
-            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 18))
-            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func budgetPartnerColumn(name: String, income: Double, pays: Double,
-                                     left: Double, color: Color,
-                                     money: (Double) -> String) -> some View {
-        let strings = AppStrings.shared
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
-                Circle().fill(color).frame(width: 6, height: 6)
-                Text(name).font(.caption.weight(.semibold)).foregroundStyle(color).lineLimit(1)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(strings.budgetNetIncomeLabel).font(.caption).foregroundStyle(Color.cohSecondary)
-                Text(money(income)).font(.subheadline.bold().monospacedDigit()).foregroundStyle(Color.cohInk)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(strings.expensePaysOut).font(.caption).foregroundStyle(Color.cohSecondary)
-                Text(money(pays)).font(.caption.monospacedDigit()).foregroundStyle(Color.cohInk)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(strings.expenseLeftOver(name)).font(.caption).foregroundStyle(Color.cohSecondary)
-                Text(money(max(0, left)))
-                    .font(.caption.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(left >= 0 ? color : Color.red)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     private func agreementStatusRow(_ h: Household) -> some View {
         Group {
             switch h.agreementStatus {
@@ -452,7 +360,48 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: History — contribution feed across all assets
+    // MARK: Assets list
+
+    private func assetsList(_ h: Household) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(strings.dashboardAssets)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text("\(h.assets.count) \(h.assets.count == 1 ? strings.dashboardItem : strings.dashboardItems)")
+                    .font(.caption)
+                    .foregroundStyle(Color.cohSecondary)
+            }
+            .padding(.horizontal, 24)
+
+            if h.assets.isEmpty {
+                noAssetsPrompt { showAddAsset = true }
+                    .padding(.top, 16)
+            } else {
+                VStack(spacing: 16) {
+                    ForEach(sortedAssets(h.assets)) { asset in
+                        HouseholdStoryCard(asset: asset, household: h,
+                                          onTap: {
+                                              if asset.currentValue == 0 && asset.contributions.isEmpty {
+                                                  editingAsset = asset
+                                              } else {
+                                                  navigatingToAsset = asset
+                                              }
+                                          })
+                    }
+                }
+                .padding(.top, 16)
+            }
+        }
+    }
+
+    private func sortedAssets(_ assets: [Asset]) -> [Asset] {
+        let order: [AssetType] = [.home, .cabin, .car, .savings, .investment, .furniture, .pet, .other]
+        return assets.sorted { (order.firstIndex(of: $0.type) ?? 99) < (order.firstIndex(of: $1.type) ?? 99) }
+    }
+
+    // MARK: History — contribution feed across all assets (shown under the assets list)
 
     private struct ContribRow: Identifiable {
         let asset: Asset
@@ -480,10 +429,7 @@ struct DashboardView: View {
             }
             .padding(.horizontal, 24)
 
-            if h.assets.isEmpty {
-                noAssetsPrompt { showAddAsset = true }
-                    .padding(.top, 16)
-            } else if rows.isEmpty {
+            if rows.isEmpty {
                 noContribsPrompt
                     .padding(.top, 16)
             } else {
@@ -906,6 +852,77 @@ struct DashboardView: View {
                 .frame(width: 56, height: 56)
                 .background(Self.fabColor, in: Circle())
                 .shadow(color: Self.fabColor.opacity(0.45), radius: 16, y: 6)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Household story card (dashboard)
+
+struct HouseholdStoryCard: View {
+    let asset: Asset
+    let household: Household
+    let onTap: () -> Void
+    @ObservedObject private var strings = AppStrings.shared
+
+    private var ownershipLine: String {
+        guard asset.currentValue > 0 else { return strings.assetTapToSetUp }
+        let shareA = asset.ownershipShareA
+        let nameA = household.partnerAName
+        let nameB = household.partnerBName
+        if shareA >= 0.99 { return "\(nameA)'s" }
+        if shareA <= 0.01 { return "\(nameB)'s" }
+        let pA = Int((shareA * 100).rounded())
+        let pB = 100 - pA
+        if abs(pA - 50) <= 2 { return strings.assetSharedEqually }
+        return "\(strings.assetSharedFormat) \(pA)/\(pB)"
+    }
+
+    private var ownershipColor: Color {
+        guard asset.currentValue > 0 else { return Color.cohGreen }
+        let shareA = asset.ownershipShareA
+        if shareA >= 0.99 { return Color.cohGreen }
+        if shareA <= 0.01 { return Color(red: 0.20, green: 0.49, blue: 0.96) }
+        return Color(.secondaryLabel)
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(asset.type.color.opacity(0.10))
+                        .frame(width: 56, height: 56)
+                    Image(systemName: asset.type.icon)
+                        .font(.title2.weight(.medium))
+                        .foregroundStyle(asset.type.color)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(asset.label)
+                        .font(.headline)
+                        .foregroundStyle(Color.cohInk)
+                    if !asset.address.isEmpty {
+                        Text(asset.address)
+                            .font(.caption)
+                            .foregroundStyle(Color.cohSecondary)
+                            .lineLimit(1)
+                    }
+                    Text(ownershipLine)
+                        .font(.subheadline)
+                        .foregroundStyle(ownershipColor)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+            .padding(18)
+            .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
+            .padding(.horizontal, 20)
         }
         .buttonStyle(.plain)
     }
