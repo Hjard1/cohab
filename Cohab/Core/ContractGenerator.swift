@@ -470,22 +470,15 @@ enum ContractGenerator {
             } else {
                 intro = "The parties jointly hold the following assets as registered in cohab at the time of signing:"
             }
-            // Each asset is presented as its own block, in a fixed field order.
+            // Each asset is presented as its own block: identification +
+            // ownership split only. Values and loans are irrelevant for
+            // ownership and contributions, so they are deliberately omitted.
             let typeLabel = t(household, no: "Type", sv: "Typ", da: "Type",
                               fi: "Tyyppi", de: "Typ", fr: "Type",
                               es: "Tipo", en: "Type")
             let addrLabel = t(household, no: "Adresse", sv: "Adress", da: "Adresse",
                               fi: "Osoite", de: "Adresse", fr: "Adresse",
                               es: "Dirección", en: "Address")
-            let mvLabel = t(household, no: "Markedsverdi", sv: "Marknadsvärde", da: "Markedsværdi",
-                            fi: "Markkina-arvo", de: "Marktwert", fr: "Valeur marchande",
-                            es: "Valor de mercado", en: "Market value")
-            let loanLabel = t(household, no: "Gjenstående lån", sv: "Återstående lån", da: "Resterende lån",
-                              fi: "Jäljellä oleva laina", de: "Restschuld", fr: "Emprunt restant",
-                              es: "Préstamo pendiente", en: "Remaining loan")
-            let eqLabel = t(household, no: "Netto egenkapital", sv: "Netto eget kapital", da: "Netto egenkapital",
-                            fi: "Netto oma pääoma", de: "Nettoeigenkapital", fr: "Fonds propres nets",
-                            es: "Patrimonio neto", en: "Net equity")
             // Norwegian convention: space before the percent sign.
             let pctSuffix = isNO ? " %" : "%"
             // Ownership share below is the registered/legal split — it does not
@@ -502,7 +495,6 @@ enum ContractGenerator {
                 es: "El capital propio en la compra y las aportaciones posteriores figuran en el punto \(contribSectionNumber).",
                 en: "Purchase equity and later contributions are listed in section \(contribSectionNumber).")
             let list = household.assets.map { a -> String in
-                let equity = a.currentValue - a.remainingLoan
                 let category = assetCategory(a, isNO: isNO)
                 // Same (disambiguated) name as in the contributions section.
                 var line = assetNames[a.id] ?? a.label
@@ -513,9 +505,6 @@ enum ContractGenerator {
                 if !addr.isEmpty {
                     line += "\n\(addrLabel): \(addr)"
                 }
-                line += "\n\(mvLabel): \(money(a.currentValue))"
-                if a.remainingLoan > 0 { line += "\n\(loanLabel): \(money(a.remainingLoan))" }
-                line += "\n\(eqLabel): \(money(equity))"
                 // Use explicit flag; fall back to type-based for legacy assets without the field
                 // nil = not explicitly set → fall back to type-based default
                 let isRegisteredProperty = a.isOwnershipRegistered ?? (a.type == .home || a.type == .cabin)
