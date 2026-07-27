@@ -2349,9 +2349,14 @@ struct AddAssetView: View {
     @State private var loanText = ""
     @State private var shareA: Double = 0.5
     @State private var isRegistered: Bool = true
+    @State private var ekTextA = ""
+    @State private var ekTextB = ""
+    @State private var ekDate = Date()
     @State private var sheetDetent: PresentationDetent = .fraction(0.62)
 
     private var canBeRegistered: Bool { [.home, .cabin, .car].contains(selectedType) }
+    /// New assets get an extra, optional purchase-equity step after ownership.
+    private var totalSteps: Int { existingAsset == nil ? 4 : 3 }
 
     private var s: AppStrings { strings }
     private var sym: String { household.currencySymbol }
@@ -2362,13 +2367,13 @@ struct AddAssetView: View {
             ZStack {
                 Color.cohBg.ignoresSafeArea()
                 VStack(spacing: 0) {
-                    // Progress bar (steps 1-3)
+                    // Progress bar (steps 1..totalSteps)
                     if step > 0 {
                         GeometryReader { g in
                             ZStack(alignment: .leading) {
                                 Capsule().fill(Color.cohGreen.opacity(0.12)).frame(height: 3)
                                 Capsule().fill(Color.cohGreen)
-                                    .frame(width: g.size.width * CGFloat(step) / 3.0, height: 3)
+                                    .frame(width: g.size.width * CGFloat(step) / CGFloat(totalSteps), height: 3)
                                     .animation(.easeInOut(duration: 0.3), value: step)
                             }
                         }
@@ -2383,7 +2388,8 @@ struct AddAssetView: View {
                         case 0: typeStep
                         case 1: nameStep
                         case 2: valueStep
-                        default: ownershipStep
+                        case 3: ownershipStep
+                        default: equityStep
                         }
                     }
                     .id(step)
@@ -2579,8 +2585,83 @@ struct AddAssetView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            wizardCTA(s.add, enabled: true) { save() }
+            if existingAsset == nil {
+                wizardCTA(s.onboardingContinue, enabled: true) {
+                    withAnimation(.easeInOut(duration: 0.28)) { step = 4 }
+                }
+            } else {
+                wizardCTA(s.add, enabled: true) { save() }
+            }
         }
+    }
+
+    // MARK: Step 4 — Purchase equity (optional, new assets only)
+
+    private var equityStep: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                wizardHeader(s.addAssetEquityTitle, subtitle: s.addAssetEquitySub)
+                    .padding(.top, 32)
+                    .padding(.bottom, 24)
+                VStack(spacing: 12) {
+                    equityRow(name: household.partnerAName, color: Color.cohGreen, text: $ekTextA)
+                    equityRow(name: household.partnerBName.isEmpty ? "Partner" : household.partnerBName,
+                              color: bluePartner, text: $ekTextB)
+                    HStack {
+                        Text(s.contribDateLabel)
+                            .font(.subheadline).foregroundStyle(Color.cohSecondary)
+                        Spacer()
+                        DatePicker("", selection: $ekDate, displayedComponents: .date)
+                            .labelsHidden()
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 6)
+                    .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(Color(.separator).opacity(0.4), lineWidth: 1))
+                }
+                .padding(.horizontal, 24)
+                Spacer(minLength: 120)
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            let hasAmount = parseAmount(ekTextA) > 0 || parseAmount(ekTextB) > 0
+            wizardCTA(hasAmount ? s.add : s.addAssetSkip, enabled: true) { save() }
+        }
+    }
+
+    private func equityRow(name: String, color: Color, text: Binding<String>) -> some View {
+        HStack {
+            HStack(spacing: 6) {
+                Circle().fill(color).frame(width: 8, height: 8)
+                Text(name).font(.subheadline.weight(.medium)).foregroundStyle(Color.cohInk)
+            }
+            Spacer()
+            Text(sym).foregroundStyle(Color.cohMuted).font(.subheadline)
+            TextField("0", text: text)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 110)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 13)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12)
+            .strokeBorder(Color(.separator).opacity(0.4), lineWidth: 1))
+    }
+
+    /// Tolerant amount parser: accepts "10 000", "10.000,50", "10000,50"
+    /// and "10000.50" (same rules as AddContributionView).
+    private func parseAmount(_ text: String) -> Double {
+        var t = text.trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: "\u{00A0}", with: "")
+            .replacingOccurrences(of: "\u{202F}", with: "")
+            .replacingOccurrences(of: " ", with: "")
+        if t.contains(",") && t.contains(".") {
+            t = t.replacingOccurrences(of: ".", with: "")
+                .replacingOccurrences(of: ",", with: ".")
+        } else if t.contains(",") {
+            t = t.replacingOccurrences(of: ",", with: ".")
+        }
+        return Double(t) ?? 0
     }
 
     // MARK: Shared helpers
@@ -2681,6 +2762,23 @@ struct AddAssetView: View {
                 isOwnershipRegistered: canBeRegistered && isRegistered
             )
             household.assets.append(asset)
+            // Optional purchase equity from step 4 — logged as the first
+            // contributions (category "deposit") on the asset.
+            let ekA = parseAmount(ekTextA)
+            let ekB = parseAmount(ekTextB)
+            var firstContribs: [ContributionRecord] = []
+            if ekA > 0 {
+                let r = ContributionRecord(ownerKey: "A", amount: ekA, date: ekDate,
+                                           label: s.contribCatDeposit, category: "deposit")
+                asset.contributions.append(r)
+                firstContribs.append(r)
+            }
+            if ekB > 0 {
+                let r = ContributionRecord(ownerKey: "B", amount: ekB, date: ekDate,
+                                           label: s.contribCatDeposit, category: "deposit")
+                asset.contributions.append(r)
+                firstContribs.append(r)
+            }
             // Insert remotely preserving the local id, so the next sync adopts
             // this row instead of recreating a duplicate from the server.
             let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
@@ -2695,6 +2793,16 @@ struct AddAssetView: View {
                     salesCostFraction: salesCost,
                     ownershipShareA: min(max(shareA, 0), 1),
                     sortOrder: sortOrder, purchaseDate: f.string(from: Date()))
+                for r in firstContribs {
+                    do {
+                        try await SupabaseService.insertContributionPreservingId(
+                            id: r.id, assetId: assetId, ownerKey: r.ownerKey.lowercased(),
+                            amount: r.amount, date: f.string(from: r.date),
+                            label: r.label, category: r.category)
+                    } catch {
+                        print("[Cohab] Purchase-equity push failed: \(error.localizedDescription)")
+                    }
+                }
             }
         }
         dismiss()
