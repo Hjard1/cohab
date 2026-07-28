@@ -12,6 +12,7 @@ struct AssetDetailView: View {
     @State private var photoImage: UIImage?
     @State private var photoPickItem: PhotosPickerItem?
     @State private var imageUploadFailed = false
+    @State private var deleteError: String?
     @Environment(\.modelContext) private var modelContext
     @Environment(HouseholdStore.self) private var store
     @EnvironmentObject private var auth: AuthManager
@@ -78,6 +79,14 @@ struct AssetDetailView: View {
         }
         .sheet(isPresented: $showSettlement) {
             SettlementView(asset: asset, household: household)
+        }
+        .alert(strings.error, isPresented: Binding(
+            get: { deleteError != nil },
+            set: { if !$0 { deleteError = nil } }
+        )) {
+            Button(strings.ok, role: .cancel) { deleteError = nil }
+        } message: {
+            Text(deleteError ?? "")
         }
         .task(id: asset.id) {
             let signedIn = auth.isSignedIn
@@ -420,9 +429,11 @@ struct AssetDetailView: View {
                                 Task { @MainActor in
                                     do {
                                         try await SupabaseService.deleteContribution(id)
+                                        // Mutate the observed relationship array
+                                        // directly — modelContext.delete() alone
+                                        // does not reliably re-render the list.
+                                        asset.contributions.removeAll { $0.id == id }
                                         modelContext.delete(contrib)
-                                        // Explicit save so the row disappears
-                                        // from the UI immediately.
                                         try? modelContext.save()
                                         // Best-effort cleanup of any attached receipt
                                         await AssetImageStore.deleteReceipt(
@@ -430,6 +441,7 @@ struct AssetDetailView: View {
                                             assetId: asset.id, signedIn: auth.isSignedIn)
                                     } catch {
                                         print("[Cohab] Delete contribution failed: \(error.localizedDescription)")
+                                        deleteError = error.localizedDescription
                                     }
                                 }
                             } label: {

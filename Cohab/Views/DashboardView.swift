@@ -611,10 +611,11 @@ struct DashboardView: View {
         Task { @MainActor in
             do {
                 try await SupabaseService.deleteContribution(id)
+                // Mutate the observed relationship array directly so the list
+                // re-renders immediately — modelContext.delete() alone is not
+                // reliably observed by SwiftUI here.
+                row.asset.contributions.removeAll { $0.id == id }
                 modelContext.delete(row.contrib)
-                // Without an explicit save SwiftData does not notify @Query /
-                // relationship observers — the row would linger in the UI
-                // until the next autosave, looking like "cannot delete".
                 try? modelContext.save()
                 await AssetImageStore.deleteReceipt(
                     contributionId: id, householdId: householdId,
@@ -3124,9 +3125,10 @@ struct EditAssetView: View {
                             Task { @MainActor in
                                 do {
                                     try await SupabaseService.deleteContribution(id)
+                                    // Mutate the relationship array directly so
+                                    // the list re-renders immediately.
+                                    asset.contributions.removeAll { $0.id == id }
                                     modelContext.delete(c)
-                                    // Explicit save so SwiftData notifies
-                                    // observers — otherwise the row lingers.
                                     try? modelContext.save()
                                 } catch {
                                     print("[Cohab] Delete contribution failed: \(error.localizedDescription)")
