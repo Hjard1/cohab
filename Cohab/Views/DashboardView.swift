@@ -612,6 +612,10 @@ struct DashboardView: View {
             do {
                 try await SupabaseService.deleteContribution(id)
                 modelContext.delete(row.contrib)
+                // Without an explicit save SwiftData does not notify @Query /
+                // relationship observers — the row would linger in the UI
+                // until the next autosave, looking like "cannot delete".
+                try? modelContext.save()
                 await AssetImageStore.deleteReceipt(
                     contributionId: id, householdId: householdId,
                     assetId: assetId, signedIn: signedIn)
@@ -2919,6 +2923,7 @@ struct AddAssetView: View {
                     try? await SupabaseService.deleteAsset(assetId)
                     household.assets.removeAll { $0.id == assetId }
                     modelContext.delete(asset)
+                    try? modelContext.save()
                     showSaveError = true
                     return
                 }
@@ -3120,6 +3125,9 @@ struct EditAssetView: View {
                                 do {
                                     try await SupabaseService.deleteContribution(id)
                                     modelContext.delete(c)
+                                    // Explicit save so SwiftData notifies
+                                    // observers — otherwise the row lingers.
+                                    try? modelContext.save()
                                 } catch {
                                     print("[Cohab] Delete contribution failed: \(error.localizedDescription)")
                                 }
@@ -3219,6 +3227,8 @@ struct EditAssetView: View {
             do {
                 try await store.deleteAsset(id)
                 modelContext.delete(asset)
+                // Explicit save so SwiftData notifies observers immediately.
+                try? modelContext.save()
                 dismiss()
             } catch {
                 print("[Cohab] Delete asset failed: \(error.localizedDescription)")
@@ -3695,6 +3705,7 @@ struct AddContributionView: View {
                     asset.contributions.removeAll { $0.id == r.id }
                     modelContext.delete(r.record)
                 }
+                try? modelContext.save()
                 if share != nil { asset.ownershipShareA = oldShareA }
                 showSaveError = true
                 return

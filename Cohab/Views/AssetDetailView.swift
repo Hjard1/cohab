@@ -421,6 +421,9 @@ struct AssetDetailView: View {
                                     do {
                                         try await SupabaseService.deleteContribution(id)
                                         modelContext.delete(contrib)
+                                        // Explicit save so the row disappears
+                                        // from the UI immediately.
+                                        try? modelContext.save()
                                         // Best-effort cleanup of any attached receipt
                                         await AssetImageStore.deleteReceipt(
                                             contributionId: id, householdId: household.id,
