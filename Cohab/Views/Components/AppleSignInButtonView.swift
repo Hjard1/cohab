@@ -1,12 +1,14 @@
 import SwiftUI
 import AuthenticationServices
-import CryptoKit
 
 // MARK: - Reusable "Sign in with Apple" button
 //
-// Wraps the full Apple → Supabase flow (nonce generation, SHA-256 hashing,
-// token extraction and `signInWithApple`) so every entry point — onboarding
+// Wraps the full Apple → Supabase flow so every entry point — onboarding
 // and the returning-user sign-in screen — shares one implementation.
+// No nonce is used: Supabase accepts the Apple identity token without one
+// (same pattern as the published Samboappen app, which signs in fine on
+// the same devices where the nonce variant failed with ASAuthorization
+// error 1000).
 // Requires the `com.apple.developer.applesignin` entitlement to function.
 
 struct AppleSignInButtonView: View {
@@ -16,14 +18,10 @@ struct AppleSignInButtonView: View {
     let onError: (String) -> Void
 
     @EnvironmentObject private var authManager: AuthManager
-    @State private var currentNonce = ""   // raw nonce, kept for Supabase verification
 
     var body: some View {
         SignInWithAppleButton(.signIn) { request in
-            let nonce = randomNonceString()
-            currentNonce = nonce
             request.requestedScopes = [.fullName, .email]
-            request.nonce = sha256(nonce)
         } onCompletion: { result in
             handleAppleResult(result)
         }
@@ -46,10 +44,9 @@ struct AppleSignInButtonView: View {
                 return
             }
 
-            let nonce = currentNonce   // capture before Task
             Task { @MainActor in
                 do {
-                    try await authManager.signInWithApple(idToken: idToken, rawNonce: nonce)
+                    try await authManager.signInWithApple(idToken: idToken)
                     onSuccess()
                 } catch {
                     onError(error.localizedDescription)
@@ -62,19 +59,5 @@ struct AppleSignInButtonView: View {
                 onError(error.localizedDescription)
             }
         }
-    }
-
-    // MARK: - Nonce helpers (Apple requires SHA-256 of the raw nonce)
-
-    private func randomNonceString(length: Int = 32) -> String {
-        var randomBytes = [UInt8](repeating: 0, count: length)
-        guard SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes) == errSecSuccess
-        else { return UUID().uuidString }
-        return randomBytes.map { String(format: "%02x", $0) }.joined()
-    }
-
-    private func sha256(_ input: String) -> String {
-        let digest = SHA256.hash(data: Data(input.utf8))
-        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }

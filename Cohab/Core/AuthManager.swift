@@ -41,11 +41,11 @@ final class AuthManager: ObservableObject {
     }
 
     /// Sign in with Apple ID token (exchanged from ASAuthorizationAppleIDCredential).
-    /// The raw nonce must match the SHA-256 nonce sent in the original Apple request.
-    func signInWithApple(idToken: String, rawNonce: String) async throws {
+    /// No nonce — matches the flow that works in the published Samboappen app.
+    func signInWithApple(idToken: String) async throws {
         try await withAuthExchangeTimeout {
             try await supabase.auth.signInWithIdToken(
-                credentials: .init(provider: .apple, idToken: idToken, nonce: rawNonce)
+                credentials: .init(provider: .apple, idToken: idToken)
             )
         }
         let session = try await supabase.auth.session
