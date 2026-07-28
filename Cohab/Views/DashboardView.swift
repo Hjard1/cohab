@@ -60,6 +60,11 @@ struct DashboardView: View {
                                         .padding(.horizontal, 20)
                                         .padding(.top, 16)
                                 }
+                                if auth.isSignedIn, store.error != nil {
+                                    syncErrorBanner
+                                        .padding(.horizontal, 20)
+                                        .padding(.top, 16)
+                                }
                                 if let rate = availableRate {
                                     rateUpdateBanner(household: h, rate: rate)
                                         .padding(.horizontal, 20)
@@ -1338,6 +1343,53 @@ extension DashboardView {
         .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
     }
 
+    /// Shown when a sync pass failed (expired session, no network) — without
+    /// it the failure was silent and unpushed rows looked saved.
+    private var syncErrorBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "icloud.slash")
+                .font(.subheadline)
+                .foregroundStyle(Color.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(strings.localized(
+                    en: "Not syncing right now",
+                    nb: "Synkroniserer ikke akkurat nå",
+                    sv: "Synkroniserar inte just nu",
+                    da: "Synkroniserer ikke lige nu",
+                    fi: "Ei synkronointia juuri nyt",
+                    de: "Synchronisierung derzeit nicht möglich",
+                    fr: "Synchronisation impossible pour le moment",
+                    es: "Sin sincronización por ahora"))
+                    .font(.caption.weight(.semibold))
+                Text(strings.localized(
+                    en: "Changes stay on this phone until the connection is back. If this persists, sign in again.",
+                    nb: "Endringer blir på denne telefonen til tilkoblingen er tilbake. Vedvarer det, logg inn på nytt.",
+                    sv: "Ändringar stannar på den här telefonen tills anslutningen är tillbaka. Om det kvarstår, logga in igen.",
+                    da: "Ændringer bliver på denne telefon, indtil forbindelsen er tilbage. Fortsætter det, så log ind igen.",
+                    fi: "Muutokset jäävät tähän puhelimeen, kunnes yhteys palaa. Jos tämä jatkuu, kirjaudu uudelleen.",
+                    de: "Änderungen bleiben auf diesem Telefon, bis die Verbindung wiederhergestellt ist. Falls das anhält, melden Sie sich erneut an.",
+                    fr: "Les modifications restent sur ce téléphone jusqu'au retour de la connexion. Si le problème persiste, reconnectez-vous.",
+                    es: "Los cambios se quedan en este teléfono hasta que vuelva la conexión. Si persiste, inicia sesión de nuevo."))
+                    .font(.caption).foregroundStyle(Color.cohSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Button {
+                Task { await store.sync(modelContext: modelContext) }
+            } label: {
+                Text(strings.localized(
+                    en: "Retry", nb: "Prøv igjen", sv: "Försök igen", da: "Prøv igen",
+                    fi: "Yritä uudelleen", de: "Erneut versuchen", fr: "Réessayer", es: "Reintentar"))
+                    .font(.caption.weight(.semibold)).foregroundStyle(.white)
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(Color.cohGreen, in: Capsule())
+            }
+        }
+        .padding(14)
+        .background(Color.cohCard, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+    }
+
     /// Persistent invite entry point — shown until the partner has joined
     /// (household has fewer than 2 members).
     func invitePartnerBanner(_ h: Household) -> some View {
@@ -2390,6 +2442,7 @@ struct AddAssetView: View {
     @State private var ekTextB = ""
     @State private var ekDate = Date()
     @State private var sheetDetent: PresentationDetent = .fraction(0.62)
+    @State private var showSaveError = false
 
     private var canBeRegistered: Bool { [.home, .cabin, .car].contains(selectedType) }
     /// New assets get an extra, optional purchase-equity step after ownership.
@@ -2469,6 +2522,27 @@ struct AddAssetView: View {
                         }
                     }
                 }
+            }
+            .alert(strings.localized(
+                en: "Couldn't save",
+                nb: "Kunne ikke lagre",
+                sv: "Kunde inte spara",
+                da: "Kunne ikke gemme",
+                fi: "Tallennus epäonnistui",
+                de: "Speichern fehlgeschlagen",
+                fr: "Échec de l'enregistrement",
+                es: "No se pudo guardar"), isPresented: $showSaveError) {
+                Button(strings.ok) {}
+            } message: {
+                Text(strings.localized(
+                    en: "The asset could not be saved to the server. Check your connection and that you're signed in, then try again.",
+                    nb: "Eiendelen kunne ikke lagres på serveren. Sjekk nettforbindelsen og at du er logget inn, og prøv igjen.",
+                    sv: "Tillgången kunde inte sparas på servern. Kontrollera anslutningen och att du är inloggad, och försök igen.",
+                    da: "Aktivet kunne ikke gemmes på serveren. Tjek forbindelsen, og at du er logget ind, og prøv igen.",
+                    fi: "Omaisuutta ei voitu tallentaa palvelimelle. Tarkista yhteys ja että olet kirjautunut, ja yritä uudelleen.",
+                    de: "Das Asset konnte nicht auf dem Server gespeichert werden. Prüfen Sie die Verbindung und ob Sie angemeldet sind, und versuchen Sie es erneut.",
+                    fr: "L'actif n'a pas pu être enregistré sur le serveur. Vérifiez votre connexion et que vous êtes connecté, puis réessayez.",
+                    es: "El activo no se pudo guardar en el servidor. Comprueba tu conexión y que has iniciado sesión, e inténtalo de nuevo."))
             }
         }
     }
@@ -2822,25 +2896,35 @@ struct AddAssetView: View {
             let assetId = asset.id
             let householdId = store.household?.id ?? household.id
             let sortOrder = household.assets.count - 1
-            Task {
-                try? await SupabaseService.insertAssetPreservingId(
-                    id: assetId, householdId: householdId,
-                    assetType: type, label: trimmedLabel, address: trimmedAddress,
-                    currentValue: value, remainingLoan: loan,
-                    salesCostFraction: salesCost,
-                    ownershipShareA: min(max(shareA, 0), 1),
-                    sortOrder: sortOrder, purchaseDate: f.string(from: Date()))
-                for r in firstContribs {
-                    do {
+            Task { @MainActor in
+                do {
+                    try await SupabaseService.insertAssetPreservingId(
+                        id: assetId, householdId: householdId,
+                        assetType: type, label: trimmedLabel, address: trimmedAddress,
+                        currentValue: value, remainingLoan: loan,
+                        salesCostFraction: salesCost,
+                        ownershipShareA: min(max(shareA, 0), 1),
+                        sortOrder: sortOrder, purchaseDate: f.string(from: Date()))
+                    for r in firstContribs {
                         try await SupabaseService.insertContributionPreservingId(
                             id: r.id, assetId: assetId, ownerKey: r.ownerKey.lowercased(),
                             amount: r.amount, date: f.string(from: r.date),
                             label: r.label, category: r.category)
-                    } catch {
-                        print("[Cohab] Purchase-equity push failed: \(error.localizedDescription)")
                     }
+                } catch {
+                    // Roll back so local state stays consistent with the
+                    // server — the next sync would otherwise silently remove
+                    // this unpushed asset. The user gets an alert and can retry.
+                    print("[Cohab] Asset push failed: \(error.localizedDescription)")
+                    try? await SupabaseService.deleteAsset(assetId)
+                    household.assets.removeAll { $0.id == assetId }
+                    modelContext.delete(asset)
+                    showSaveError = true
+                    return
                 }
+                dismiss()
             }
+            return
         }
         dismiss()
     }
@@ -3265,6 +3349,7 @@ struct AddContributionView: View {
     let household: Household
     var onComplete: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var auth: AuthManager
     @ObservedObject private var strings = AppStrings.shared
 
@@ -3278,6 +3363,7 @@ struct AddContributionView: View {
     @State private var ownershipShareA = 0.5
     @State private var receiptImage: UIImage?
     @State private var receiptPickItem: PhotosPickerItem?
+    @State private var showSaveError = false
 
     private struct ContribCategory {
         let key: String
@@ -3524,6 +3610,27 @@ struct AddContributionView: View {
                 }
             }
         }
+        .alert(strings.localized(
+            en: "Couldn't save contribution",
+            nb: "Kunne ikke lagre bidraget",
+            sv: "Kunde inte spara bidraget",
+            da: "Kunne ikke gemme bidraget",
+            fi: "Maksun tallennus epäonnistui",
+            de: "Beitrag konnte nicht gespeichert werden",
+            fr: "Impossible d'enregistrer la contribution",
+            es: "No se pudo guardar la aportación"), isPresented: $showSaveError) {
+            Button(strings.ok) {}
+        } message: {
+            Text(strings.localized(
+                en: "The contribution could not be saved to the server. Check your connection and that you're signed in, then try again.",
+                nb: "Bidraget kunne ikke lagres på serveren. Sjekk nettforbindelsen og at du er logget inn, og prøv igjen.",
+                sv: "Bidraget kunde inte sparas på servern. Kontrollera anslutningen och att du är inloggad, och försök igen.",
+                da: "Bidraget kunne ikke gemmes på serveren. Tjek forbindelsen, og at du er logget ind, og prøv igen.",
+                fi: "Maksua ei voitu tallentaa palvelimelle. Tarkista yhteys ja että olet kirjautunut, ja yritä uudelleen.",
+                de: "Der Beitrag konnte nicht auf dem Server gespeichert werden. Prüfen Sie die Verbindung und ob Sie angemeldet sind, und versuchen Sie es erneut.",
+                fr: "La contribution n'a pas pu être enregistrée sur le serveur. Vérifiez votre connexion et que vous êtes connecté, puis réessayez.",
+                es: "La aportación no se pudo guardar en el servidor. Comprueba tu conexión y que has iniciado sesión, e inténtalo de nuevo."))
+        }
     }
 
     private func add() {
@@ -3552,58 +3659,69 @@ struct AddContributionView: View {
             asset.contributions.append(r)
             created.append(r)
         }
+        let oldShareA = asset.ownershipShareA
         if adjustOwnership {
             asset.ownershipShareA = ownershipShareA
         }
 
         // Push remotely (preserving local ids) so the partner sees the same
-        // contributions and the next sync doesn't recreate duplicates.
+        // contributions and the next sync doesn't recreate duplicates. A failed
+        // push rolls the local rows back — the next sync reconciles against the
+        // server and would otherwise remove them silently, reading as data loss.
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         let assetId = asset.id
-        for r in created {
-            let rid = r.id, key = r.ownerKey.lowercased(), amt = r.amount
-            let dt = f.string(from: r.date), lbl = r.label, cat = r.category
-            Task {
-                do {
+        let records = created.map {
+            (record: $0, id: $0.id, key: $0.ownerKey.lowercased(), amount: $0.amount,
+             date: f.string(from: $0.date), label: $0.label, category: $0.category)
+        }
+        let receipt = receiptImage
+        let firstId = created.first?.id
+        let hhId = household.id
+        let signedIn = auth.isSignedIn
+        let share = adjustOwnership ? ownershipShareA : nil
+        let type = asset.assetType, lbl = asset.label, addr = asset.address
+        let val = asset.currentValue, loan = asset.remainingLoan
+        let salesCost = asset.salesCostFraction
+        Task { @MainActor in
+            do {
+                for r in records {
                     try await SupabaseService.insertContributionPreservingId(
-                        id: rid, assetId: assetId, ownerKey: key, amount: amt,
-                        date: dt, label: lbl, category: cat)
-                } catch {
-                    // Sync reconciles against the server, so a row whose push
-                    // failed is removed locally on the next sync — log the
-                    // failure so it is at least visible in the console.
-                    print("[Cohab] Contribution push failed: \(error.localizedDescription)")
+                        id: r.id, assetId: assetId, ownerKey: r.key, amount: r.amount,
+                        date: r.date, label: r.label, category: r.category)
+                }
+            } catch {
+                print("[Cohab] Contribution push failed: \(error.localizedDescription)")
+                for r in records {
+                    asset.contributions.removeAll { $0.id == r.id }
+                    modelContext.delete(r.record)
+                }
+                if share != nil { asset.ownershipShareA = oldShareA }
+                showSaveError = true
+                return
+            }
+            // Best-effort receipt upload for the new contribution — a failure
+            // never blocks keeping the contribution itself.
+            if let receipt, let firstId {
+                Task {
+                    do {
+                        try await AssetImageStore.saveReceipt(
+                            receipt, contributionId: firstId, householdId: hhId,
+                            assetId: assetId, signedIn: signedIn)
+                    } catch {
+                        print("[Cohab] Receipt upload failed: \(error.localizedDescription)")
+                    }
                 }
             }
-        }
-        // Best-effort receipt upload for the new contribution — a failure
-        // never blocks keeping the contribution itself.
-        if let receipt = receiptImage, let first = created.first {
-            let rid = first.id, hhId = household.id
-            let signedIn = auth.isSignedIn
-            Task {
-                do {
-                    try await AssetImageStore.saveReceipt(
-                        receipt, contributionId: rid, householdId: hhId,
-                        assetId: assetId, signedIn: signedIn)
-                } catch {
-                    print("[Cohab] Receipt upload failed: \(error.localizedDescription)")
+            if let share {
+                Task {
+                    try? await SupabaseService.updateAsset(
+                        assetId, assetType: type, label: lbl, address: addr,
+                        currentValue: val, remainingLoan: loan,
+                        salesCostFraction: salesCost, ownershipShareA: share)
                 }
             }
+            dismiss()
+            onComplete?()
         }
-        if adjustOwnership {
-            let share = ownershipShareA
-            let type = asset.assetType, lbl = asset.label, addr = asset.address
-            let val = asset.currentValue, loan = asset.remainingLoan
-            let salesCost = asset.salesCostFraction
-            Task {
-                try? await SupabaseService.updateAsset(
-                    assetId, assetType: type, label: lbl, address: addr,
-                    currentValue: val, remainingLoan: loan,
-                    salesCostFraction: salesCost, ownershipShareA: share)
-            }
-        }
-        dismiss()
-        DispatchQueue.main.async { onComplete?() }
     }
 }

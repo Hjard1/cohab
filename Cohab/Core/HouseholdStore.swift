@@ -324,6 +324,9 @@ final class HouseholdStore {
             }
 
             try? modelContext.save()
+            // Clear any previous sync error only after a fully successful
+            // pass — the dashboard banner reflects the latest state.
+            error = nil
         } catch {
             self.error = error.localizedDescription
         }
