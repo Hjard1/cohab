@@ -427,7 +427,7 @@ enum ContractGenerator {
                     return "Este contrato confirma las cuotas de propiedad registradas de las partes en los activos compartidos, según constan en el \(reg), y documenta las aportaciones económicas de cada una.\(dissolution) No crea ni transfiere ningún derecho de propiedad — se limita a confirmar el registro existente. Las partes se comprometen a mantener la información actualizada."
                 } else {
                     // English (non-US)
-                    return "This agreement confirms each party's registered ownership of shared assets and documents what each has contributed financially.\(dissolution) The ownership percentages stated herein reflect the parties' existing registered title at \(reg) and are for record-keeping purposes. This agreement does not create, vary, or transfer any interest in property. Both parties agree to keep records up to date."
+                    return "This agreement confirms the ownership shares the parties have agreed between themselves in their shared assets, and documents what each has contributed financially.\(dissolution) This agreement does not by itself create, vary or transfer any interest in property; for shares in a home to bind third parties, they should also be recorded in a declaration of trust. The parties intend this agreement to be legally binding. Both parties agree to keep records up to date."
                 }
             }
         }(), .plain))
@@ -467,7 +467,7 @@ enum ContractGenerator {
                     } else if isEs {
                         return "Cada parte conserva la propiedad exclusiva de los bienes que aportó a la convivencia, así como de los bienes recibidos como donación o herencia.\n\nLos bienes adquiridos conjuntamente se poseen en las proporciones registradas en cohab. Las partes se comprometen a mantener los datos actualizados. La versión firmada más recientemente prevalece en caso de discrepancia."
                     } else {
-                        return "Assets that each party brought into this arrangement, and any assets received as a gift or inheritance during the arrangement, remain the sole property of the party who brought or received them.\n\nAssets acquired jointly during the arrangement are held in the proportions registered in cohab. Both parties are encouraged to keep records up to date; the most recently signed version of this agreement takes precedence in the event of any discrepancy."
+                        return "Assets that each party brought into this arrangement, and any assets received as a gift or inheritance during the arrangement, remain the sole property of the party who brought or received them.\n\nAssets acquired jointly during the arrangement are held in the proportions recorded in cohab. Both parties are encouraged to keep records up to date; the most recently signed version of this agreement takes precedence in the event of any discrepancy."
                     }
                 }
             }(), .plain))
@@ -493,7 +493,7 @@ enum ContractGenerator {
                 } else if isEs {
                     return "En caso de desacuerdo sobre el valor de mercado de un activo, cada parte obtendrá una tasación independiente de un tasador homologado; se aplicará la media de ambas."
                 } else {
-                    return "In the event of a dispute on the market value of a shared asset, the parties agree to each obtain one independent licensed appraisal and use the average of the two."
+                    return "In the event of a dispute on the market value of a shared asset, the parties agree to each obtain one independent professional valuation and use the average of the two."
                 }
             }
             if household.assets.isEmpty {
@@ -590,7 +590,9 @@ enum ContractGenerator {
                 } else if isEs {
                     regLabel = "Cuota de propiedad\(isRegisteredProperty ? " (\(reg))" : "")"
                 } else {
-                    regLabel = "Ownership\(isRegisteredProperty ? " (as registered at \(reg))" : "")"
+                    // HM Land Registry (and most registries) never record
+                    // percentage shares — claiming they do is factually wrong.
+                    regLabel = isRegisteredProperty ? "Ownership share (as agreed between the parties)" : "Ownership share"
                 }
                 line += "\n\(regLabel): \(household.partnerAName) \(Int(a.ownershipShareA * 100))\(pctSuffix) · \(household.partnerBName) \(Int((1 - a.ownershipShareA) * 100))\(pctSuffix)"
                 // Itemised assets (furniture): record per-item ownership rather
@@ -966,7 +968,7 @@ enum ContractGenerator {
                 } else if isEs {
                     return "Si la convivencia termina, se aplicará el siguiente orden:\n\n(a) Las aportaciones se devuelven primero. Lo que cada parte ha aportado — con los intereses acumulados (\(rateStr) anual) — se devuelve antes de distribuir el valor restante.\n\n(b) Déficit. Si los fondos disponibles son inferiores a las aportaciones totales, se distribuyen proporcionalmente a lo aportado por cada parte.\n\n(c) Excedente. El saldo eventual tras la devolución de aportaciones se distribuye conforme a las cuotas de propiedad registradas."
                 } else {
-                    return "If this arrangement ends, the following order applies:\n\n(a) Contributions returned first. What each party has paid in — with accrued interest at \(rateStr) per annum — is returned to that party before any remaining value is divided.\n\n(b) Shortfall. If available proceeds are less than total contributions, the available amount is shared proportionally to what each party has paid in.\n\n(c) Surplus. Any remaining value after contributions are repaid is divided according to each party's recorded ownership percentage."
+                    return "The following provisions are the parties' own contractual arrangement for the recorded assets. They apply if the arrangement ends (including on the death of either party), if a shared asset is sold, and on a buyout. On a buyout, the asset's market value — determined under this agreement's valuation rules — is used in place of sale proceeds.\n\nAvailable proceeds means the sale or buyout value of an asset, less any loan secured on the asset and the reasonable costs of sale. This agreement does not affect the rights of any lender or other creditor.\n\n(a) Contributions returned first. What each party has paid in — with accrued interest at \(rateStr) per annum until the payout date — is returned to that party before any remaining value is divided.\n\n(b) Shortfall. If the available proceeds are less than the total contributions, the available amount is shared in proportion to what each party has paid in.\n\n(c) Surplus. Any remaining value after contributions have been repaid is divided according to each party's recorded ownership share.\n\n(d) Residual debt. If the proceeds do not even cover the loan and the costs of sale, the parties bear the remaining debt between themselves in proportion to their ownership shares."
                 }
                 }
             }(), .plain))
@@ -976,7 +978,7 @@ enum ContractGenerator {
         if household.includeBuyoutRightsClause && !isRental {
             sections.append(("\(n).  \(tplTitle(templates, "buyout") ?? t(household, no: "OVERTAKELSE VED OPPHØR", sv: "INLÖSENRÄTT", da: "OVERTAGELSESRET", fi: "LUNASTUSOIKEUS", de: "VORKAUFSRECHT", fr: "DROIT DE PRÉEMPTION", es: "DERECHO DE ADQUISICIÓN PREFERENTE", en: "BUYOUT RIGHTS AND TAKEOVER"))", {
                 n += 1
-                return tpl(templates, "buyout") {
+                return tpl(templates, "buyout", tokens: ["rate": rateStr]) {
                 if isNO {
                     return "Dersom samboerforholdet opphører:\n\n(a) Fortrinnsrett: Den parten med størst tinglyst eierandel har fortrinnsrett til å overta boligen. Ved lik eierandel (50/50) skal partene forsøke å bli enige skriftlig; dersom dette ikke lykkes innen 30 dager, avgjøres fortrinnsretten ved mekling eller, dersom mekling ikke fører frem, ved loddtrekning.\n\n(b) Verdifastsettelse: Overtakelsessummen fastsettes som gjennomsnittet av to uavhengige takster — én innhentet av hver part fra godkjent takstmann.\n\n(c) Frist: Overtakelse eller åpent salg skal gjennomføres innen 6 måneder fra den dato en av partene skriftlig varsler om opphør, eller fra den dato samlivet faktisk opphørte dersom dette kan dokumenteres.\n\n(d) Forsinkelsesrente: Ved oversittelse av fristen beregnes forsinkelsesrente i henhold til forsinkelsesrenteloven."
                 } else if isSV {
@@ -992,7 +994,7 @@ enum ContractGenerator {
                 } else if isEs {
                     return "Si la convivencia termina y las partes son copropietarias de un inmueble:\n\n(a) Derecho preferente. La parte con mayor cuota registrada tiene derecho a adquirir la parte de la otra. En caso de igualdad (50/50), se intentará primero un acuerdo escrito; si no se alcanza en 30 días, el derecho se determina por mediación o, si fracasa, por sorteo.\n\n(b) Valoración. El precio de adquisición es la media de dos tasaciones independientes, una por parte.\n\n(c) Plazo. La adquisición o venta en mercado abierto debe completarse en 6 meses desde la notificación escrita.\n\n(d) Intereses de demora. Si se supera el plazo, la parte incumplidora pagará intereses conforme a la ley aplicable."
                 } else {
-                    return "If this arrangement ends and the parties hold a jointly owned property:\n\n(a) Right of first refusal: The party with the greater recorded ownership share has the right to buy out the other. Where ownership is equal (50/50), the parties shall first attempt written agreement; if no agreement is reached within 30 days, the right is determined by mediation or, failing that, by coin toss or selection by a mutually agreed neutral third party.\n\n(b) Valuation: The buyout price shall be the average of two independent licensed appraisals, one obtained by each party from a licensed appraiser.\n\n(c) Timeline: Buyout or open-market sale shall be completed within 6 months of written notice of termination, or the documented date the arrangement ended.\n\n(d) Interest on delay: If the deadline is missed, the delaying party shall pay interest at the maximum rate permitted by applicable law."
+                    return "If this arrangement ends and the parties hold a jointly owned property:\n\n(a) Right of first refusal: The party with the greater recorded ownership share has the right to buy out the other. Where ownership is equal (50/50), the parties shall first attempt written agreement; if no agreement is reached within 30 days, the right is determined by mediation or, failing that, by a mutually agreed neutral third party.\n\n(b) Valuation: The buyout price shall be the average of two independent professional valuations, one obtained by each party.\n\n(c) Timeline: Buyout or open-market sale shall be completed within 6 months of written notice of termination, or the documented date the arrangement ended.\n\n(d) Interest on delay: If the deadline is missed, the delaying party shall pay interest at \(rateStr) per annum on the outstanding amount."
                 }
                 }
             }(), .plain))
