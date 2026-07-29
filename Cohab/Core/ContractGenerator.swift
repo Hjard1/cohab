@@ -396,7 +396,7 @@ enum ContractGenerator {
                     t(household,
                       no: " Den fastsetter også hvordan verdier fordeles dersom samlivet opphører.",
                       sv: " Det fastställer också hur tillgångar fördelas om samboförhållandet upphör.",
-                      da: " Det fastslår også, hvordan aktiver fordeles, hvis samlivsforholdet ophører.",
+                      da: " Den fastslår også, hvordan aktiver fordeles, hvis samlivsforholdet ophører.",
                       fi: " Se määrittelee myös, miten varat jaetaan, jos avoliitto päättyy.",
                       de: " Er legt außerdem fest, wie das Vermögen bei Auflösung der Partnerschaft aufgeteilt wird.",
                       fr: " Elle définit également la répartition des actifs en cas de dissolution de l'union.",
@@ -416,7 +416,7 @@ enum ContractGenerator {
                 } else if isSV {
                     return "Detta avtal bekräftar parternas registrerade ägarandel i gemensamma tillgångar och dokumenterar vad var och en har betalat in.\(dissolution) Avtalet skapar inga nya äganderätter — det återger och bekräftar de ägarandelar parterna har uppgett. Parterna förbinder sig att vid behov uppdatera uppgifterna genom ett nytt eller ändrat avtal som undertecknas av båda."
                 } else if isDA {
-                    return "Denne aftale bekræfter parternes tinglyste ejerandel i fælles aktiver og dokumenterer, hvad den enkelte har indbetalt.\(dissolution) Aftalen skaber ingen nye ejendomsrettigheder — den gentager og bekræfter det, der allerede er registreret via \(reg). Parterne forpligter sig til at holde oplysningerne opdaterede."
+                    return "Denne aftale bekræfter de ejerandele i fælles aktiver, som parterne har oplyst, og dokumenterer, hvad den enkelte har indbetalt.\(dissolution) Aftalen skaber ikke i sig selv nye ejendomsrettigheder; for fast ejendom bør ejerandelen også fremgå af skødet for at være sikret over for tredjeparter. Parterne forpligter sig til ved behov at opdatere oplysningerne gennem en ny eller ændret aftale, som underskrives af begge."
                 } else if isFI {
                     return "Tämä sopimus vahvistaa osapuolten rekisteröidyn omistusosuuden yhteisiin varoihin ja dokumentoi kummankin maksamat panokset.\(dissolution) Sopimus ei luo uusia omistusoikeuksia — se toistaa ja vahvistaa \(reg):ssa rekisteröidyn omistuksen. Osapuolet sitoutuvat pitämään tiedot ajan tasalla."
                 } else if isDe {
@@ -474,7 +474,7 @@ enum ContractGenerator {
         }
 
         // § SHARED ASSETS
-        sections.append(("\(n).  \(tplTitle(templates, "assets_intro") ?? t(household, no: "FELLES EIENDELER OG EIERSKAP", sv: "REGISTRERADE TILLGÅNGAR OCH ÄGARANDELAR", da: "FÆLLES AKTIVER OG EJERSKAB", fi: "YHTEISET VARAT JA OMISTUS", de: "GEMEINSAMES VERMÖGEN UND EIGENTUMSANTEILE", fr: "ACTIFS COMMUNS ET PROPRIÉTÉ", es: "ACTIVOS COMPARTIDOS Y PROPIEDAD", en: "SHARED ASSETS AND OWNERSHIP"))", {
+        sections.append(("\(n).  \(tplTitle(templates, "assets_intro") ?? t(household, no: "FELLES EIENDELER OG EIERSKAP", sv: "REGISTRERADE TILLGÅNGAR OCH ÄGARANDELAR", da: "REGISTREREDE AKTIVER OG EJERANDELE", fi: "YHTEISET VARAT JA OMISTUS", de: "GEMEINSAMES VERMÖGEN UND EIGENTUMSANTEILE", fr: "ACTIFS COMMUNS ET PROPRIÉTÉ", es: "ACTIVOS COMPARTIDOS Y PROPIEDAD", en: "SHARED ASSETS AND OWNERSHIP"))", {
             n += 1
             let sym = household.currencySymbol
             let valuationClause = tpl(templates, "assets_valuation") {
@@ -527,7 +527,7 @@ enum ContractGenerator {
                 } else if isSV {
                     return "Parterna har registrerat följande tillgångar och bekräftar de angivna ägarandelarna:"
                 } else if isDA {
-                    return "Parterne ejer i fællesskab følgende aktiver registreret i cohab på tidspunktet for underskrivelsen:"
+                    return "Parterne har registreret følgende aktiver i cohab på tidspunktet for underskrivelsen og bekræfter de angivne ejerandele:"
                 } else if isFI {
                     return "Osapuolet omistavat yhdessä seuraavat cohab-sovellukseen allekirjoitushetkellä rekisteröidyt varat:"
                 } else if isDe {
@@ -984,7 +984,7 @@ enum ContractGenerator {
                 } else if isSV {
                     return "Om samboförhållandet upphör och parterna äger en gemensam bostad:\n\n(a) Inlösenrätt. Den part med störst registrerad ägarandel har rätt att lösa in den andras andel. Vid lika ägarandel (50/50) ska parterna i första hand nå skriftlig överenskommelse. Lyckas detta inte inom 30 dagar avgörs inlösenrätten genom medling eller, om det misslyckas, lottdragning.\n\n(b) Värdering. Inlösenpriset fastställs som genomsnittet av två oberoende värderingsintyg, ett inhämtat av varje part.\n\n(c) Tidsfrist. Inlösen eller försäljning på öppna marknaden ska slutföras inom 6 månader från skriftlig uppsägning eller den dokumenterade dag samboförhållandet faktiskt upphörde.\n\n(d) Dröjsmålsränta. Överskrids fristen ska den dröjande parten betala ränta enligt tillämplig lag."
                 } else if isDA {
-                    return "Hvis samlivsforholdet ophører, og parterne ejer en fælles bolig:\n\n(a) Overtagelsesret. Den part med den største registrerede ejerandel har ret til at overtage den andens andel. Ved ens ejerandel (50/50) skal parterne i første omgang forsøge at nå en skriftlig aftale. Lykkes dette ikke inden 30 dage, afgøres overtagelsesretten ved mægling eller, hvis dette mislykkes, af en af parterne i fællesskab udpeget neutral tredjepart.\n\n(b) Vurdering. Overtagelsesprisen fastsættes som gennemsnittet af to uafhængige vurderinger, én indhentet af hver part.\n\n(c) Tidsfrist. Overtagelse eller salg på det åbne marked skal gennemføres inden 6 måneder fra skriftlig opsigelse eller den dokumenterede dato, samlivsforholdet faktisk ophørte.\n\n(d) Morarenter. Overskrides fristen, betaler den forsinkede part morarenter i henhold til renteloven."
+                    return "Hvis samlivsforholdet ophører, og parterne ejer en fælles bolig:\n\n(a) Overtagelsesret. Den part med den største registrerede ejerandel har ret til at overtage den andens andel. Ved lige ejerandele (50/50) skal parterne i første omgang forsøge at nå en skriftlig aftale. Lykkes dette ikke inden 30 dage, afgøres overtagelsesretten ved mægling eller, hvis dette mislykkes, af en af parterne i fællesskab udpeget neutral tredjepart.\n\n(b) Vurdering. Overtagelsesprisen fastsættes som gennemsnittet af to uafhængige vurderinger, én indhentet af hver part.\n\n(c) Tidsfrist. Overtagelse eller salg på det åbne marked skal gennemføres inden 6 måneder fra skriftlig meddelelse om ophør eller den dokumenterede dato, samlivsforholdet faktisk ophørte.\n\n(d) Morarenter. Overskrides fristen, betaler den forsinkede part morarenter i henhold til renteloven."
                 } else if isFI {
                     return "Jos avoliitto päättyy ja osapuolet omistavat yhteisen asunnon:\n\n(a) Lunastusoikeus. Suurimman omistusosuuden omaavalla osapuolella on oikeus lunastaa toisen osuus. Tasan (50/50) jaetun omistuksen tapauksessa pyritään ensin kirjalliseen sopimukseen. Ellei sopimukseen päästä 30 päivässä, lunastusoikeus ratkaistaan sovittelulla tai arvonnalla.\n\n(b) Arvostus. Lunastushinta on kahden riippumattoman arvion keskiarvo, yksi kummankin hankkimana.\n\n(c) Määräaika. Lunastus tai myynti on saatettava päätökseen 6 kuukauden kuluessa kirjallisesta irtisanomisesta tai dokumentoidusta päivämäärästä, jolloin avoliitto tosiasiallisesti päättyi.\n\n(d) Viivästyskorko. Määräajan ylittyessä viivästyvä osapuoli maksaa korkoa sovellettavan lain mukaisesti."
                 } else if isDe {
