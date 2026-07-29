@@ -1629,6 +1629,7 @@ struct AgreementSheetView: View {
     @State private var bankIDCase: DealBuilderCase?
     @State private var showBankIDLimit = false
     @State private var isPurchasingExtra = false
+    @State private var showResetConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -1654,6 +1655,14 @@ struct AgreementSheetView: View {
             .navigationTitle(navTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // A signing in progress (DocuSeal or BankID) must still offer a
+                // way out — previously only the tab had the reset link.
+                if (submission != nil || bankIDCase != nil) && !isSigned {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(strings.agreementGenerateFresh) { showResetConfirm = true }
+                            .foregroundStyle(Color.red)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(strings.done) { dismiss() }
                 }
@@ -1744,6 +1753,17 @@ struct AgreementSheetView: View {
             Button(strings.cancel, role: .cancel) { }
         } message: {
             Text(strings.bankIDLimitBody(pm.bankIDPriceDisplay))
+        }
+        .confirmationDialog(
+            strings.agreementCancelSigningTitle,
+            isPresented: $showResetConfirm,
+            titleVisibility: .visible
+        ) {
+            Button(strings.agreementYesGenerateNew, role: .destructive) {
+                resetAndRestart()
+            }
+        } message: {
+            Text(strings.agreementCancelSigningMessage)
         }
     }
 
@@ -1841,6 +1861,23 @@ struct AgreementSheetView: View {
                                 in: RoundedRectangle(cornerRadius: 14))
                 }
                 .disabled(!canSend)
+
+                // Explain WHY the send button is greyed out — otherwise it
+                // just looks broken when the emails are missing/invalid.
+                if !canSend {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label(strings.agreementEmailsNeeded, systemImage: "envelope.badge")
+                            .font(.caption.weight(.semibold)).foregroundStyle(Color.orange)
+                        Text(strings.agreementEmailsNeededSub)
+                            .font(.caption).foregroundStyle(Color.cohSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(Color.orange.opacity(0.3), lineWidth: 1))
+                }
             }
             .padding(24)
         }
@@ -2055,6 +2092,21 @@ struct AgreementSheetView: View {
     }
 
     // MARK: Generate
+
+    /// Cancels the in-progress signing and returns to the review-and-send
+    /// screen — mirrors the reset link on the agreement tab.
+    private func resetAndRestart() {
+        household.agreementStatus = "none"
+        household.docusealSlug    = ""
+        household.docusealViewUrl = ""
+        submission  = nil
+        bankIDCase  = nil
+        draftEmailA = household.emailA
+        draftEmailB = household.emailB
+        // Supersede any pending BankID signing case for this household.
+        Task { await DealBuilderService.reset(household: household) }
+        withAnimation { reviewMode = true }
+    }
 
     private func generate() {
         isGenerating = true
