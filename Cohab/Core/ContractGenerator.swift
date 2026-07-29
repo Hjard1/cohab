@@ -520,15 +520,15 @@ enum ContractGenerator {
                 if isNO {
                     regLabel = isRegisteredProperty ? "Eierbrøk (tinglyst)" : "Eierbrøk"
                 } else if isSV {
-                    // Lantmäteriet covers only fastigheter (lagfart); a car's
-                    // registered keeper is Transportstyrelsen; other assets
-                    // rest on the parties' own documentation.
+                    // A car's registered keeper is Transportstyrelsen. For all
+                    // other assets we use the always-correct generic wording —
+                    // we cannot distinguish fastighet (lagfart hos Lantmäteriet)
+                    // from bostadsrätt (registered in the förening's ledger),
+                    // so naming one registry would risk a wrong factual claim.
                     if a.type == .car {
                         regLabel = "Registrerad ägare enligt Transportstyrelsen"
-                    } else if isRegisteredProperty && (a.type == .home || a.type == .cabin) {
-                        regLabel = "Ägarandel enligt lagfart hos Lantmäteriet eller ägarhandling"
                     } else {
-                        regLabel = "Ägarandel enligt parternas uppgifter"
+                        regLabel = "Ägarandel enligt parternas uppgifter och tillämplig ägarhandling eller registrering"
                     }
                 } else if isDA {
                     regLabel = "Ejerandel\(isRegisteredProperty ? " (tinglyst)" : "")"
