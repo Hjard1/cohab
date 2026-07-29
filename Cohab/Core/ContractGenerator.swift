@@ -412,7 +412,7 @@ enum ContractGenerator {
             }
             return tpl(templates, "purpose", tokens: ["registry": reg, "dissolution": dissolution]) {
                 if isNO {
-                    return "Denne avtalen bekrefter partenes registrerte eierbrøk i felles eiendeler og dokumenterer hva hver av dem har betalt inn.\(dissolution) Avtalen oppretter ingen nye eiendomsrettigheter — den gjentar og bekrefter det som allerede er tinglyst. Partene forplikter seg til å holde oversikten oppdatert."
+                    return "Denne avtalen bekrefter den eierbrøken partene selv har opplyst i felles eiendeler og dokumenterer hva hver av dem har betalt inn.\(dissolution) For eiendeler som er merket som tinglyst, bekrefter partene at eierbrøken er tinglyst i grunnboken. Avtalen skaper ikke i seg selv nye eiendomsrettigheter — for fast eiendom bør eierbrøken også fremgå av skjøtet for å være beskyttet overfor tredjeparter. Partene forplikter seg til å oppdatere avtalen ved å signere en ny versjon når forholdene endrer seg."
                 } else if isSV {
                     return "Detta avtal bekräftar parternas registrerade ägarandel i gemensamma tillgångar och dokumenterar vad var och en har betalat in.\(dissolution) Avtalet skapar inga nya äganderätter — det återger och bekräftar de ägarandelar parterna har uppgett. Parterna förbinder sig att vid behov uppdatera uppgifterna genom ett nytt eller ändrat avtal som undertecknas av båda."
                 } else if isDA {
