@@ -314,6 +314,10 @@ enum ContractGenerator {
     }
 
     private static func buildSections(household: Household) -> [(title: String, body: String, kind: ContractSectionKind)] {
+        // The document must render in the household's language regardless of
+        // the device language — asset-type and category labels are looked up
+        // through AppStrings below.
+        AppStrings.shared.language = AppLanguage.from(country: household.country)
         let isRental = household.agreementType == "rental"
         let isNO = isNorwegian(household)
         let isSV = isSwedish(household)
@@ -356,7 +360,7 @@ enum ContractGenerator {
             } else if isSV {
                 let dissolution = household.includeDissolutionClause
                     ? " Det fastställer också hur tillgångar fördelas om samboförhållandet upphör." : ""
-                return "Detta avtal bekräftar parternas registrerade ägarandel i gemensamma tillgångar och dokumenterar vad var och en har betalat in.\(dissolution) Avtalet skapar inga nya äganderätter — det återger och bekräftar vad som är registrerat hos \(reg). Parterna förbinder sig att hålla uppgifterna uppdaterade."
+                return "Detta avtal bekräftar parternas registrerade ägarandel i gemensamma tillgångar och dokumenterar vad var och en har betalat in.\(dissolution) Avtalet skapar inga nya äganderätter — det återger och bekräftar de ägarandelar parterna har uppgett. Parterna förbinder sig att vid behov uppdatera uppgifterna genom ett nytt eller ändrat avtal som undertecknas av båda."
             } else if isDA {
                 let dissolution = household.includeDissolutionClause
                     ? " Det fastslår også, hvordan aktiver fordeles, hvis samlivsforholdet ophører." : ""
@@ -400,7 +404,7 @@ enum ContractGenerator {
         if isSV {
             sections.append(("\(n).  SAMBOLAGEN (2003:376)", {
                 n += 1
-                return "Parterna är överens om att bodelning enligt sambolagen (2003:376) inte ska ske när samboförhållandet upphör. Detta avtal gäller i stället för sambolagens bodelningsregler för samtliga tillgångar som omfattas av avtalet."
+                return "Parterna är överens om att bodelning enligt sambolagen (2003:376) inte ska ske. För de tillgångar som anges i detta avtal gäller dessutom den ekonomiska fördelningsmodell som parterna har kommit överens om nedan."
             }(), .plain))
         }
 
@@ -429,7 +433,7 @@ enum ContractGenerator {
         }
 
         // § SHARED ASSETS
-        sections.append(("\(n).  \(t(household, no: "FELLES EIENDELER OG EIERSKAP", sv: "GEMENSAMMA TILLGÅNGAR OCH ÄGARANDEL", da: "FÆLLES AKTIVER OG EJERSKAB", fi: "YHTEISET VARAT JA OMISTUS", de: "GEMEINSAMES VERMÖGEN UND EIGENTUMSANTEILE", fr: "ACTIFS COMMUNS ET PROPRIÉTÉ", es: "ACTIVOS COMPARTIDOS Y PROPIEDAD", en: "SHARED ASSETS AND OWNERSHIP"))", {
+        sections.append(("\(n).  \(t(household, no: "FELLES EIENDELER OG EIERSKAP", sv: "REGISTRERADE TILLGÅNGAR OCH ÄGARANDELAR", da: "FÆLLES AKTIVER OG EJERSKAB", fi: "YHTEISET VARAT JA OMISTUS", de: "GEMEINSAMES VERMÖGEN UND EIGENTUMSANTEILE", fr: "ACTIFS COMMUNS ET PROPRIÉTÉ", es: "ACTIVOS COMPARTIDOS Y PROPIEDAD", en: "SHARED ASSETS AND OWNERSHIP"))", {
             n += 1
             let sym = household.currencySymbol
             let valuationClause: String
@@ -473,7 +477,7 @@ enum ContractGenerator {
             if isNO {
                 intro = "Partene eier i fellesskap følgende eiendeler registrert i cohab ved signeringstidspunktet:"
             } else if isSV {
-                intro = "Parterna äger gemensamt följande tillgångar registrerade i cohab vid tidpunkten för undertecknandet:"
+                intro = "Parterna har registrerat följande tillgångar och bekräftar de angivna ägarandelarna:"
             } else if isDA {
                 intro = "Parterne ejer i fællesskab følgende aktiver registreret i cohab på tidspunktet for underskrivelsen:"
             } else if isFI {
@@ -493,9 +497,6 @@ enum ContractGenerator {
             let typeLabel = t(household, no: "Type", sv: "Typ", da: "Type",
                               fi: "Tyyppi", de: "Typ", fr: "Type",
                               es: "Tipo", en: "Type")
-            let addrLabel = t(household, no: "Adresse", sv: "Adress", da: "Adresse",
-                              fi: "Osoite", de: "Adresse", fr: "Adresse",
-                              es: "Dirección", en: "Address")
             // Norwegian/Swedish convention: space before the percent sign.
             let pctSuffix = (isNO || isSV) ? " %" : "%"
             let list = household.assets.map { a -> String in
@@ -503,11 +504,13 @@ enum ContractGenerator {
                 // Same (disambiguated) name as in the contributions section.
                 var line = assetNames[a.id] ?? a.label
                 line += "\n\(typeLabel): \(category)"
-                // Name the property by its registered address when one exists —
-                // essential for a property agreement to identify the asset.
+                // Name the asset by its registered detail when one exists. The
+                // label follows the asset type (address for property, plate
+                // number for vehicles, account for savings, …) in the
+                // document's own language — essential to identify the asset.
                 let addr = a.address.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !addr.isEmpty {
-                    line += "\n\(addrLabel): \(addr)"
+                    line += "\n\(a.type.secondaryLabel): \(addr)"
                 }
                 // Use explicit flag; fall back to type-based for legacy assets without the field
                 // nil = not explicitly set → fall back to type-based default
@@ -517,7 +520,16 @@ enum ContractGenerator {
                 if isNO {
                     regLabel = isRegisteredProperty ? "Eierbrøk (tinglyst)" : "Eierbrøk"
                 } else if isSV {
-                    regLabel = "Ägarandel\(isRegisteredProperty ? " (registrerat hos \(reg))" : "")"
+                    // Lantmäteriet covers only fastigheter (lagfart); a car's
+                    // registered keeper is Transportstyrelsen; other assets
+                    // rest on the parties' own documentation.
+                    if a.type == .car {
+                        regLabel = "Registrerad ägare enligt Transportstyrelsen"
+                    } else if isRegisteredProperty && (a.type == .home || a.type == .cabin) {
+                        regLabel = "Ägarandel enligt lagfart hos Lantmäteriet eller ägarhandling"
+                    } else {
+                        regLabel = "Ägarandel enligt parternas uppgifter"
+                    }
                 } else if isDA {
                     regLabel = "Ejerandel\(isRegisteredProperty ? " (tinglyst)" : "")"
                 } else if isFI {
@@ -683,21 +695,21 @@ enum ContractGenerator {
             let assetsWithContribs = household.assets.filter { !$0.contributions.isEmpty }
             if assetsWithContribs.isEmpty {
                 if isNO {
-                    return "Ingen innbetalinger er registrert ved signering. Innskudd, ekstra nedbetalinger og oppussing kan registreres når som helst og forrentes med \(rateStr) per år."
+                    return "Ingen innbetalinger er registrert ved signering. Innskudd, ekstra nedbetalinger og oppussing kan registreres når som helst og forrentes med \(rateStr) per år. Registrerte bidrag endrer ikke eierbrøken."
                 } else if isSV {
                     return "Inga ekonomiska bidrag har registrerats vid undertecknandet. Insättningar, extra amorteringar och renoveringar kan registreras när som helst och räknas upp med \(rateStr) per år. Registrerade bidrag ändrar inte parternas ägarandelar."
                 } else if isDA {
-                    return "Ingen finansielle bidrag er registreret ved underskrivelsen. Indskud, ekstra afdrag og renoveringer kan registreres til enhver tid og forrentes med \(rateStr) per år."
+                    return "Ingen finansielle bidrag er registreret ved underskrivelsen. Indskud, ekstra afdrag og renoveringer kan registreres til enhver tid og forrentes med \(rateStr) per år. Registrerede bidrag ændrer ikke ejerandelen."
                 } else if isFI {
-                    return "Taloudellisia panoksia ei ole rekisteröity allekirjoitushetkellä. Talletukset, ylimääräiset lyhennykset ja remontit voidaan rekisteröidä milloin tahansa ja niille lasketaan korkoa \(rateStr) vuodessa."
+                    return "Taloudellisia panoksia ei ole rekisteröity allekirjoitushetkellä. Talletukset, ylimääräiset lyhennykset ja remontit voidaan rekisteröidä milloin tahansa ja niille lasketaan korkoa \(rateStr) vuodessa. Rekisteröidyt panokset eivät muuta omistusosuuksia."
                 } else if isDe {
-                    return "Zum Zeitpunkt der Unterzeichnung sind keine Einzahlungen erfasst. Einlagen, zusätzliche Tilgungen und Renovierungen können jederzeit ergänzt werden und werden mit \(rateStr) p.a. verzinst."
+                    return "Zum Zeitpunkt der Unterzeichnung sind keine Einzahlungen erfasst. Einlagen, zusätzliche Tilgungen und Renovierungen können jederzeit ergänzt werden und werden mit \(rateStr) p.a. verzinst. Erfasste Einzahlungen ändern nicht die Eigentumsanteile."
                 } else if isFr {
-                    return "Aucun apport financier n'est enregistré à la date de signature. Les dépôts, remboursements supplémentaires et travaux peuvent être ajoutés à tout moment et sont rémunérés à \(rateStr) par an."
+                    return "Aucun apport financier n'est enregistré à la date de signature. Les dépôts, remboursements supplémentaires et travaux peuvent être ajoutés à tout moment et sont rémunérés à \(rateStr) par an. Les apports enregistrés ne modifient pas les quotes-parts."
                 } else if isEs {
-                    return "No se han registrado aportaciones en la fecha de firma. Los depósitos, amortizaciones extraordinarias y reformas pueden registrarse en cualquier momento y generan intereses al \(rateStr) anual."
+                    return "No se han registrado aportaciones en la fecha de firma. Los depósitos, amortizaciones extraordinarias y reformas pueden registrarse en cualquier momento y generan intereses al \(rateStr) anual. Las aportaciones registradas no modifican las cuotas de propiedad."
                 } else {
-                    return "No contributions recorded at signing. Deposits, extra mortgage payments, and renovations may be added at any time and will accrue interest at \(rateStr) per annum."
+                    return "No contributions recorded at signing. Deposits, extra mortgage payments, and renovations may be added at any time and will accrue interest at \(rateStr) per annum. Recorded contributions do not change the ownership shares."
                 }
             }
 
@@ -708,21 +720,21 @@ enum ContractGenerator {
             }
             let interestNote: String
             if isNO {
-                interestNote = "Alle beløp forrentes med \(rateStr) per år fra innbetalingsdato, kapitalisert årlig.\n"
+                interestNote = "Alle beløp forrentes med \(rateStr) per år fra innbetalingsdato, kapitalisert årlig. For deler av et år beregnes renten proporsjonalt per dag, og den løper frem til utbetalingsdagen. Registrerte bidrag endrer ikke eierbrøken.\nMed bidrag menes engangsinnbetalinger registrert i cohab (f.eks. innskudd, ekstra nedbetaling eller oppussing) — løpende boutgifter omfattes ikke.\n"
             } else if isSV {
-                interestNote = "Samtliga belopp räknas upp med \(rateStr) per år från inbetalningsdatumet, sammansatt årligen. Räntan löper fram till utbetalningsdagen. Registrerade bidrag ändrar inte parternas ägarandelar.\n"
+                interestNote = "Samtliga belopp räknas upp med \(rateStr) per år från inbetalningsdatumet, sammansatt årligen. För del av år beräknas räntan proportionerligt per dag. Räntan löper fram till utbetalningsdagen. Registrerade bidrag ändrar inte parternas ägarandelar.\nMed bidrag avses engångsinbetalningar som registrerats i cohab (till exempel kontantinsats, extra amortering eller renovering). Löpande boendekostnader som mat, el och hyra omfattas inte.\n"
             } else if isDA {
-                interestNote = "Alle beløb forrentes med \(rateStr) per år fra indbetalingsdatoen, kapitaliseret årligt.\n"
+                interestNote = "Alle beløb forrentes med \(rateStr) per år fra indbetalingsdatoen, kapitaliseret årligt. For dele af et år beregnes renten forholdsmæssigt pr. dag, og den løber indtil udbetalingsdatoen. Registrerede bidrag ændrer ikke ejerandelen.\nMed bidrag menes engangsindbetalinger registreret i cohab (f.eks. indskud, ekstra afdrag eller renovering) — løbende boligudgifter omfattes ikke.\n"
             } else if isFI {
-                interestNote = "Kaikille summille lasketaan korkoa \(rateStr) vuodessa maksupäivästä lähtien, vuotuisella koronkorolla.\n"
+                interestNote = "Kaikille summille lasketaan korkoa \(rateStr) vuodessa maksupäivästä lähtien, vuotuisella koronkorolla. Osittaiselta vuodelta korko lasketaan suhteellisesti päivittäin, ja sitä kertyy maksupäivään asti. Rekisteröidyt panokset eivät muuta omistusosuuksia.\nPanoksella tarkoitetaan cohab-sovellukseen rekisteröityjä kertamaksuja (esim. käsiraha, ylimääräinen lyhennys tai remontti) — juoksevat asumiskulut eivät kuulu mukaan.\n"
             } else if isDe {
-                interestNote = "Alle Beträge werden ab dem Einzahlungsdatum mit \(rateStr) p.a. verzinst, jährlich kapitalisiert.\n"
+                interestNote = "Alle Beträge werden ab dem Einzahlungsdatum mit \(rateStr) p.a. verzinst, jährlich kapitalisiert. Für Teile eines Jahres werden die Zinsen anteilig pro Tag berechnet und laufen bis zum Auszahlungstag. Erfasste Einzahlungen ändern nicht die Eigentumsanteile.\nAls Einzahlungen gelten einmalige, in cohab erfasste Zahlungen (z. B. Anzahlung, zusätzliche Tilgung oder Renovierung) — laufende Wohnkosten sind ausgeschlossen.\n"
             } else if isFr {
-                interestNote = "Tous les montants sont rémunérés à \(rateStr) par an à compter de la date de versement, avec capitalisation annuelle.\n"
+                interestNote = "Tous les montants sont rémunérés à \(rateStr) par an à compter de la date de versement, avec capitalisation annuelle. Pour une fraction d'année, les intérêts sont calculés au prorata par jour et courent jusqu'à la date de versement final. Les apports enregistrés ne modifient pas les quotes-parts.\nPar apports, on entend les versements ponctuels enregistrés dans cohab (ex. apport initial, remboursement supplémentaire ou travaux) — les dépenses courantes du logement sont exclues.\n"
             } else if isEs {
-                interestNote = "Todos los importes generan intereses al \(rateStr) anual desde la fecha de pago, con capitalización anual.\n"
+                interestNote = "Todos los importes generan intereses al \(rateStr) anual desde la fecha de pago, con capitalización anual. Para fracciones de año, el interés se calcula proporcionalmente por día y devenga hasta la fecha de pago. Las aportaciones registradas no modifican las cuotas de propiedad.\nPor aportaciones se entienden pagos únicos registrados en cohab (p. ej. entrada, amortización extraordinaria o reformas) — los gastos corrientes de la vivienda quedan excluidos.\n"
             } else {
-                interestNote = "All amounts accrue interest at \(rateStr) per annum from the date of payment, compounded annually.\n"
+                interestNote = "All amounts accrue interest at \(rateStr) per annum from the date of payment, compounded annually. For part of a year, interest accrues proportionally per day and runs until the payout date. Recorded contributions do not change the ownership shares.\nContributions mean one-off payments recorded in cohab (e.g. deposit, extra mortgage payment or renovation) — ongoing household costs are not included.\n"
             }
 
             // Purchase equity (deposits/down payments) and later contributions
@@ -757,14 +769,19 @@ enum ContractGenerator {
                 return "  \(ownerName(key)): \(contribShort) \(money(principal)) · \(interestShort) \(money(interest)) · \(totalShort) \(money(accrued))"
             }
 
-            // Per asset: ONLY the summary — itemised rows would just repeat
-            // what the app shows.
+            // Per asset: each contribution is listed (party, type, date,
+            // amount) because the signed document must show the payment dates
+            // the interest runs from — followed by a one-line summary per
+            // partner.
             var blocks: [String] = []
             var totPrincipal: [String: Double] = ["A": 0, "B": 0]
             var totAcc: [String: Double] = ["A": 0, "B": 0]
             for asset in assetsWithContribs {
                 let contribs = asset.contributions
                 var lines = [assetNames[asset.id] ?? asset.label]
+                for c in contribs.sorted(by: { $0.date < $1.date }) {
+                    lines.append("  \(ownerName(c.ownerKey)) · \(contribCategoryLabel(c.category)) · \(fmtDate(c.date)) · \(money(c.amount))")
+                }
                 for key in ["A", "B"] {
                     let all = contribs.filter { $0.ownerKey == key }
                     guard !all.isEmpty else { continue }
@@ -809,12 +826,12 @@ enum ContractGenerator {
 
         // § DISSOLUTION — Samboappen § 8 (core, always included if toggled)
         if household.includeDissolutionClause {
-            sections.append(("\(n).  \(t(household, no: "FORDELING VED OPPHØR", sv: "UPPDELNING VID SEPARATION", da: "FORDELING VED OPHØR", fi: "OMAISUUDEN JAKO EROTESSA", de: "VERMÖGENSAUFTEILUNG BEI TRENNUNG", fr: "RÉPARTITION EN CAS DE SÉPARATION", es: "DISTRIBUCIÓN AL SEPARARSE", en: "SETTLEMENT ON SEPARATION"))", {
+            sections.append(("\(n).  \(t(household, no: "FORDELING VED OPPHØR", sv: "EKONOMISK REGLERING VID FÖRSÄLJNING, UTKÖP ELLER SEPARATION", da: "FORDELING VED OPHØR", fi: "OMAISUUDEN JAKO EROTESSA", de: "VERMÖGENSAUFTEILUNG BEI TRENNUNG", fr: "RÉPARTITION EN CAS DE SÉPARATION", es: "DISTRIBUCIÓN AL SEPARARSE", en: "SETTLEMENT ON SEPARATION"))", {
                 n += 1
                 if isNO {
                     return "Dersom samboerforholdet opphører, gjelder følgende rekkefølge:\n\n(a) Innbetalinger tilbakebetales først. Det hver part har betalt inn — med opptjente renter (\(rateStr) per år) — utbetales til vedkommende før resterende verdi fordeles.\n\n(b) Ved underskudd. Er tilgjengelig verdi lavere enn de samlede innbetalingene, deles det som finnes forholdsmessig etter hva hver part har betalt inn.\n\n(c) Overskudd. Eventuell restverdi etter at innbetalinger er dekket, fordeles etter registrert eierbrøk."
                 } else if isSV {
-                    return "Vid upplösning av samboförhållandet — eller om en gemensam tillgång säljs medan samboförhållandet består — gäller följande ordning:\n\nInnan någon fördelning sker mellan parterna ska lån som belastar tillgången samt kostnader för försäljningen dras av. Med tillgängliga intäkter avses det belopp som återstår efter dessa avdrag. Detta avtal påverkar inte bankens eller andra borgenärers rättigheter enligt respektive låneavtal.\n\n(a) Inbetalningar återbetalas först. Vad var och en har betalat in — med upplupna räntor (\(rateStr) per år, löpande fram till utbetalningsdagen) — återbetalas till den som betalat in, innan det återstående fördelas.\n\n(b) Underskott. Om tillgängliga intäkter understiger de sammanlagda inbetalningarna fördelas det tillgängliga beloppet proportionellt i förhållande till vad var och en betalat in.\n\n(c) Överskott. Eventuellt kvarstående värde efter att inbetalningarna återbetalats fördelas enligt parternas registrerade ägarandel."
+                    return "Följande bestämmelser utgör parternas separata ekonomiska överenskommelse om de registrerade tillgångarna och ska inte tolkas som ett föravtal om framtida bodelning enligt 10 § sambolagen. Avtalet gäller även om samboförhållandet upphör genom en parts död.\n\nVid upplösning av samboförhållandet — eller om en gemensam tillgång säljs medan samboförhållandet består — gäller följande ordning. Samma modell gäller när en part löser in den andras andel; tillgängliga intäkter motsvaras då av det marknadsvärde som fastställts enligt avtalets värderingsregler, minskat med lån som belastar tillgången.\n\nInnan någon fördelning sker mellan parterna ska lån som belastar tillgången samt kostnader för försäljningen dras av. Med tillgängliga intäkter avses det belopp som återstår efter dessa avdrag. Detta avtal påverkar inte bankens eller andra borgenärers rättigheter enligt respektive låneavtal.\n\n(a) Inbetalningar återbetalas först. Vad var och en har betalat in — med upplupna räntor (\(rateStr) per år, löpande fram till utbetalningsdagen) — återbetalas till den som betalat in, innan det återstående fördelas.\n\n(b) Underskott. Om tillgängliga intäkter understiger de sammanlagda inbetalningarna fördelas det tillgängliga beloppet proportionellt i förhållande till vad var och en betalat in.\n\n(c) Överskott. Eventuellt kvarstående värde efter att inbetalningarna återbetalats fördelas enligt parternas registrerade ägarandel.\n\n(d) Restskuld. Om intäkterna inte ens täcker lån och kostnader svarar parterna internt för restskulden i förhållande till sina ägarandelar."
                 } else if isDA {
                     return "Hvis samlivsforholdet ophører, gælder følgende rækkefølge:\n\n(a) Indbetalinger tilbagebetales først. Hvad den enkelte part har indbetalt — med påløbne renter (\(rateStr) per år) — tilbagebetales til den pågældende, inden det resterende fordeles.\n\n(b) Underskud. Hvis de tilgængelige midler er lavere end de samlede indbetalinger, fordeles det tilgængelige beløb forholdsmæssigt i forhold til, hvad hver part har indbetalt.\n\n(c) Overskud. Et eventuelt restbeløb efter tilbagebetaling af indbetalinger fordeles efter parternes registrerede ejerandele."
                 } else if isFI {
@@ -997,6 +1014,19 @@ enum ContractGenerator {
             }
         }
         return names
+    }
+
+    /// Localised label for a contribution category, in the document language
+    /// (AppStrings.language is set at the top of buildSections).
+    private static func contribCategoryLabel(_ category: String) -> String {
+        let s = AppStrings.shared
+        switch category {
+        case "deposit":         return s.contribCatDeposit
+        case "extra_repayment": return s.contribCatRepayment
+        case "renovation":      return s.contribCatRenovation
+        case "inheritance":     return s.contribCatGift
+        default:                return s.contribCatPayment
+        }
     }
 
     private static func assetCategory(_ asset: Asset, isNO: Bool, isSV: Bool = false) -> String {
