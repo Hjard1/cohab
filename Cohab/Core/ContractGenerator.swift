@@ -314,10 +314,10 @@ enum ContractGenerator {
     }
 
     private static func buildSections(household: Household) -> [(title: String, body: String, kind: ContractSectionKind)] {
-        // The document must render in the household's language regardless of
-        // the device language — asset-type and category labels are looked up
-        // through AppStrings below.
-        AppStrings.shared.language = AppLanguage.from(country: household.country)
+        // Document-language lookups go through explicit-language helpers
+        // (AppStrings.pick / secondaryLabel(in:)) — mutating the shared
+        // AppStrings language here would crash SwiftUI previews.
+        let docLang = AppLanguage.from(country: household.country)
         let isRental = household.agreementType == "rental"
         let isNO = isNorwegian(household)
         let isSV = isSwedish(household)
@@ -510,7 +510,7 @@ enum ContractGenerator {
                 // document's own language — essential to identify the asset.
                 let addr = a.address.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !addr.isEmpty {
-                    line += "\n\(a.type.secondaryLabel): \(addr)"
+                    line += "\n\(a.type.secondaryLabel(in: docLang)): \(addr)"
                 }
                 // Use explicit flag; fall back to type-based for legacy assets without the field
                 // nil = not explicitly set → fall back to type-based default
@@ -780,7 +780,7 @@ enum ContractGenerator {
                 let contribs = asset.contributions
                 var lines = [assetNames[asset.id] ?? asset.label]
                 for c in contribs.sorted(by: { $0.date < $1.date }) {
-                    lines.append("  \(ownerName(c.ownerKey)) · \(contribCategoryLabel(c.category)) · \(fmtDate(c.date)) · \(money(c.amount))")
+                    lines.append("  \(ownerName(c.ownerKey)) · \(AppStrings.contribCategory(c.category, lang: docLang)) · \(fmtDate(c.date)) · \(money(c.amount))")
                 }
                 for key in ["A", "B"] {
                     let all = contribs.filter { $0.ownerKey == key }
@@ -1014,19 +1014,6 @@ enum ContractGenerator {
             }
         }
         return names
-    }
-
-    /// Localised label for a contribution category, in the document language
-    /// (AppStrings.language is set at the top of buildSections).
-    private static func contribCategoryLabel(_ category: String) -> String {
-        let s = AppStrings.shared
-        switch category {
-        case "deposit":         return s.contribCatDeposit
-        case "extra_repayment": return s.contribCatRepayment
-        case "renovation":      return s.contribCatRenovation
-        case "inheritance":     return s.contribCatGift
-        default:                return s.contribCatPayment
-        }
     }
 
     private static func assetCategory(_ asset: Asset, isNO: Bool, isSV: Bool = false) -> String {

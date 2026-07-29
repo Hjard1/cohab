@@ -182,8 +182,10 @@ enum AssetType: String, CaseIterable {
     }
 
     /// Label for the "address" / secondary identifier field.
-    var secondaryLabel: String {
-        let lang = AppStrings.shared.language
+    var secondaryLabel: String { secondaryLabel(in: AppStrings.shared.language) }
+
+    /// Language-explicit variant for document generation (no shared-state read).
+    func secondaryLabel(in lang: AppLanguage) -> String {
         switch self {
         case .home, .cabin:
             switch lang { case .nb: return "Adresse"; case .sv: return "Adress"; case .da: return "Adresse"; case .fi: return "Osoite"; case .de: return "Adresse"; case .fr: return "Adresse"; case .es: return "Dirección"; default: return "Address" }

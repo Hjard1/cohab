@@ -2967,7 +2967,14 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
     }
 
     private func s(en: String, nb: String, sv: String = "", da: String = "", fi: String = "", de: String = "", fr: String = "", es: String = "") -> String {
-        switch language {
+        Self.pick(language, en: en, nb: nb, sv: sv, da: da, fi: fi, de: de, fr: fr, es: es)
+    }
+
+    /// Language-explicit lookup that does not touch the published `language`
+    /// property — safe to call from contract/PDF generation where mutating
+    /// shared state mid-render would crash SwiftUI.
+    static func pick(_ lang: AppLanguage, en: String, nb: String, sv: String = "", da: String = "", fi: String = "", de: String = "", fr: String = "", es: String = "") -> String {
+        switch lang {
         case .en: return en
         case .nb: return nb
         case .sv: return sv.isEmpty ? en : sv
@@ -2976,6 +2983,17 @@ La responsabilidad total de Hjard AS queda en cualquier caso limitada al importe
         case .de: return de.isEmpty ? en : de
         case .fr: return fr.isEmpty ? en : fr
         case .es: return es.isEmpty ? en : es
+        }
+    }
+
+    /// Contribution category label for an explicit document language.
+    static func contribCategory(_ category: String, lang: AppLanguage) -> String {
+        switch category {
+        case "deposit":         return pick(lang, en: "Deposit",    nb: "Innskudd",    sv: "Insättning",  da: "Indskud",         fi: "Talletus",   de: "Einzahlung",  fr: "Dépôt",         es: "Depósito")
+        case "extra_repayment": return pick(lang, en: "Repayment",  nb: "Nedbetaling", sv: "Amortering",  da: "Tilbagebetaling", fi: "Lyhennys",   de: "Tilgung",     fr: "Remboursement", es: "Amortización")
+        case "renovation":      return pick(lang, en: "Renovation", nb: "Oppussing",   sv: "Renovering",  da: "Renovering",      fi: "Remontti",   de: "Renovierung", fr: "Rénovation",    es: "Renovación")
+        case "inheritance":     return pick(lang, en: "Gift",       nb: "Gave",        sv: "Gåva",        da: "Gave",            fi: "Lahja",      de: "Schenkung",   fr: "Don",           es: "Donación")
+        default:                return pick(lang, en: "Payment",    nb: "Betaling",    sv: "Betalning",   da: "Betaling",        fi: "Maksu",      de: "Zahlung",     fr: "Paiement",      es: "Pago")
         }
     }
 }
