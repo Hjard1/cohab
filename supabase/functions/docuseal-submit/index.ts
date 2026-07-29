@@ -132,8 +132,11 @@ serve(async (req) => {
     const texts = EMAIL_TEXTS[lang] ?? EMAIL_TEXTS.en;
     // Localized title wins over the client-supplied one when the app sends
     // its language; older app versions keep working via the title field.
+    // Keep it SHORT — DocuSeal right-aligns the title on the signing page,
+    // and "Name & Name — Samboavtal" wrapped over three lines on mobile.
+    // The parties' names are already in the document header and the email.
     const docTitle = lang
-      ? `${name_a} & ${name_b} — ${AGREEMENT_TITLES[lang] ?? AGREEMENT_TITLES.en}`
+      ? (AGREEMENT_TITLES[lang] ?? AGREEMENT_TITLES.en)
       : title;
 
     // Two distinct signers are mandatory — the same address on both roles
