@@ -8,9 +8,12 @@ struct ContractPreviewView: View {
     @EnvironmentObject private var pm: PurchaseManager
     @ObservedObject private var strings = AppStrings.shared
     @State private var showPaywall = false
+    /// DB-published clause templates for the document language; empty map
+    /// renders the bundled fallback strings (offline / not yet loaded).
+    @State private var templates: [String: ContractTemplate] = [:]
 
     private var sections: [(title: String, body: String, kind: ContractSectionKind)] {
-        ContractGenerator.previewSections(household: household)
+        ContractGenerator.previewSections(household: household, templates: templates)
     }
 
     /// How much of a section is shown before purchase.
@@ -113,6 +116,10 @@ struct ContractPreviewView: View {
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()
+        }
+        .task {
+            templates = await ContractTemplateStore.templates(
+                for: ContractGenerator.docLanguageCode(household: household))
         }
     }
 

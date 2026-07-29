@@ -124,6 +124,7 @@ serve(async (req) => {
       title,
       household_id,
       language,    // app language (en, nb, sv, da, fi, de, fr, es)
+      template_versions, // { clause_key: version } or { source: "bundled" } — audit trail
     } = await req.json();
 
     const page = typeof sig_page === "number" ? sig_page : 0;
@@ -328,6 +329,7 @@ serve(async (req) => {
       status: "pending",
       email_a,
       email_b,
+      template_versions: template_versions ?? null,
     });
 
     return new Response(

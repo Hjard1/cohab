@@ -61,6 +61,7 @@ serve(async (req) => {
       title,
       household_id,
       language,    // app language (en, nb, sv, da, fi, de, fr, es)
+      template_versions, // { clause_key: version } or { source: "bundled" } — audit trail
     } = await req.json();
 
     // Localized title wins over the client-supplied one when the app sends
@@ -217,6 +218,7 @@ serve(async (req) => {
       email_a,
       email_b,
       is_current: true,
+      template_versions: template_versions ?? null,
     });
 
     return json({

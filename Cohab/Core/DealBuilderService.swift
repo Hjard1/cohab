@@ -179,7 +179,16 @@ enum DealBuilderService {
             throw DealBuilderError.missingEmail
         }
 
-        let output = ContractGenerator.generate(household: household)
+        // Fetch DB-published clause templates for the document language;
+        // falls back to the bundled strings when unreachable.
+        let docLang = ContractGenerator.docLanguageCode(household: household)
+        let templates = await ContractTemplateStore.templates(for: docLang)
+        let output = ContractGenerator.generate(household: household, templates: templates)
+
+        // Audit trail: which template versions produced this document.
+        let templateVersions: [String: Any] = templates.isEmpty
+            ? ["source": "bundled"]
+            : templates.mapValues { $0.version }
 
         let body: [String: Any] = [
             "pdf_base64":   output.pdfData.base64EncodedString(),
@@ -188,6 +197,7 @@ enum DealBuilderService {
             "name_b":       household.partnerBName,
             "email_b":      emailB,
             "household_id": household.id.uuidString,
+            "template_versions": templateVersions,
             // The edge function localizes the document title based on the
             // app's current language.
             "language":     AppStrings.shared.language.rawValue,

@@ -26,7 +26,7 @@ enum ContractGenerator {
         var currentPage: Int = 0  // 0-indexed, incremented on ctx.beginPage()
     }
 
-    static func generate(household: Household, date: Date = Date()) -> Output {
+    static func generate(household: Household, date: Date = Date(), templates: [String: ContractTemplate] = [:]) -> Output {
         let pageSize = CGSize(width: 595, height: 842)   // A4 @ 72 dpi
         let margin: CGFloat = 56
         let contentW = pageSize.width - margin * 2
@@ -130,7 +130,7 @@ enum ContractGenerator {
                 .foregroundColor: UIColor(white: 0.18, alpha: 1),
                 .paragraphStyle: bodyStyle]
 
-            for section in buildSections(household: household) {
+            for section in buildSections(household: household, templates: templates) {
                 if y > pageSize.height - 160 { newPage(); y = 40 }
                 section.title.draw(at: CGPoint(x: margin, y: y), withAttributes: sectionTitleAttrs)
                 y += 16
@@ -197,9 +197,17 @@ enum ContractGenerator {
             }
 
             // Footer — disclaimer + branding
-            let lang = AppLanguage.from(country: household.country)
-            AppStrings.shared.language = lang
-            let footerText = AppStrings.shared.disclaimerFooter
+            // Language-explicit lookup — mutating AppStrings.shared.language
+            // mid-render would crash SwiftUI (see buildSections note).
+            let footerText = AppStrings.pick(AppLanguage.from(country: household.country),
+                en: "cohab is not a law firm. This is a template — not legal advice. Enforceability of cohabitation agreements varies by jurisdiction. Consult a licensed attorney for significant legal matters.",
+                nb: "cohab er ikke et advokatfirma. Dette er en standardisert mal. Elektronisk signering er ikke bindende i alle jurisdiksjoner. Kontakt advokat ved viktige juridiske spørsmål.",
+                sv: "cohab är inte en advokatbyrå. Detta är en standardiserad mall. Elektronisk signering är inte bindande i alla jurisdiktioner. Kontakta en advokat vid viktiga juridiska frågor.",
+                da: "cohab er ikke et advokatfirma. Dette er en standardiseret skabelon. Elektronisk signering er ikke bindende i alle jurisdiktioner. Kontakt en advokat ved vigtige juridiske spørgsmål.",
+                fi: "cohab ei ole lakiasiaintoimisto. Tämä on malli — ei oikeudellinen neuvo. Ota yhteys lakimieheen tärkeissä kiinteistöasioissa.",
+                de: "cohab ist keine Anwaltskanzlei. Dies ist eine Vorlage — keine Rechtsberatung. Wenden Sie sich bei wichtigen Rechtsfragen an einen Anwalt.",
+                fr: "cohab n'est pas un cabinet d'avocats. Il s'agit d'un modèle — pas d'un conseil juridique. Consultez un avocat pour les questions juridiques importantes.",
+                es: "cohab no es un despacho de abogados. Esto es una plantilla — no asesoramiento jurídico. Consulta a un abogado para asuntos jurídicos importantes.")
             let _: Attrs = [.font: UIFont.systemFont(ofSize: 7.5),
                                       .foregroundColor: UIColor(white: 0.55, alpha: 1)]
             let footerStyle = NSMutableParagraphStyle()
@@ -308,12 +316,40 @@ enum ContractGenerator {
         return en
     }
 
-    /// Public access to clause sections for in-app preview.
-    static func previewSections(household: Household) -> [(title: String, body: String, kind: ContractSectionKind)] {
-        buildSections(household: household)
+    /// Language code ("nb", "sv", "da", "fi", "de", "fr", "es", "en") the
+    /// document renders in — the same selection logic buildSections uses
+    /// (docLang = AppLanguage.from(country:)), so callers fetch templates
+    /// for exactly the language the document is generated in.
+    static func docLanguageCode(household: Household) -> String {
+        AppLanguage.from(country: household.country).rawValue
     }
 
-    private static func buildSections(household: Household) -> [(title: String, body: String, kind: ContractSectionKind)] {
+    /// Template body with each {{token}} replaced; falls back to the bundled
+    /// string when the clause key is absent from the fetched map.
+    private static func tpl(_ templates: [String: ContractTemplate], _ key: String,
+                            tokens: [String: String] = [:], fallback: () -> String) -> String {
+        guard let body = templates[key]?.body, !body.isEmpty else { return fallback() }
+        var result = body
+        for (token, value) in tokens {
+            result = result.replacingOccurrences(of: "{{\(token)}}", with: value)
+        }
+        return result
+    }
+
+    /// Template title when present and non-empty, else nil — callers fall
+    /// back to the bundled inline title.
+    private static func tplTitle(_ templates: [String: ContractTemplate], _ key: String) -> String? {
+        guard let title = templates[key]?.title?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !title.isEmpty else { return nil }
+        return title
+    }
+
+    /// Public access to clause sections for in-app preview.
+    static func previewSections(household: Household, templates: [String: ContractTemplate] = [:]) -> [(title: String, body: String, kind: ContractSectionKind)] {
+        buildSections(household: household, templates: templates)
+    }
+
+    private static func buildSections(household: Household, templates: [String: ContractTemplate] = [:]) -> [(title: String, body: String, kind: ContractSectionKind)] {
         // Document-language lookups go through explicit-language helpers
         // (AppStrings.pick / secondaryLabel(in:)) — mutating the shared
         // AppStrings language here would crash SwiftUI previews.
@@ -350,48 +386,49 @@ enum ContractGenerator {
         var sections: [(title: String, body: String, kind: ContractSectionKind)] = []
 
         // § 1 SCOPE
-        sections.append(("\(n).  \(t(household, no: "AVTALENS FORMÅL", sv: "AVTALETS ÄNDAMÅL", da: "AFTALENS FORMÅL", fi: "SOPIMUKSEN TARKOITUS", de: "VERTRAGSZWECK", fr: "OBJET DE LA CONVENTION", es: "OBJETO DEL CONTRATO", en: "PURPOSE"))", {
+        sections.append(("\(n).  \(tplTitle(templates, "purpose") ?? t(household, no: "AVTALENS FORMÅL", sv: "AVTALETS ÄNDAMÅL", da: "AFTALENS FORMÅL", fi: "SOPIMUKSEN TARKOITUS", de: "VERTRAGSZWECK", fr: "OBJET DE LA CONVENTION", es: "OBJETO DEL CONTRATO", en: "PURPOSE"))", {
             n += 1
             let reg = landRegistry(household)
-            if isNO {
-                let dissolution = household.includeDissolutionClause
-                    ? " Den fastsetter også hvordan verdier fordeles dersom samlivet opphører." : ""
-                return "Denne avtalen bekrefter partenes registrerte eierbrøk i felles eiendeler og dokumenterer hva hver av dem har betalt inn.\(dissolution) Avtalen oppretter ingen nye eiendomsrettigheter — den gjentar og bekrefter det som allerede er tinglyst. Partene forplikter seg til å holde oversikten oppdatert."
-            } else if isSV {
-                let dissolution = household.includeDissolutionClause
-                    ? " Det fastställer också hur tillgångar fördelas om samboförhållandet upphör." : ""
-                return "Detta avtal bekräftar parternas registrerade ägarandel i gemensamma tillgångar och dokumenterar vad var och en har betalat in.\(dissolution) Avtalet skapar inga nya äganderätter — det återger och bekräftar de ägarandelar parterna har uppgett. Parterna förbinder sig att vid behov uppdatera uppgifterna genom ett nytt eller ändrat avtal som undertecknas av båda."
-            } else if isDA {
-                let dissolution = household.includeDissolutionClause
-                    ? " Det fastslår også, hvordan aktiver fordeles, hvis samlivsforholdet ophører." : ""
-                return "Denne aftale bekræfter parternes tinglyste ejerandel i fælles aktiver og dokumenterer, hvad den enkelte har indbetalt.\(dissolution) Aftalen skaber ingen nye ejendomsrettigheder — den gentager og bekræfter det, der allerede er registreret via \(reg). Parterne forpligter sig til at holde oplysningerne opdaterede."
-            } else if isFI {
-                let dissolution = household.includeDissolutionClause
-                    ? " Se määrittelee myös, miten varat jaetaan, jos avoliitto päättyy." : ""
-                return "Tämä sopimus vahvistaa osapuolten rekisteröidyn omistusosuuden yhteisiin varoihin ja dokumentoi kummankin maksamat panokset.\(dissolution) Sopimus ei luo uusia omistusoikeuksia — se toistaa ja vahvistaa \(reg):ssa rekisteröidyn omistuksen. Osapuolet sitoutuvat pitämään tiedot ajan tasalla."
-            } else if isDe {
-                let dissolution = household.includeDissolutionClause
-                    ? " Er legt außerdem fest, wie das Vermögen bei Auflösung der Partnerschaft aufgeteilt wird." : ""
-                return "Dieser Vertrag bestätigt die im \(reg) eingetragenen Eigentumsanteile der Parteien am gemeinsamen Vermögen und dokumentiert die jeweiligen Einzahlungen.\(dissolution) Er begründet keine neuen Eigentumsrechte — er gibt die bestehende Eintragung wieder. Die Parteien verpflichten sich, die Angaben stets aktuell zu halten."
-            } else if isFr {
-                let dissolution = household.includeDissolutionClause
-                    ? " Elle définit également la répartition des actifs en cas de dissolution de l'union." : ""
-                return "La présente convention confirme les quotes-parts de propriété existantes des parties dans les actifs communs, telles qu'établies par \(reg), et documente les apports financiers de chacune.\(dissolution) Elle ne crée ni ne transfère aucun droit de propriété — elle en atteste l'existence. Les parties s'engagent à tenir les informations à jour."
-            } else if isEs {
-                let dissolution = household.includeDissolutionClause
-                    ? " También establece cómo se dividen los activos si la relación termina." : ""
-                return "Este contrato confirma las cuotas de propiedad registradas de las partes en los activos compartidos, según constan en el \(reg), y documenta las aportaciones económicas de cada una.\(dissolution) No crea ni transfiere ningún derecho de propiedad — se limita a confirmar el registro existente. Las partes se comprometen a mantener la información actualizada."
-            } else {
-                // English — distinguish UK/AU/CA/IE/NZ from US
-                let dissolution = household.includeDissolutionClause
-                    ? " It also sets out how assets are divided if the arrangement ends." : ""
-                let regNote: String
-                if isUS(household) {
-                    regNote = "The ownership percentages stated herein reflect the parties' recorded title ownership and are for reference purposes."
-                } else {
-                    regNote = "The ownership percentages stated herein reflect the parties' existing registered title at \(reg) and are for record-keeping purposes. This agreement does not create, vary, or transfer any interest in property."
+            // Optional dissolution sentence — separately template-overridable.
+            let dissolution: String
+            if household.includeDissolutionClause {
+                dissolution = tpl(templates, "purpose_dissolution") {
+                    t(household,
+                      no: " Den fastsetter også hvordan verdier fordeles dersom samlivet opphører.",
+                      sv: " Det fastställer också hur tillgångar fördelas om samboförhållandet upphör.",
+                      da: " Det fastslår også, hvordan aktiver fordeles, hvis samlivsforholdet ophører.",
+                      fi: " Se määrittelee myös, miten varat jaetaan, jos avoliitto päättyy.",
+                      de: " Er legt außerdem fest, wie das Vermögen bei Auflösung der Partnerschaft aufgeteilt wird.",
+                      fr: " Elle définit également la répartition des actifs en cas de dissolution de l'union.",
+                      es: " También establece cómo se dividen los activos si la relación termina.",
+                      en: " It also sets out how assets are divided if the arrangement ends.")
                 }
-                return "This agreement confirms each party's registered ownership of shared assets and documents what each has contributed financially.\(dissolution) \(regNote) Both parties agree to keep records up to date."
+            } else {
+                dissolution = ""
+            }
+            // English US-specific variant — no template; kept purely inline.
+            if isUS(household) {
+                return "This agreement confirms each party's registered ownership of shared assets and documents what each has contributed financially.\(dissolution) The ownership percentages stated herein reflect the parties' recorded title ownership and are for reference purposes. Both parties agree to keep records up to date."
+            }
+            return tpl(templates, "purpose", tokens: ["registry": reg, "dissolution": dissolution]) {
+                if isNO {
+                    return "Denne avtalen bekrefter partenes registrerte eierbrøk i felles eiendeler og dokumenterer hva hver av dem har betalt inn.\(dissolution) Avtalen oppretter ingen nye eiendomsrettigheter — den gjentar og bekrefter det som allerede er tinglyst. Partene forplikter seg til å holde oversikten oppdatert."
+                } else if isSV {
+                    return "Detta avtal bekräftar parternas registrerade ägarandel i gemensamma tillgångar och dokumenterar vad var och en har betalat in.\(dissolution) Avtalet skapar inga nya äganderätter — det återger och bekräftar de ägarandelar parterna har uppgett. Parterna förbinder sig att vid behov uppdatera uppgifterna genom ett nytt eller ändrat avtal som undertecknas av båda."
+                } else if isDA {
+                    return "Denne aftale bekræfter parternes tinglyste ejerandel i fælles aktiver og dokumenterer, hvad den enkelte har indbetalt.\(dissolution) Aftalen skaber ingen nye ejendomsrettigheder — den gentager og bekræfter det, der allerede er registreret via \(reg). Parterne forpligter sig til at holde oplysningerne opdaterede."
+                } else if isFI {
+                    return "Tämä sopimus vahvistaa osapuolten rekisteröidyn omistusosuuden yhteisiin varoihin ja dokumentoi kummankin maksamat panokset.\(dissolution) Sopimus ei luo uusia omistusoikeuksia — se toistaa ja vahvistaa \(reg):ssa rekisteröidyn omistuksen. Osapuolet sitoutuvat pitämään tiedot ajan tasalla."
+                } else if isDe {
+                    return "Dieser Vertrag bestätigt die im \(reg) eingetragenen Eigentumsanteile der Parteien am gemeinsamen Vermögen und dokumentiert die jeweiligen Einzahlungen.\(dissolution) Er begründet keine neuen Eigentumsrechte — er gibt die bestehende Eintragung wieder. Die Parteien verpflichten sich, die Angaben stets aktuell zu halten."
+                } else if isFr {
+                    return "La présente convention confirme les quotes-parts de propriété existantes des parties dans les actifs communs, telles qu'établies par \(reg), et documente les apports financiers de chacune.\(dissolution) Elle ne crée ni ne transfère aucun droit de propriété — elle en atteste l'existence. Les parties s'engagent à tenir les informations à jour."
+                } else if isEs {
+                    return "Este contrato confirma las cuotas de propiedad registradas de las partes en los activos compartidos, según constan en el \(reg), y documenta las aportaciones económicas de cada una.\(dissolution) No crea ni transfiere ningún derecho de propiedad — se limita a confirmar el registro existente. Las partes se comprometen a mantener la información actualizada."
+                } else {
+                    // English (non-US)
+                    return "This agreement confirms each party's registered ownership of shared assets and documents what each has contributed financially.\(dissolution) The ownership percentages stated herein reflect the parties' existing registered title at \(reg) and are for record-keeping purposes. This agreement does not create, vary, or transfer any interest in property. Both parties agree to keep records up to date."
+                }
             }
         }(), .plain))
 
@@ -402,94 +439,106 @@ enum ContractGenerator {
         // allows the parties to agree otherwise in writing; this signed document
         // is that agreement.
         if isSV {
-            sections.append(("\(n).  SAMBOLAGEN (2003:376)", {
+            sections.append(("\(n).  \(tplTitle(templates, "sambolagen") ?? "SAMBOLAGEN (2003:376)")", {
                 n += 1
-                return "Parterna är överens om att bodelning enligt sambolagen (2003:376) inte ska ske. För de tillgångar som anges i detta avtal gäller dessutom den ekonomiska fördelningsmodell som parterna har kommit överens om nedan."
+                return tpl(templates, "sambolagen") {
+                    "Parterna är överens om att bodelning enligt sambolagen (2003:376) inte ska ske. För de tillgångar som anges i detta avtal gäller dessutom den ekonomiska fördelningsmodell som parterna har kommit överens om nedan."
+                }
             }(), .plain))
         }
 
         // § SEPARATE PROPERTY — Samboappen § 2 (optional advanced; presumes co-owned property)
         if household.includeSeparatePropertyClause && !isRental {
-            sections.append(("\(n).  \(t(household, no: "SÆREIE OG ENEEIE", sv: "ENSKILD EGENDOM", da: "SÆREJE", fi: "OMA OMAISUUS", de: "EIGENES VERMÖGEN", fr: "PROPRIÉTÉ PERSONNELLE", es: "PROPIEDAD INDIVIDUAL", en: "SEPARATE PROPERTY"))", {
+            sections.append(("\(n).  \(tplTitle(templates, "separate_property") ?? t(household, no: "SÆREIE OG ENEEIE", sv: "ENSKILD EGENDOM", da: "SÆREJE", fi: "OMA OMAISUUS", de: "EIGENES VERMÖGEN", fr: "PROPRIÉTÉ PERSONNELLE", es: "PROPIEDAD INDIVIDUAL", en: "SEPARATE PROPERTY"))", {
                 n += 1
-                if isNO {
-                    return "Det hver av oss tok med inn i samboerforholdet, er den enkeltes eneeie. Midler eller gjenstander hver av oss mottar som gave eller arv, er også den enkeltes eneeie.\n\nEiendeler anskaffet underveis i samlivet tilhører den part som anskaffet dem. Partene oppfordres til å registrere eiendeler i cohab — både personlig eneeie og felles eie. Den sist signerte versjonen av denne avtalen har forrang ved eventuell uenighet."
-                } else if isSV {
-                    return "Det var och en av oss hade med oss in i samboförhållandet är den enskildes egendom. Tillgångar som mottagits som gåva eller arv under samboförhållandet är också den enskildes egendom.\n\nTillgångar som förvärvats gemensamt ägs i de andelar som registrerats i cohab. Parterna uppmanas att hålla uppgifterna uppdaterade. Den senast undertecknade versionen av detta avtal har företräde vid eventuell oenighet."
-                } else if isDA {
-                    return "Hvad vi hver især bragte med ind i samlivsforholdet, er den enkeltes ejendom. Aktiver modtaget som gave eller arv under samlivsforholdet er ligeledes den enkeltes ejendom.\n\nAktiver erhvervet i fællesskab ejes i de andele, der er registreret i cohab. Parterne opfordres til at holde oplysningerne opdaterede. Den sidst underskrevne version af denne aftale har forrang ved eventuell uenighed."
-                } else if isFI {
-                    return "Kumpikin osapuoli omistaa yksin sen omaisuuden, jonka hän toi avoliittoon, sekä lahjaksi tai perinnöksi saamansa omaisuuden.\n\nYhdessä hankittu omaisuus kuuluu osapuolille cohab-sovellukseen rekisteröityjen omistusosuuksien mukaisesti. Osapuolia kannustetaan pitämään tiedot ajan tasalla. Viimeksi allekirjoitettu versio tästä sopimuksesta on ensisijainen ristiriitatilanteessa."
-                } else if isDe {
-                    return "Jeder Vertragspartner behält das Alleineigentum an dem Vermögen, das er in die Partnerschaft eingebracht hat, sowie an Vermögen, das er als Geschenk oder Erbschaft erhalten hat.\n\nGemeinsam erworbenes Vermögen wird in den in cohab eingetragenen Anteilen gehalten. Die Parteien sind angehalten, die Angaben aktuell zu halten. Die zuletzt unterzeichnete Version dieses Vertrags hat bei Unstimmigkeiten Vorrang."
-                } else if isFr {
-                    return "Chaque partie conserve la propriété exclusive des biens qu'elle a apportés à l'union libre, ainsi que des biens reçus en donation ou par succession.\n\nLes biens acquis en commun sont détenus selon les quotes-parts enregistrées dans cohab. Les parties sont encouragées à maintenir les informations à jour. La version du présent accord signée en dernier lieu prévaut en cas de divergence."
-                } else if isEs {
-                    return "Cada parte conserva la propiedad exclusiva de los bienes que aportó a la convivencia, así como de los bienes recibidos como donación o herencia.\n\nLos bienes adquiridos conjuntamente se poseen en las proporciones registradas en cohab. Las partes se comprometen a mantener los datos actualizados. La versión firmada más recientemente prevalece en caso de discrepancia."
-                } else {
-                    return "Assets that each party brought into this arrangement, and any assets received as a gift or inheritance during the arrangement, remain the sole property of the party who brought or received them.\n\nAssets acquired jointly during the arrangement are held in the proportions registered in cohab. Both parties are encouraged to keep records up to date; the most recently signed version of this agreement takes precedence in the event of any discrepancy."
+                return tpl(templates, "separate_property") {
+                    if isNO {
+                        return "Det hver av oss tok med inn i samboerforholdet, er den enkeltes eneeie. Midler eller gjenstander hver av oss mottar som gave eller arv, er også den enkeltes eneeie.\n\nEiendeler anskaffet underveis i samlivet tilhører den part som anskaffet dem. Partene oppfordres til å registrere eiendeler i cohab — både personlig eneeie og felles eie. Den sist signerte versjonen av denne avtalen har forrang ved eventuell uenighet."
+                    } else if isSV {
+                        return "Det var och en av oss hade med oss in i samboförhållandet är den enskildes egendom. Tillgångar som mottagits som gåva eller arv under samboförhållandet är också den enskildes egendom.\n\nTillgångar som förvärvats gemensamt ägs i de andelar som registrerats i cohab. Parterna uppmanas att hålla uppgifterna uppdaterade. Den senast undertecknade versionen av detta avtal har företräde vid eventuell oenighet."
+                    } else if isDA {
+                        return "Hvad vi hver især bragte med ind i samlivsforholdet, er den enkeltes ejendom. Aktiver modtaget som gave eller arv under samlivsforholdet er ligeledes den enkeltes ejendom.\n\nAktiver erhvervet i fællesskab ejes i de andele, der er registreret i cohab. Parterne opfordres til at holde oplysningerne opdaterede. Den sidst underskrevne version af denne aftale har forrang ved eventuell uenighed."
+                    } else if isFI {
+                        return "Kumpikin osapuoli omistaa yksin sen omaisuuden, jonka hän toi avoliittoon, sekä lahjaksi tai perinnöksi saamansa omaisuuden.\n\nYhdessä hankittu omaisuus kuuluu osapuolille cohab-sovellukseen rekisteröityjen omistusosuuksien mukaisesti. Osapuolia kannustetaan pitämään tiedot ajan tasalla. Viimeksi allekirjoitettu versio tästä sopimuksesta on ensisijainen ristiriitatilanteessa."
+                    } else if isDe {
+                        return "Jeder Vertragspartner behält das Alleineigentum an dem Vermögen, das er in die Partnerschaft eingebracht hat, sowie an Vermögen, das er als Geschenk oder Erbschaft erhalten hat.\n\nGemeinsam erworbenes Vermögen wird in den in cohab eingetragenen Anteilen gehalten. Die Parteien sind angehalten, die Angaben aktuell zu halten. Die zuletzt unterzeichnete Version dieses Vertrags hat bei Unstimmigkeiten Vorrang."
+                    } else if isFr {
+                        return "Chaque partie conserve la propriété exclusive des biens qu'elle a apportés à l'union libre, ainsi que des biens reçus en donation ou par succession.\n\nLes biens acquis en commun sont détenus selon les quotes-parts enregistrées dans cohab. Les parties sont encouragées à maintenir les informations à jour. La version du présent accord signée en dernier lieu prévaut en cas de divergence."
+                    } else if isEs {
+                        return "Cada parte conserva la propiedad exclusiva de los bienes que aportó a la convivencia, así como de los bienes recibidos como donación o herencia.\n\nLos bienes adquiridos conjuntamente se poseen en las proporciones registradas en cohab. Las partes se comprometen a mantener los datos actualizados. La versión firmada más recientemente prevalece en caso de discrepancia."
+                    } else {
+                        return "Assets that each party brought into this arrangement, and any assets received as a gift or inheritance during the arrangement, remain the sole property of the party who brought or received them.\n\nAssets acquired jointly during the arrangement are held in the proportions registered in cohab. Both parties are encouraged to keep records up to date; the most recently signed version of this agreement takes precedence in the event of any discrepancy."
+                    }
                 }
             }(), .plain))
         }
 
         // § SHARED ASSETS
-        sections.append(("\(n).  \(t(household, no: "FELLES EIENDELER OG EIERSKAP", sv: "REGISTRERADE TILLGÅNGAR OCH ÄGARANDELAR", da: "FÆLLES AKTIVER OG EJERSKAB", fi: "YHTEISET VARAT JA OMISTUS", de: "GEMEINSAMES VERMÖGEN UND EIGENTUMSANTEILE", fr: "ACTIFS COMMUNS ET PROPRIÉTÉ", es: "ACTIVOS COMPARTIDOS Y PROPIEDAD", en: "SHARED ASSETS AND OWNERSHIP"))", {
+        sections.append(("\(n).  \(tplTitle(templates, "assets_intro") ?? t(household, no: "FELLES EIENDELER OG EIERSKAP", sv: "REGISTRERADE TILLGÅNGAR OCH ÄGARANDELAR", da: "FÆLLES AKTIVER OG EJERSKAB", fi: "YHTEISET VARAT JA OMISTUS", de: "GEMEINSAMES VERMÖGEN UND EIGENTUMSANTEILE", fr: "ACTIFS COMMUNS ET PROPRIÉTÉ", es: "ACTIVOS COMPARTIDOS Y PROPIEDAD", en: "SHARED ASSETS AND OWNERSHIP"))", {
             n += 1
             let sym = household.currencySymbol
-            let valuationClause: String
-            if isNO {
-                valuationClause = "Ved uenighet om markedsverdien av en felles eiendel er partene enige om å innhente én uavhengig takst fra godkjent takstmann hver, og bruke gjennomsnittet av de to."
-            } else if isSV {
-                valuationClause = "Vid oenighet om marknadsvärdet på en gemensam tillgång är parterna överens om att var och en inhämtar ett oberoende värderingsintyg från en auktoriserad värderingsman och att använda genomsnittet av de två."
-            } else if isDA {
-                valuationClause = "Ved uenighed om markedsværdien af et fælles aktiv er parterna enige om, at hver part indhenter én uafhængig vurdering fra en autoriseret vurderingsmand og anvender gennemsnittet af de to."
-            } else if isFI {
-                valuationClause = "Mikäli yhteisen omaisuuden markkina-arvosta syntyy erimielisyys, osapuolet hankkivat kukin yhden riippumattoman arvion valtuutetulta arvioijalta ja käyttävät arvojen keskiarvoa."
-            } else if isDe {
-                valuationClause = "Bei Uneinigkeit über den Marktwert eines gemeinsamen Vermögenswerts holt jede Partei ein unabhängiges Gutachten eines zugelassenen Sachverständigen ein; der Durchschnitt beider Gutachten ist maßgeblich."
-            } else if isFr {
-                valuationClause = "En cas de désaccord sur la valeur marchande d'un actif commun, chaque partie mandate un expert indépendant agréé; la moyenne des deux estimations s'applique."
-            } else if isEs {
-                valuationClause = "En caso de desacuerdo sobre el valor de mercado de un activo, cada parte obtendrá una tasación independiente de un tasador homologado; se aplicará la media de ambas."
-            } else {
-                valuationClause = "In the event of a dispute on the market value of a shared asset, the parties agree to each obtain one independent licensed appraisal and use the average of the two."
-            }
-            if household.assets.isEmpty {
+            let valuationClause = tpl(templates, "assets_valuation") {
                 if isNO {
-                    return "Ingen eiendeler er registrert ved signering. Eiendeler vil legges til etter felles avtale.\n\n\(valuationClause)"
+                    return "Ved uenighet om markedsverdien av en felles eiendel er partene enige om å innhente én uavhengig takst fra godkjent takstmann hver, og bruke gjennomsnittet av de to."
                 } else if isSV {
-                    return "Inga tillgångar är registrerade vid undertecknandet. Tillgångar läggs till efter ömsesidig överenskommelse.\n\n\(valuationClause)"
+                    return "Vid oenighet om marknadsvärdet på en gemensam tillgång är parterna överens om att var och en inhämtar ett oberoende värderingsintyg från en auktoriserad värderingsman och att använda genomsnittet av de två."
                 } else if isDA {
-                    return "Ingen aktiver er registreret ved underskrivelsen. Aktiver tilføjes efter fælles aftale.\n\n\(valuationClause)"
+                    return "Ved uenighed om markedsværdien af et fælles aktiv er parterna enige om, at hver part indhenter én uafhængig vurdering fra en autoriseret vurderingsmand og anvender gennemsnittet af de to."
                 } else if isFI {
-                    return "Varoja ei ole rekisteröity allekirjoitushetkellä. Varat lisätään yhteisellä sopimuksella.\n\n\(valuationClause)"
+                    return "Mikäli yhteisen omaisuuden markkina-arvosta syntyy erimielisyys, osapuolet hankkivat kukin yhden riippumattoman arvion valtuutetulta arvioijalta ja käyttävät arvojen keskiarvoa."
                 } else if isDe {
-                    return "Zum Zeitpunkt der Unterzeichnung sind keine Vermögenswerte eingetragen. Vermögenswerte werden einvernehmlich ergänzt.\n\n\(valuationClause)"
+                    return "Bei Uneinigkeit über den Marktwert eines gemeinsamen Vermögenswerts holt jede Partei ein unabhängiges Gutachten eines zugelassenen Sachverständigen ein; der Durchschnitt beider Gutachten ist maßgeblich."
                 } else if isFr {
-                    return "Aucun actif n'est enregistré à la date de signature. Les actifs seront ajoutés d'un commun accord.\n\n\(valuationClause)"
+                    return "En cas de désaccord sur la valeur marchande d'un actif commun, chaque partie mandate un expert indépendant agréé; la moyenne des deux estimations s'applique."
                 } else if isEs {
-                    return "No hay activos registrados en la fecha de firma. Los activos se añadirán de mutuo acuerdo.\n\n\(valuationClause)"
+                    return "En caso de desacuerdo sobre el valor de mercado de un activo, cada parte obtendrá una tasación independiente de un tasador homologado; se aplicará la media de ambas."
                 } else {
-                    return "No assets registered at signing. Assets will be added by mutual agreement.\n\n\(valuationClause)"
+                    return "In the event of a dispute on the market value of a shared asset, the parties agree to each obtain one independent licensed appraisal and use the average of the two."
                 }
             }
-            let intro: String
-            if isNO {
-                intro = "Partene eier i fellesskap følgende eiendeler registrert i cohab ved signeringstidspunktet:"
-            } else if isSV {
-                intro = "Parterna har registrerat följande tillgångar och bekräftar de angivna ägarandelarna:"
-            } else if isDA {
-                intro = "Parterne ejer i fællesskab følgende aktiver registreret i cohab på tidspunktet for underskrivelsen:"
-            } else if isFI {
-                intro = "Osapuolet omistavat yhdessä seuraavat cohab-sovellukseen allekirjoitushetkellä rekisteröidyt varat:"
-            } else if isDe {
-                intro = "Die Parteien besitzen gemeinsam folgende in cohab zum Zeitpunkt der Unterzeichnung eingetragene Vermögenswerte:"
-            } else if isFr {
-                intro = "Les parties détiennent en commun les actifs suivants enregistrés dans cohab à la date de signature:"
-            } else if isEs {
-                intro = "Las partes poseen conjuntamente los siguientes activos registrados en cohab en la fecha de firma:"
-            } else {
-                intro = "The parties jointly hold the following assets as registered in cohab at the time of signing:"
+            if household.assets.isEmpty {
+                // The DB row holds only the "no assets" sentence; the valuation
+                // clause (its own clause key) is appended by code — same as the
+                // non-empty path below.
+                let emptyText = tpl(templates, "assets_empty") {
+                    if isNO {
+                        return "Ingen eiendeler er registrert ved signering. Eiendeler vil legges til etter felles avtale."
+                    } else if isSV {
+                        return "Inga tillgångar är registrerade vid undertecknandet. Tillgångar läggs till efter ömsesidig överenskommelse."
+                    } else if isDA {
+                        return "Ingen aktiver er registreret ved underskrivelsen. Aktiver tilføjes efter fælles aftale."
+                    } else if isFI {
+                        return "Varoja ei ole rekisteröity allekirjoitushetkellä. Varat lisätään yhteisellä sopimuksella."
+                    } else if isDe {
+                        return "Zum Zeitpunkt der Unterzeichnung sind keine Vermögenswerte eingetragen. Vermögenswerte werden einvernehmlich ergänzt."
+                    } else if isFr {
+                        return "Aucun actif n'est enregistré à la date de signature. Les actifs seront ajoutés d'un commun accord."
+                    } else if isEs {
+                        return "No hay activos registrados en la fecha de firma. Los activos se añadirán de mutuo acuerdo."
+                    } else {
+                        return "No assets registered at signing. Assets will be added by mutual agreement."
+                    }
+                }
+                return "\(emptyText)\n\n\(valuationClause)"
+            }
+            let intro = tpl(templates, "assets_intro") {
+                if isNO {
+                    return "Partene eier i fellesskap følgende eiendeler registrert i cohab ved signeringstidspunktet:"
+                } else if isSV {
+                    return "Parterna har registrerat följande tillgångar och bekräftar de angivna ägarandelarna:"
+                } else if isDA {
+                    return "Parterne ejer i fællesskab følgende aktiver registreret i cohab på tidspunktet for underskrivelsen:"
+                } else if isFI {
+                    return "Osapuolet omistavat yhdessä seuraavat cohab-sovellukseen allekirjoitushetkellä rekisteröidyt varat:"
+                } else if isDe {
+                    return "Die Parteien besitzen gemeinsam folgende in cohab zum Zeitpunkt der Unterzeichnung eingetragene Vermögenswerte:"
+                } else if isFr {
+                    return "Les parties détiennent en commun les actifs suivants enregistrés dans cohab à la date de signature:"
+                } else if isEs {
+                    return "Las partes poseen conjuntamente los siguientes activos registrados en cohab en la fecha de firma:"
+                } else {
+                    return "The parties jointly hold the following assets as registered in cohab at the time of signing:"
+                }
             }
             // Each asset is presented as its own block: identification +
             // ownership split only. Values and loans are irrelevant for
@@ -570,12 +619,20 @@ enum ContractGenerator {
 
         // § RENTAL ARRANGEMENT — added when the household is renting rather than co-owning a home
         if isRental {
-            sections.append(("\(n).  \(t(household, no: "LEIEAVTALE OG HUSLEIE", sv: "HYRESAVTAL", da: "LEJEAFTALE", fi: "VUOKRASOPIMUS", de: "MIETVEREINBARUNG", fr: "ACCORD DE LOCATION", es: "ACUERDO DE ALQUILER", en: "RENTAL ARRANGEMENT"))", {
+            sections.append(("\(n).  \(tplTitle(templates, "rental") ?? t(household, no: "LEIEAVTALE OG HUSLEIE", sv: "HYRESAVTAL", da: "LEJEAFTALE", fi: "VUOKRASOPIMUS", de: "MIETVEREINBARUNG", fr: "ACCORD DE LOCATION", es: "ACUERDO DE ALQUILER", en: "RENTAL ARRANGEMENT"))", {
                 n += 1
                 let sym = household.currencySymbol
                 let hasRentDetails = household.rentAmount > 0
                 let amountStr = "\(sym)\(Int(household.rentAmount).formatted(.number.locale(docLocale)))"
                 let day = household.rentPaymentDay
+                // Payer phrase template key for the household's rentPayerKey.
+                let payerClauseKey: String
+                switch household.rentPayerKey {
+                case "a": payerClauseKey = "rental_payer_a"
+                case "b": payerClauseKey = "rental_payer_b"
+                default:  payerClauseKey = "rental_payer_landlord"
+                }
+                let nameTokens = ["name_a": household.partnerAName, "name_b": household.partnerBName]
 
                 // The specific "who pays what, when" sentence — falls back to
                 // generic "as agreed between the parties" language until the
@@ -583,133 +640,193 @@ enum ContractGenerator {
                 let rentSentence: String
                 if isNO {
                     if hasRentDetails {
-                        let payer: String
-                        switch household.rentPayerKey {
-                        case "a": payer = "\(household.partnerAName) betaler husleie til \(household.partnerBName)"
-                        case "b": payer = "\(household.partnerBName) betaler husleie til \(household.partnerAName)"
-                        default:  payer = "Partene betaler husleie til utleier"
+                        let payer = tpl(templates, payerClauseKey, tokens: nameTokens) {
+                            switch household.rentPayerKey {
+                            case "a": return "\(household.partnerAName) betaler husleie til \(household.partnerBName)"
+                            case "b": return "\(household.partnerBName) betaler husleie til \(household.partnerAName)"
+                            default:  return "Partene betaler husleie til utleier"
+                            }
                         }
-                        rentSentence = "\(payer), \(amountStr) per måned, forfaller den \(day). i hver måned. Øvrige boutgifter (blant annet strøm, internett og felles husholdningsutgifter) fordeles som avtalt mellom partene og dokumenteres i cohab."
+                        rentSentence = tpl(templates, "rental_sentence_full", tokens: ["payer": payer, "amount": amountStr, "day": "\(day)."]) {
+                            "\(payer), \(amountStr) per måned, forfaller den \(day). i hver måned. Øvrige boutgifter (blant annet strøm, internett og felles husholdningsutgifter) fordeles som avtalt mellom partene og dokumenteres i cohab."
+                        }
                     } else {
-                        rentSentence = "Husleie og fordeling av øvrige boutgifter (blant annet strøm, internett og felles husholdningsutgifter) er som avtalt mellom partene og dokumenteres i cohab."
+                        rentSentence = tpl(templates, "rental_sentence_generic") {
+                            "Husleie og fordeling av øvrige boutgifter (blant annet strøm, internett og felles husholdningsutgifter) er som avtalt mellom partene og dokumenteres i cohab."
+                        }
                     }
-                    return "Partene bor sammen i en bolig de leier, eller hvor én av partene leier ut til den andre. \(rentSentence) Dersom bofellesskapet opphører, faller den enkeltes betalingsplikt automatisk bort fra opphørsdatoen."
+                    return tpl(templates, "rental", tokens: ["rent_sentence": rentSentence]) {
+                        "Partene bor sammen i en bolig de leier, eller hvor én av partene leier ut til den andre. \(rentSentence) Dersom bofellesskapet opphører, faller den enkeltes betalingsplikt automatisk bort fra opphørsdatoen."
+                    }
                 } else if isSV {
                     if hasRentDetails {
-                        let payer: String
-                        switch household.rentPayerKey {
-                        case "a": payer = "\(household.partnerAName) betalar hyra till \(household.partnerBName)"
-                        case "b": payer = "\(household.partnerBName) betalar hyra till \(household.partnerAName)"
-                        default:  payer = "Parterna betalar hyra till hyresvärden"
+                        let payer = tpl(templates, payerClauseKey, tokens: nameTokens) {
+                            switch household.rentPayerKey {
+                            case "a": return "\(household.partnerAName) betalar hyra till \(household.partnerBName)"
+                            case "b": return "\(household.partnerBName) betalar hyra till \(household.partnerAName)"
+                            default:  return "Parterna betalar hyra till hyresvärden"
+                            }
                         }
-                        rentSentence = "\(payer), \(amountStr) per månad, förfaller den \(day):e varje månad. Övriga boendekostnader (t.ex. el, internet och gemensamma hushållsutgifter) fördelas som avtalats mellan parterna och dokumenteras i cohab."
+                        rentSentence = tpl(templates, "rental_sentence_full", tokens: ["payer": payer, "amount": amountStr, "day": "\(day):e"]) {
+                            "\(payer), \(amountStr) per månad, förfaller den \(day):e varje månad. Övriga boendekostnader (t.ex. el, internet och gemensamma hushållsutgifter) fördelas som avtalats mellan parterna och dokumenteras i cohab."
+                        }
                     } else {
-                        rentSentence = "Hyra och fördelning av övriga boendekostnader (t.ex. el, internet och gemensamma hushållsutgifter) är som avtalats mellan parterna och dokumenteras i cohab."
+                        rentSentence = tpl(templates, "rental_sentence_generic") {
+                            "Hyra och fördelning av övriga boendekostnader (t.ex. el, internet och gemensamma hushållsutgifter) är som avtalats mellan parterna och dokumenteras i cohab."
+                        }
                     }
-                    return "Parterna bor tillsammans i en bostad de hyr, eller där en av parterna hyr ut till den andra. \(rentSentence) Om samboförhållandet upphör upphör betalningsskyldigheten automatiskt från och med upphörandedatumet."
+                    return tpl(templates, "rental", tokens: ["rent_sentence": rentSentence]) {
+                        "Parterna bor tillsammans i en bostad de hyr, eller där en av parterna hyr ut till den andra. \(rentSentence) Om samboförhållandet upphör upphör betalningsskyldigheten automatiskt från och med upphörandedatumet."
+                    }
                 } else if isDA {
                     if hasRentDetails {
-                        let payer: String
-                        switch household.rentPayerKey {
-                        case "a": payer = "\(household.partnerAName) betaler husleje til \(household.partnerBName)"
-                        case "b": payer = "\(household.partnerBName) betaler husleje til \(household.partnerAName)"
-                        default:  payer = "Parterne betaler husleje til udlejeren"
+                        let payer = tpl(templates, payerClauseKey, tokens: nameTokens) {
+                            switch household.rentPayerKey {
+                            case "a": return "\(household.partnerAName) betaler husleje til \(household.partnerBName)"
+                            case "b": return "\(household.partnerBName) betaler husleje til \(household.partnerAName)"
+                            default:  return "Parterne betaler husleje til udlejeren"
+                            }
                         }
-                        rentSentence = "\(payer), \(amountStr) om måneden, forfalder den \(day). i hver måned. Øvrige boligudgifter (f.eks. el, internet og fælles husholdningsudgifter) fordeles som aftalt mellem parterne og dokumenteres i cohab."
+                        rentSentence = tpl(templates, "rental_sentence_full", tokens: ["payer": payer, "amount": amountStr, "day": "\(day)."]) {
+                            "\(payer), \(amountStr) om måneden, forfalder den \(day). i hver måned. Øvrige boligudgifter (f.eks. el, internet og fælles husholdningsudgifter) fordeles som aftalt mellem parterne og dokumenteres i cohab."
+                        }
                     } else {
-                        rentSentence = "Husleje og fordeling af øvrige boligudgifter (f.eks. el, internet og fælles husholdningsudgifter) er som aftalt mellem parterne og dokumenteres i cohab."
+                        rentSentence = tpl(templates, "rental_sentence_generic") {
+                            "Husleje og fordeling af øvrige boligudgifter (f.eks. el, internet og fælles husholdningsudgifter) er som aftalt mellem parterne og dokumenteres i cohab."
+                        }
                     }
-                    return "Parterne bor sammen i en bolig, de lejer, eller hvor en af parterne udlejer til den anden. \(rentSentence) Hvis bofællesskabet ophører, bortfalder betalingsforpligtelsen automatisk fra ophørsdatoen."
+                    return tpl(templates, "rental", tokens: ["rent_sentence": rentSentence]) {
+                        "Parterne bor sammen i en bolig, de lejer, eller hvor en af parterne udlejer til den anden. \(rentSentence) Hvis bofællesskabet ophører, bortfalder betalingsforpligtelsen automatisk fra ophørsdatoen."
+                    }
                 } else if isFI {
                     if hasRentDetails {
-                        let payer: String
-                        switch household.rentPayerKey {
-                        case "a": payer = "\(household.partnerAName) maksaa vuokraa \(household.partnerBName)lle"
-                        case "b": payer = "\(household.partnerBName) maksaa vuokraa \(household.partnerAName)lle"
-                        default:  payer = "Osapuolet maksavat vuokraa vuokranantajalle"
+                        let payer = tpl(templates, payerClauseKey, tokens: nameTokens) {
+                            switch household.rentPayerKey {
+                            case "a": return "\(household.partnerAName) maksaa vuokraa \(household.partnerBName)lle"
+                            case "b": return "\(household.partnerBName) maksaa vuokraa \(household.partnerAName)lle"
+                            default:  return "Osapuolet maksavat vuokraa vuokranantajalle"
+                            }
                         }
-                        rentSentence = "\(payer), \(amountStr) kuukaudessa, eräpäivä kunkin kuukauden \(day). päivä. Muut asumiskustannukset (esim. sähkö, internet ja yhteiset kotitalousmenot) jaetaan osapuolten sopimuksen mukaisesti ja kirjataan cohab-sovellukseen."
+                        rentSentence = tpl(templates, "rental_sentence_full", tokens: ["payer": payer, "amount": amountStr, "day": "\(day)."]) {
+                            "\(payer), \(amountStr) kuukaudessa, eräpäivä kunkin kuukauden \(day). päivä. Muut asumiskustannukset (esim. sähkö, internet ja yhteiset kotitalousmenot) jaetaan osapuolten sopimuksen mukaisesti ja kirjataan cohab-sovellukseen."
+                        }
                     } else {
-                        rentSentence = "Vuokra ja muiden asumiskustannusten (esim. sähkö, internet ja yhteiset kotitalousmenot) jakautuminen on osapuolten sopimuksen mukainen ja kirjataan cohab-sovellukseen."
+                        rentSentence = tpl(templates, "rental_sentence_generic") {
+                            "Vuokra ja muiden asumiskustannusten (esim. sähkö, internet ja yhteiset kotitalousmenot) jakautuminen on osapuolten sopimuksen mukainen ja kirjataan cohab-sovellukseen."
+                        }
                     }
-                    return "Osapuolet asuvat yhdessä vuokra-asunnossa, tai toinen osapuoli vuokraa asunnon toiselle. \(rentSentence) Jos asuminen yhdessä päättyy, maksuvelvollisuus lakkaa automaattisesti päättymispäivästä."
+                    return tpl(templates, "rental", tokens: ["rent_sentence": rentSentence]) {
+                        "Osapuolet asuvat yhdessä vuokra-asunnossa, tai toinen osapuoli vuokraa asunnon toiselle. \(rentSentence) Jos asuminen yhdessä päättyy, maksuvelvollisuus lakkaa automaattisesti päättymispäivästä."
+                    }
                 } else if isDe {
                     if hasRentDetails {
-                        let payer: String
-                        switch household.rentPayerKey {
-                        case "a": payer = "\(household.partnerAName) zahlt Miete an \(household.partnerBName)"
-                        case "b": payer = "\(household.partnerBName) zahlt Miete an \(household.partnerAName)"
-                        default:  payer = "Die Parteien zahlen Miete an den Vermieter"
+                        let payer = tpl(templates, payerClauseKey, tokens: nameTokens) {
+                            switch household.rentPayerKey {
+                            case "a": return "\(household.partnerAName) zahlt Miete an \(household.partnerBName)"
+                            case "b": return "\(household.partnerBName) zahlt Miete an \(household.partnerAName)"
+                            default:  return "Die Parteien zahlen Miete an den Vermieter"
+                            }
                         }
-                        rentSentence = "\(payer), \(amountStr) pro Monat, fällig am \(day). jeden Monats. Weitere Wohnkosten (z. B. Strom, Internet und gemeinsame Haushaltsausgaben) werden nach Vereinbarung der Parteien aufgeteilt und in cohab dokumentiert."
+                        rentSentence = tpl(templates, "rental_sentence_full", tokens: ["payer": payer, "amount": amountStr, "day": "\(day)."]) {
+                            "\(payer), \(amountStr) pro Monat, fällig am \(day). jeden Monats. Weitere Wohnkosten (z. B. Strom, Internet und gemeinsame Haushaltsausgaben) werden nach Vereinbarung der Parteien aufgeteilt und in cohab dokumentiert."
+                        }
                     } else {
-                        rentSentence = "Miete und die Aufteilung weiterer Wohnkosten (z. B. Strom, Internet und gemeinsame Haushaltsausgaben) richten sich nach der Vereinbarung der Parteien und werden in cohab dokumentiert."
+                        rentSentence = tpl(templates, "rental_sentence_generic") {
+                            "Miete und die Aufteilung weiterer Wohnkosten (z. B. Strom, Internet und gemeinsame Haushaltsausgaben) richten sich nach der Vereinbarung der Parteien und werden in cohab dokumentiert."
+                        }
                     }
-                    return "Die Parteien leben gemeinsam in einer gemieteten Wohnung, oder eine Partei vermietet an die andere. \(rentSentence) Endet die gemeinsame Haushaltsführung, entfällt die Zahlungspflicht automatisch ab dem Beendigungsdatum."
+                    return tpl(templates, "rental", tokens: ["rent_sentence": rentSentence]) {
+                        "Die Parteien leben gemeinsam in einer gemieteten Wohnung, oder eine Partei vermietet an die andere. \(rentSentence) Endet die gemeinsame Haushaltsführung, entfällt die Zahlungspflicht automatisch ab dem Beendigungsdatum."
+                    }
                 } else if isFr {
                     if hasRentDetails {
-                        let payer: String
-                        switch household.rentPayerKey {
-                        case "a": payer = "\(household.partnerAName) verse le loyer à \(household.partnerBName)"
-                        case "b": payer = "\(household.partnerBName) verse le loyer à \(household.partnerAName)"
-                        default:  payer = "Les parties versent le loyer au propriétaire"
+                        let payer = tpl(templates, payerClauseKey, tokens: nameTokens) {
+                            switch household.rentPayerKey {
+                            case "a": return "\(household.partnerAName) verse le loyer à \(household.partnerBName)"
+                            case "b": return "\(household.partnerBName) verse le loyer à \(household.partnerAName)"
+                            default:  return "Les parties versent le loyer au propriétaire"
+                            }
                         }
-                        rentSentence = "\(payer), \(amountStr) par mois, exigible le \(day) de chaque mois. Les autres frais de logement (électricité, internet, dépenses courantes du foyer, etc.) sont répartis tels que convenus entre les parties et documentés dans cohab."
+                        rentSentence = tpl(templates, "rental_sentence_full", tokens: ["payer": payer, "amount": amountStr, "day": "\(day)"]) {
+                            "\(payer), \(amountStr) par mois, exigible le \(day) de chaque mois. Les autres frais de logement (électricité, internet, dépenses courantes du foyer, etc.) sont répartis tels que convenus entre les parties et documentés dans cohab."
+                        }
                     } else {
-                        rentSentence = "Le loyer et la répartition des autres frais de logement (électricité, internet, dépenses courantes du foyer, etc.) sont tels que convenus entre les parties et documentés dans cohab."
+                        rentSentence = tpl(templates, "rental_sentence_generic") {
+                            "Le loyer et la répartition des autres frais de logement (électricité, internet, dépenses courantes du foyer, etc.) sont tels que convenus entre les parties et documentés dans cohab."
+                        }
                     }
-                    return "Les parties partagent un logement qu'elles louent, ou l'une loue à l'autre. \(rentSentence) Si la cohabitation prend fin, l'obligation de paiement cesse automatiquement à la date de fin."
+                    return tpl(templates, "rental", tokens: ["rent_sentence": rentSentence]) {
+                        "Les parties partagent un logement qu'elles louent, ou l'une loue à l'autre. \(rentSentence) Si la cohabitation prend fin, l'obligation de paiement cesse automatiquement à la date de fin."
+                    }
                 } else if isEs {
                     if hasRentDetails {
-                        let payer: String
-                        switch household.rentPayerKey {
-                        case "a": payer = "\(household.partnerAName) paga el alquiler a \(household.partnerBName)"
-                        case "b": payer = "\(household.partnerBName) paga el alquiler a \(household.partnerAName)"
-                        default:  payer = "Las partes pagan el alquiler al arrendador"
+                        let payer = tpl(templates, payerClauseKey, tokens: nameTokens) {
+                            switch household.rentPayerKey {
+                            case "a": return "\(household.partnerAName) paga el alquiler a \(household.partnerBName)"
+                            case "b": return "\(household.partnerBName) paga el alquiler a \(household.partnerAName)"
+                            default:  return "Las partes pagan el alquiler al arrendador"
+                            }
                         }
-                        rentSentence = "\(payer), \(amountStr) al mes, con vencimiento el día \(day) de cada mes. Los demás gastos de la vivienda (electricidad, internet, gastos domésticos comunes, etc.) se reparten según lo acordado entre las partes y se documentan en cohab."
+                        rentSentence = tpl(templates, "rental_sentence_full", tokens: ["payer": payer, "amount": amountStr, "day": "\(day)"]) {
+                            "\(payer), \(amountStr) al mes, con vencimiento el día \(day) de cada mes. Los demás gastos de la vivienda (electricidad, internet, gastos domésticos comunes, etc.) se reparten según lo acordado entre las partes y se documentan en cohab."
+                        }
                     } else {
-                        rentSentence = "El alquiler y el reparto de otros gastos de la vivienda (electricidad, internet, gastos domésticos comunes, etc.) son los acordados entre las partes y se documentan en cohab."
+                        rentSentence = tpl(templates, "rental_sentence_generic") {
+                            "El alquiler y el reparto de otros gastos de la vivienda (electricidad, internet, gastos domésticos comunes, etc.) son los acordados entre las partes y se documentan en cohab."
+                        }
                     }
-                    return "Las partes conviven en una vivienda que alquilan, o una de ellas alquila a la otra. \(rentSentence) Si la convivencia termina, la obligación de pago cesa automáticamente desde la fecha de finalización."
+                    return tpl(templates, "rental", tokens: ["rent_sentence": rentSentence]) {
+                        "Las partes conviven en una vivienda que alquilan, o una de ellas alquila a la otra. \(rentSentence) Si la convivencia termina, la obligación de pago cesa automáticamente desde la fecha de finalización."
+                    }
                 } else {
                     if hasRentDetails {
-                        let payer: String
-                        switch household.rentPayerKey {
-                        case "a": payer = "\(household.partnerAName) pays rent to \(household.partnerBName)"
-                        case "b": payer = "\(household.partnerBName) pays rent to \(household.partnerAName)"
-                        default:  payer = "The parties pay rent to their landlord"
+                        let payer = tpl(templates, payerClauseKey, tokens: nameTokens) {
+                            switch household.rentPayerKey {
+                            case "a": return "\(household.partnerAName) pays rent to \(household.partnerBName)"
+                            case "b": return "\(household.partnerBName) pays rent to \(household.partnerAName)"
+                            default:  return "The parties pay rent to their landlord"
+                            }
                         }
-                        rentSentence = "\(payer), \(amountStr) per month, due on the \(day)\(ordinalSuffix(day)) of each month. Other household costs (e.g. utilities, internet, and shared household expenses) are split as agreed between the parties and documented in cohab."
+                        rentSentence = tpl(templates, "rental_sentence_full", tokens: ["payer": payer, "amount": amountStr, "day": "\(day)\(ordinalSuffix(day))"]) {
+                            "\(payer), \(amountStr) per month, due on the \(day)\(ordinalSuffix(day)) of each month. Other household costs (e.g. utilities, internet, and shared household expenses) are split as agreed between the parties and documented in cohab."
+                        }
                     } else {
-                        rentSentence = "Rent and the split of other household costs (e.g. utilities, internet, and shared household expenses) are as agreed between the parties and documented in cohab."
+                        rentSentence = tpl(templates, "rental_sentence_generic") {
+                            "Rent and the split of other household costs (e.g. utilities, internet, and shared household expenses) are as agreed between the parties and documented in cohab."
+                        }
                     }
-                    return "The parties share a home that they rent, or one party rents to the other. \(rentSentence) If the arrangement ends, the obligation to pay rent ends automatically from the date the arrangement ends."
+                    return tpl(templates, "rental", tokens: ["rent_sentence": rentSentence]) {
+                        "The parties share a home that they rent, or one party rents to the other. \(rentSentence) If the arrangement ends, the obligation to pay rent ends automatically from the date the arrangement ends."
+                    }
                 }
             }(), .plain))
         }
 
         // § RECORDED CONTRIBUTIONS
-        sections.append(("\(n).  \(t(household, no: "REGISTRERTE BIDRAG", sv: "REGISTRERADE BIDRAG", da: "REGISTREREDE BIDRAG", fi: "REKISTERÖIDYT PANOKSET", de: "ERFASSTE EINZAHLUNGEN", fr: "APPORTS ENREGISTRÉS", es: "APORTACIONES REGISTRADAS", en: "RECORDED CONTRIBUTIONS"))", {
+        // The section title lives on both contributions_* rows in the DB —
+        // there is no separate "contributions" key.
+        sections.append(("\(n).  \(tplTitle(templates, "contributions_empty") ?? tplTitle(templates, "contributions_interest_note") ?? t(household, no: "REGISTRERTE BIDRAG", sv: "REGISTRERADE BIDRAG", da: "REGISTREREDE BIDRAG", fi: "REKISTERÖIDYT PANOKSET", de: "ERFASSTE EINZAHLUNGEN", fr: "APPORTS ENREGISTRÉS", es: "APORTACIONES REGISTRADAS", en: "RECORDED CONTRIBUTIONS"))", {
             n += 1
             let assetsWithContribs = household.assets.filter { !$0.contributions.isEmpty }
             if assetsWithContribs.isEmpty {
-                if isNO {
-                    return "Ingen innbetalinger er registrert ved signering. Innskudd, ekstra nedbetalinger og oppussing kan registreres når som helst og forrentes med \(rateStr) per år. Registrerte bidrag endrer ikke eierbrøken."
-                } else if isSV {
-                    return "Inga ekonomiska bidrag har registrerats vid undertecknandet. Insättningar, extra amorteringar och renoveringar kan registreras när som helst och räknas upp med \(rateStr) per år. Registrerade bidrag ändrar inte parternas ägarandelar."
-                } else if isDA {
-                    return "Ingen finansielle bidrag er registreret ved underskrivelsen. Indskud, ekstra afdrag og renoveringer kan registreres til enhver tid og forrentes med \(rateStr) per år. Registrerede bidrag ændrer ikke ejerandelen."
-                } else if isFI {
-                    return "Taloudellisia panoksia ei ole rekisteröity allekirjoitushetkellä. Talletukset, ylimääräiset lyhennykset ja remontit voidaan rekisteröidä milloin tahansa ja niille lasketaan korkoa \(rateStr) vuodessa. Rekisteröidyt panokset eivät muuta omistusosuuksia."
-                } else if isDe {
-                    return "Zum Zeitpunkt der Unterzeichnung sind keine Einzahlungen erfasst. Einlagen, zusätzliche Tilgungen und Renovierungen können jederzeit ergänzt werden und werden mit \(rateStr) p.a. verzinst. Erfasste Einzahlungen ändern nicht die Eigentumsanteile."
-                } else if isFr {
-                    return "Aucun apport financier n'est enregistré à la date de signature. Les dépôts, remboursements supplémentaires et travaux peuvent être ajoutés à tout moment et sont rémunérés à \(rateStr) par an. Les apports enregistrés ne modifient pas les quotes-parts."
-                } else if isEs {
-                    return "No se han registrado aportaciones en la fecha de firma. Los depósitos, amortizaciones extraordinarias y reformas pueden registrarse en cualquier momento y generan intereses al \(rateStr) anual. Las aportaciones registradas no modifican las cuotas de propiedad."
-                } else {
-                    return "No contributions recorded at signing. Deposits, extra mortgage payments, and renovations may be added at any time and will accrue interest at \(rateStr) per annum. Recorded contributions do not change the ownership shares."
+                return tpl(templates, "contributions_empty", tokens: ["rate": rateStr]) {
+                    if isNO {
+                        return "Ingen innbetalinger er registrert ved signering. Innskudd, ekstra nedbetalinger og oppussing kan registreres når som helst og forrentes med \(rateStr) per år. Registrerte bidrag endrer ikke eierbrøken."
+                    } else if isSV {
+                        return "Inga ekonomiska bidrag har registrerats vid undertecknandet. Insättningar, extra amorteringar och renoveringar kan registreras när som helst och räknas upp med \(rateStr) per år. Registrerade bidrag ändrar inte parternas ägarandelar."
+                    } else if isDA {
+                        return "Ingen finansielle bidrag er registreret ved underskrivelsen. Indskud, ekstra afdrag og renoveringer kan registreres til enhver tid og forrentes med \(rateStr) per år. Registrerede bidrag ændrer ikke ejerandelen."
+                    } else if isFI {
+                        return "Taloudellisia panoksia ei ole rekisteröity allekirjoitushetkellä. Talletukset, ylimääräiset lyhennykset ja remontit voidaan rekisteröidä milloin tahansa ja niille lasketaan korkoa \(rateStr) vuodessa. Rekisteröidyt panokset eivät muuta omistusosuuksia."
+                    } else if isDe {
+                        return "Zum Zeitpunkt der Unterzeichnung sind keine Einzahlungen erfasst. Einlagen, zusätzliche Tilgungen und Renovierungen können jederzeit ergänzt werden und werden mit \(rateStr) p.a. verzinst. Erfasste Einzahlungen ändern nicht die Eigentumsanteile."
+                    } else if isFr {
+                        return "Aucun apport financier n'est enregistré à la date de signature. Les dépôts, remboursements supplémentaires et travaux peuvent être ajoutés à tout moment et sont rémunérés à \(rateStr) par an. Les apports enregistrés ne modifient pas les quotes-parts."
+                    } else if isEs {
+                        return "No se han registrado aportaciones en la fecha de firma. Los depósitos, amortizaciones extraordinarias y reformas pueden registrarse en cualquier momento y generan intereses al \(rateStr) anual. Las aportaciones registradas no modifican las cuotas de propiedad."
+                    } else {
+                        return "No contributions recorded at signing. Deposits, extra mortgage payments, and renovations may be added at any time and will accrue interest at \(rateStr) per annum. Recorded contributions do not change the ownership shares."
+                    }
                 }
             }
 
@@ -718,23 +835,24 @@ enum ContractGenerator {
                 f.dateStyle = .medium; f.timeStyle = .none; f.locale = docLocale
                 return f.string(from: d)
             }
-            let interestNote: String
-            if isNO {
-                interestNote = "Alle beløp forrentes med \(rateStr) per år fra innbetalingsdato, kapitalisert årlig. For deler av et år beregnes renten proporsjonalt per dag, og den løper frem til utbetalingsdagen. Registrerte bidrag endrer ikke eierbrøken.\nMed bidrag menes engangsinnbetalinger registrert i cohab (f.eks. innskudd, ekstra nedbetaling eller oppussing) — løpende boutgifter omfattes ikke.\n"
-            } else if isSV {
-                interestNote = "Samtliga belopp räknas upp med \(rateStr) per år från inbetalningsdatumet, sammansatt årligen. För del av år beräknas räntan proportionerligt per dag. Räntan löper fram till utbetalningsdagen. Registrerade bidrag ändrar inte parternas ägarandelar.\nMed bidrag avses engångsinbetalningar som registrerats i cohab (till exempel kontantinsats, extra amortering eller renovering). Löpande boendekostnader som mat, el och hyra omfattas inte.\n"
-            } else if isDA {
-                interestNote = "Alle beløb forrentes med \(rateStr) per år fra indbetalingsdatoen, kapitaliseret årligt. For dele af et år beregnes renten forholdsmæssigt pr. dag, og den løber indtil udbetalingsdatoen. Registrerede bidrag ændrer ikke ejerandelen.\nMed bidrag menes engangsindbetalinger registreret i cohab (f.eks. indskud, ekstra afdrag eller renovering) — løbende boligudgifter omfattes ikke.\n"
-            } else if isFI {
-                interestNote = "Kaikille summille lasketaan korkoa \(rateStr) vuodessa maksupäivästä lähtien, vuotuisella koronkorolla. Osittaiselta vuodelta korko lasketaan suhteellisesti päivittäin, ja sitä kertyy maksupäivään asti. Rekisteröidyt panokset eivät muuta omistusosuuksia.\nPanoksella tarkoitetaan cohab-sovellukseen rekisteröityjä kertamaksuja (esim. käsiraha, ylimääräinen lyhennys tai remontti) — juoksevat asumiskulut eivät kuulu mukaan.\n"
-            } else if isDe {
-                interestNote = "Alle Beträge werden ab dem Einzahlungsdatum mit \(rateStr) p.a. verzinst, jährlich kapitalisiert. Für Teile eines Jahres werden die Zinsen anteilig pro Tag berechnet und laufen bis zum Auszahlungstag. Erfasste Einzahlungen ändern nicht die Eigentumsanteile.\nAls Einzahlungen gelten einmalige, in cohab erfasste Zahlungen (z. B. Anzahlung, zusätzliche Tilgung oder Renovierung) — laufende Wohnkosten sind ausgeschlossen.\n"
-            } else if isFr {
-                interestNote = "Tous les montants sont rémunérés à \(rateStr) par an à compter de la date de versement, avec capitalisation annuelle. Pour une fraction d'année, les intérêts sont calculés au prorata par jour et courent jusqu'à la date de versement final. Les apports enregistrés ne modifient pas les quotes-parts.\nPar apports, on entend les versements ponctuels enregistrés dans cohab (ex. apport initial, remboursement supplémentaire ou travaux) — les dépenses courantes du logement sont exclues.\n"
-            } else if isEs {
-                interestNote = "Todos los importes generan intereses al \(rateStr) anual desde la fecha de pago, con capitalización anual. Para fracciones de año, el interés se calcula proporcionalmente por día y devenga hasta la fecha de pago. Las aportaciones registradas no modifican las cuotas de propiedad.\nPor aportaciones se entienden pagos únicos registrados en cohab (p. ej. entrada, amortización extraordinaria o reformas) — los gastos corrientes de la vivienda quedan excluidos.\n"
-            } else {
-                interestNote = "All amounts accrue interest at \(rateStr) per annum from the date of payment, compounded annually. For part of a year, interest accrues proportionally per day and runs until the payout date. Recorded contributions do not change the ownership shares.\nContributions mean one-off payments recorded in cohab (e.g. deposit, extra mortgage payment or renovation) — ongoing household costs are not included.\n"
+            let interestNote = tpl(templates, "contributions_interest_note", tokens: ["rate": rateStr]) {
+                if isNO {
+                    return "Alle beløp forrentes med \(rateStr) per år fra innbetalingsdato, kapitalisert årlig. For deler av et år beregnes renten proporsjonalt per dag, og den løper frem til utbetalingsdagen. Registrerte bidrag endrer ikke eierbrøken.\nMed bidrag menes engangsinnbetalinger registrert i cohab (f.eks. innskudd, ekstra nedbetaling eller oppussing) — løpende boutgifter omfattes ikke.\n"
+                } else if isSV {
+                    return "Samtliga belopp räknas upp med \(rateStr) per år från inbetalningsdatumet, sammansatt årligen. För del av år beräknas räntan proportionerligt per dag. Räntan löper fram till utbetalningsdagen. Registrerade bidrag ändrar inte parternas ägarandelar.\nMed bidrag avses engångsinbetalningar som registrerats i cohab (till exempel kontantinsats, extra amortering eller renovering). Löpande boendekostnader som mat, el och hyra omfattas inte.\n"
+                } else if isDA {
+                    return "Alle beløb forrentes med \(rateStr) per år fra indbetalingsdatoen, kapitaliseret årligt. For dele af et år beregnes renten forholdsmæssigt pr. dag, og den løber indtil udbetalingsdatoen. Registrerede bidrag ændrer ikke ejerandelen.\nMed bidrag menes engangsindbetalinger registreret i cohab (f.eks. indskud, ekstra afdrag eller renovering) — løbende boligudgifter omfattes ikke.\n"
+                } else if isFI {
+                    return "Kaikille summille lasketaan korkoa \(rateStr) vuodessa maksupäivästä lähtien, vuotuisella koronkorolla. Osittaiselta vuodelta korko lasketaan suhteellisesti päivittäin, ja sitä kertyy maksupäivään asti. Rekisteröidyt panokset eivät muuta omistusosuuksia.\nPanoksella tarkoitetaan cohab-sovellukseen rekisteröityjä kertamaksuja (esim. käsiraha, ylimääräinen lyhennys tai remontti) — juoksevat asumiskulut eivät kuulu mukaan.\n"
+                } else if isDe {
+                    return "Alle Beträge werden ab dem Einzahlungsdatum mit \(rateStr) p.a. verzinst, jährlich kapitalisiert. Für Teile eines Jahres werden die Zinsen anteilig pro Tag berechnet und laufen bis zum Auszahlungstag. Erfasste Einzahlungen ändern nicht die Eigentumsanteile.\nAls Einzahlungen gelten einmalige, in cohab erfasste Zahlungen (z. B. Anzahlung, zusätzliche Tilgung oder Renovierung) — laufende Wohnkosten sind ausgeschlossen.\n"
+                } else if isFr {
+                    return "Tous les montants sont rémunérés à \(rateStr) par an à compter de la date de versement, avec capitalisation annuelle. Pour une fraction d'année, les intérêts sont calculés au prorata par jour et courent jusqu'à la date de versement final. Les apports enregistrés ne modifient pas les quotes-parts.\nPar apports, on entend les versements ponctuels enregistrés dans cohab (ex. apport initial, remboursement supplémentaire ou travaux) — les dépenses courantes du logement sont exclues.\n"
+                } else if isEs {
+                    return "Todos los importes generan intereses al \(rateStr) anual desde la fecha de pago, con capitalización anual. Para fracciones de año, el interés se calcula proporcionalmente por día y devenga hasta la fecha de pago. Las aportaciones registradas no modifican las cuotas de propiedad.\nPor aportaciones se entienden pagos únicos registrados en cohab (p. ej. entrada, amortización extraordinaria o reformas) — los gastos corrientes de la vivienda quedan excluidos.\n"
+                } else {
+                    return "All amounts accrue interest at \(rateStr) per annum from the date of payment, compounded annually. For part of a year, interest accrues proportionally per day and runs until the payout date. Recorded contributions do not change the ownership shares.\nContributions mean one-off payments recorded in cohab (e.g. deposit, extra mortgage payment or renovation) — ongoing household costs are not included.\n"
+                }
             }
 
             // Purchase equity (deposits/down payments) and later contributions
@@ -796,7 +914,8 @@ enum ContractGenerator {
 
             // Per-person totals across all assets, at the very bottom.
             let asOf = fmtDate(now)
-            let combinedHeading = t(household,
+            let combinedHeading = tpl(templates, "contributions_combined_heading", tokens: ["date": asOf]) {
+                t(household,
                 no: "Samlet for alle eiendeler per \(asOf)",
                 sv: "Totalt för alla tillgångar per \(asOf)",
                 da: "Samlet for alle aktiver pr. \(asOf)",
@@ -805,7 +924,9 @@ enum ContractGenerator {
                 fr: "Total pour tous les actifs au \(asOf)",
                 es: "Total de todos los activos al \(asOf)",
                 en: "Combined totals across all assets as of \(asOf)")
-            let note = t(household,
+            }
+            let note = tpl(templates, "contributions_note") {
+                t(household,
                 no: "Endelig utbetaling avhenger av tilgjengelig verdi ved oppgjør (se fordelingsrekkefølgen).",
                 sv: "Slutlig utbetalning beror på tillgängligt värde vid uppgörelsen (se fördelningsordningen).",
                 da: "Den endelige udbetaling afhænger af den tilgængelige værdi ved opgørelsen (se fordelingsrækkefølgen).",
@@ -814,6 +935,7 @@ enum ContractGenerator {
                 fr: "Le versement final dépend de la valeur disponible lors du règlement (voir l'ordre de répartition).",
                 es: "El pago final depende del valor disponible en la liquidación (véase el orden de reparto).",
                 en: "Final payout depends on the value available at settlement (see the distribution order).")
+            }
             var lines = [interestNote, blocks.joined(separator: "\n\n"), "", combinedHeading]
             for key in ["A", "B"] {
                 guard (totAcc[key] ?? 0) > 0 else { continue }
@@ -826,8 +948,9 @@ enum ContractGenerator {
 
         // § DISSOLUTION — Samboappen § 8 (core, always included if toggled)
         if household.includeDissolutionClause {
-            sections.append(("\(n).  \(t(household, no: "FORDELING VED OPPHØR", sv: "EKONOMISK REGLERING VID FÖRSÄLJNING, UTKÖP ELLER SEPARATION", da: "FORDELING VED OPHØR", fi: "OMAISUUDEN JAKO EROTESSA", de: "VERMÖGENSAUFTEILUNG BEI TRENNUNG", fr: "RÉPARTITION EN CAS DE SÉPARATION", es: "DISTRIBUCIÓN AL SEPARARSE", en: "SETTLEMENT ON SEPARATION"))", {
+            sections.append(("\(n).  \(tplTitle(templates, "dissolution") ?? t(household, no: "FORDELING VED OPPHØR", sv: "EKONOMISK REGLERING VID FÖRSÄLJNING, UTKÖP ELLER SEPARATION", da: "FORDELING VED OPHØR", fi: "OMAISUUDEN JAKO EROTESSA", de: "VERMÖGENSAUFTEILUNG BEI TRENNUNG", fr: "RÉPARTITION EN CAS DE SÉPARATION", es: "DISTRIBUCIÓN AL SEPARARSE", en: "SETTLEMENT ON SEPARATION"))", {
                 n += 1
+                return tpl(templates, "dissolution", tokens: ["rate": rateStr]) {
                 if isNO {
                     return "Dersom samboerforholdet opphører, gjelder følgende rekkefølge:\n\n(a) Innbetalinger tilbakebetales først. Det hver part har betalt inn — med opptjente renter (\(rateStr) per år) — utbetales til vedkommende før resterende verdi fordeles.\n\n(b) Ved underskudd. Er tilgjengelig verdi lavere enn de samlede innbetalingene, deles det som finnes forholdsmessig etter hva hver part har betalt inn.\n\n(c) Overskudd. Eventuell restverdi etter at innbetalinger er dekket, fordeles etter registrert eierbrøk."
                 } else if isSV {
@@ -845,13 +968,15 @@ enum ContractGenerator {
                 } else {
                     return "If this arrangement ends, the following order applies:\n\n(a) Contributions returned first. What each party has paid in — with accrued interest at \(rateStr) per annum — is returned to that party before any remaining value is divided.\n\n(b) Shortfall. If available proceeds are less than total contributions, the available amount is shared proportionally to what each party has paid in.\n\n(c) Surplus. Any remaining value after contributions are repaid is divided according to each party's recorded ownership percentage."
                 }
+                }
             }(), .plain))
         }
 
         // § BUYOUT RIGHTS — Samboappen § 7 (advanced optional; presumes co-owned property)
         if household.includeBuyoutRightsClause && !isRental {
-            sections.append(("\(n).  \(t(household, no: "OVERTAKELSE VED OPPHØR", sv: "INLÖSENRÄTT", da: "OVERTAGELSESRET", fi: "LUNASTUSOIKEUS", de: "VORKAUFSRECHT", fr: "DROIT DE PRÉEMPTION", es: "DERECHO DE ADQUISICIÓN PREFERENTE", en: "BUYOUT RIGHTS AND TAKEOVER"))", {
+            sections.append(("\(n).  \(tplTitle(templates, "buyout") ?? t(household, no: "OVERTAKELSE VED OPPHØR", sv: "INLÖSENRÄTT", da: "OVERTAGELSESRET", fi: "LUNASTUSOIKEUS", de: "VORKAUFSRECHT", fr: "DROIT DE PRÉEMPTION", es: "DERECHO DE ADQUISICIÓN PREFERENTE", en: "BUYOUT RIGHTS AND TAKEOVER"))", {
                 n += 1
+                return tpl(templates, "buyout") {
                 if isNO {
                     return "Dersom samboerforholdet opphører:\n\n(a) Fortrinnsrett: Den parten med størst tinglyst eierandel har fortrinnsrett til å overta boligen. Ved lik eierandel (50/50) skal partene forsøke å bli enige skriftlig; dersom dette ikke lykkes innen 30 dager, avgjøres fortrinnsretten ved mekling eller, dersom mekling ikke fører frem, ved loddtrekning.\n\n(b) Verdifastsettelse: Overtakelsessummen fastsettes som gjennomsnittet av to uavhengige takster — én innhentet av hver part fra godkjent takstmann.\n\n(c) Frist: Overtakelse eller åpent salg skal gjennomføres innen 6 måneder fra den dato en av partene skriftlig varsler om opphør, eller fra den dato samlivet faktisk opphørte dersom dette kan dokumenteres.\n\n(d) Forsinkelsesrente: Ved oversittelse av fristen beregnes forsinkelsesrente i henhold til forsinkelsesrenteloven."
                 } else if isSV {
@@ -869,13 +994,15 @@ enum ContractGenerator {
                 } else {
                     return "If this arrangement ends and the parties hold a jointly owned property:\n\n(a) Right of first refusal: The party with the greater recorded ownership share has the right to buy out the other. Where ownership is equal (50/50), the parties shall first attempt written agreement; if no agreement is reached within 30 days, the right is determined by mediation or, failing that, by coin toss or selection by a mutually agreed neutral third party.\n\n(b) Valuation: The buyout price shall be the average of two independent licensed appraisals, one obtained by each party from a licensed appraiser.\n\n(c) Timeline: Buyout or open-market sale shall be completed within 6 months of written notice of termination, or the documented date the arrangement ended.\n\n(d) Interest on delay: If the deadline is missed, the delaying party shall pay interest at the maximum rate permitted by applicable law."
                 }
+                }
             }(), .plain))
         }
 
         // § DISPOSAL CONSENT — Samboappen § 10 (advanced optional)
         if household.includeDisposalConsentClause {
-            sections.append(("\(n).  \(t(household, no: "SAMTYKKE VED SALG OG UTLEIE", sv: "SAMTYCKESKRAV", da: "DISPOSITIONSSAMTYKKE", fi: "LUOVUTUSSUOSTUMUS", de: "VERFÜGUNGSZUSTIMMUNG", fr: "CONSENTEMENT AUX CESSIONS", es: "CONSENTIMIENTO PARA DISPOSICIÓN", en: "JOINT DISPOSAL CONSENT"))", {
+            sections.append(("\(n).  \(tplTitle(templates, "disposal_consent") ?? t(household, no: "SAMTYKKE VED SALG OG UTLEIE", sv: "SAMTYCKESKRAV", da: "DISPOSITIONSSAMTYKKE", fi: "LUOVUTUSSUOSTUMUS", de: "VERFÜGUNGSZUSTIMMUNG", fr: "CONSENTEMENT AUX CESSIONS", es: "CONSENTIMIENTO PARA DISPOSICIÓN", en: "JOINT DISPOSAL CONSENT"))", {
                 n += 1
+                return tpl(templates, "disposal_consent") {
                 if isNO {
                     return "Skriftlig samtykke fra begge parter kreves ved salg, utleie, pantsettelse eller annen disposisjon av felles eiendeler. Disposisjoner foretatt uten slikt samtykke kan kreves omgjort av den parten som ikke har gitt samtykke."
                 } else if isSV {
@@ -893,13 +1020,15 @@ enum ContractGenerator {
                 } else {
                     return "Neither party may sell, lease, mortgage, pledge, or otherwise dispose of any jointly held asset without the prior written consent of both parties. Any transaction entered into without such consent shall be voidable at the non-consenting party's election."
                 }
+                }
             }(), .plain))
         }
 
         // § DISPUTE RESOLUTION — Samboappen § 9 (advanced optional)
         if household.includeDisputeResolutionClause {
-            sections.append(("\(n).  \(t(household, no: "TVISTELØSNING", sv: "TVISTELÖSNING", da: "TVISTLØSNING", fi: "RIIDANRATKAISU", de: "STREITBEILEGUNG", fr: "RÉSOLUTION DES DIFFÉRENDS", es: "RESOLUCIÓN DE DISPUTAS", en: "DISPUTE RESOLUTION"))", {
+            sections.append(("\(n).  \(tplTitle(templates, "dispute") ?? t(household, no: "TVISTELØSNING", sv: "TVISTELÖSNING", da: "TVISTLØSNING", fi: "RIIDANRATKAISU", de: "STREITBEILEGUNG", fr: "RÉSOLUTION DES DIFFÉRENDS", es: "RESOLUCIÓN DE DISPUTAS", en: "DISPUTE RESOLUTION"))", {
                 n += 1
+                return tpl(templates, "dispute") {
                 if isNO {
                     return "Eventuelle tvister skal først søkes løst gjennom mekling. Dersom mekling ikke fører frem innen 60 dager fra første meklingsmøte, kan saken bringes inn for ordinære domstoler i den jurisdiksjonen der den primære felles eiendelen befinner seg."
                 } else if isSV {
@@ -917,13 +1046,15 @@ enum ContractGenerator {
                 } else {
                     return "Any dispute arising from or relating to this agreement shall first be referred to mediation. If mediation does not resolve the dispute within 60 days, either party may bring proceedings before the courts of the jurisdiction in which the primary shared asset is located."
                 }
+                }
             }(), .plain))
         }
 
         // § PERSONAL DEBT RESPONSIBILITY (optional; mortgage/loan-oriented, presumes co-owned property)
         if household.includeDebtClause && !isRental {
-            sections.append(("\(n).  \(t(household, no: "PERSONLIG GJELDSANSVAR", sv: "PERSONLIGT SKULDANSVAR", da: "PERSONLIGT GÆLDSANSVAR", fi: "HENKILÖKOHTAINEN VELKAVASTUU", de: "PERSÖNLICHE SCHULDENHAFTUNG", fr: "RESPONSABILITÉ PERSONNELLE DES DETTES", es: "RESPONSABILIDAD PERSONAL POR DEUDAS", en: "PERSONAL DEBT RESPONSIBILITY"))", {
+            sections.append(("\(n).  \(tplTitle(templates, "debt") ?? t(household, no: "PERSONLIG GJELDSANSVAR", sv: "PERSONLIGT SKULDANSVAR", da: "PERSONLIGT GÆLDSANSVAR", fi: "HENKILÖKOHTAINEN VELKAVASTUU", de: "PERSÖNLICHE SCHULDENHAFTUNG", fr: "RESPONSABILITÉ PERSONNELLE DES DETTES", es: "RESPONSABILIDAD PERSONAL POR DEUDAS", en: "PERSONAL DEBT RESPONSIBILITY"))", {
                 n += 1
+                return tpl(templates, "debt") {
                 if isNO {
                     return "Gjeld og andre finansielle forpliktelser som en part har pådratt seg — enten før eller under samboerforholdet — er utelukkende den partens eget ansvar. Den andre parten er ikke ansvarlig for slik gjeld overfor kreditorer eller tredjeparter, med mindre begge parter uttrykkelig har avtalt delt ansvar skriftlig."
                 } else if isSV {
@@ -941,12 +1072,14 @@ enum ContractGenerator {
                 } else {
                     return "Debts and other financial obligations incurred by a party — whether before or during this arrangement — are solely that party's responsibility. The other party is not liable for such debts to creditors or third parties, unless both parties have expressly agreed to shared liability in writing."
                 }
+                }
             }(), .plain))
         }
 
         // § AMENDMENTS — Samboappen § 11
-        sections.append(("\(n).  \(t(household, no: "ENDRINGER AV AVTALEN", sv: "ÄNDRINGAR", da: "ÆNDRINGER", fi: "MUUTOKSET", de: "ÄNDERUNGEN", fr: "MODIFICATIONS", es: "MODIFICACIONES", en: "AMENDMENTS"))", {
+        sections.append(("\(n).  \(tplTitle(templates, "amendments") ?? t(household, no: "ENDRINGER AV AVTALEN", sv: "ÄNDRINGAR", da: "ÆNDRINGER", fi: "MUUTOKSET", de: "ÄNDERUNGEN", fr: "MODIFICATIONS", es: "MODIFICACIONES", en: "AMENDMENTS"))", {
             n += 1
+            return tpl(templates, "amendments") {
             if isNO {
                 return "Denne avtalen kan ved enighet endres. Alle endringer må dokumenteres og signeres av begge parter for å være gyldige.\n\nDenne avtalen gjelder så lenge partene er samboere. Den opphører automatisk dersom partene inngår ekteskap eller samboerforholdet opphører. Alle forpliktelser eller krav som har oppstått før opphør, skal fortsatt gjøres opp i henhold til avtalen."
             } else if isSV {
@@ -964,14 +1097,18 @@ enum ContractGenerator {
             } else {
                 return "This agreement may be amended at any time by the written consent of both parties. All amendments must be documented and signed by both parties to be valid.\n\nThis agreement remains in force for as long as the parties jointly hold the assets recorded herein. All obligations or claims arising before termination shall continue to be settled in accordance with this agreement."
             }
+            }
         }(), .plain))
 
         // § GOVERNING LAW
-        sections.append(("\(n).  \(t(household, no: "LOVVALG", sv: "TILLÄMPLIG LAG", fi: "SOVELLETTAVA LAKI", de: "ANWENDBARES RECHT", fr: "LOI APPLICABLE", es: "LEY APLICABLE", en: "GOVERNING LAW"))", {
+        sections.append(("\(n).  \(tplTitle(templates, "governing_law") ?? t(household, no: "LOVVALG", sv: "TILLÄMPLIG LAG", fi: "SOVELLETTAVA LAKI", de: "ANWENDBARES RECHT", fr: "LOI APPLICABLE", es: "LEY APLICABLE", en: "GOVERNING LAW"))", {
+            // English US-specific variant — no template; kept purely inline.
+            if isUS(household) {
+                return "This agreement is governed by the laws of the state where the parties reside or where their primary shared asset is located. Cohabitation agreements vary in enforceability by state — any provision found unenforceable shall be severed without affecting the remainder. Both parties are encouraged to seek independent legal advice before signing."
+            }
+            return tpl(templates, "governing_law") {
             if isNO {
                 return "Denne avtalen reguleres av norsk lov. Tvister som ikke løses mellom partene, bringes inn for de ordinære domstoler."
-            } else if isUS(household) {
-                return "This agreement is governed by the laws of the state where the parties reside or where their primary shared asset is located. Cohabitation agreements vary in enforceability by state — any provision found unenforceable shall be severed without affecting the remainder. Both parties are encouraged to seek independent legal advice before signing."
             } else if isSwedish(household) {
                 return "Detta avtal regleras av svensk rätt. Tvister som inte kan lösas mellan parterna hänskjuts till allmän domstol."
             } else if isDanish(household) {
@@ -986,6 +1123,7 @@ enum ContractGenerator {
                 return "Este contrato se rige por la legislación española. Las disputas que no puedan resolverse amistosamente se someterán a los tribunales competentes de la jurisdicción donde se encuentre el activo principal compartido."
             } else {
                 return "This agreement is governed by the law of England and Wales. Any disputes that cannot be resolved between the parties shall be referred to the courts of England and Wales."
+            }
             }
         }(), .plain))
 
