@@ -95,6 +95,8 @@ enum ContractGenerator {
             let partiesLine: String
             if isNO {
                 partiesLine = "Mellom \(household.partnerAName) og \(household.partnerBName)  ·  Datert \(dateStr)"
+            } else if isSwedish(household) {
+                partiesLine = "Mellan \(household.partnerAName) och \(household.partnerBName)  ·  Daterad \(dateStr)"
             } else if isFinnish(household) {
                 partiesLine = "Välillä \(household.partnerAName) ja \(household.partnerBName)  ·  Päivätty \(dateStr)"
             } else if isDe {
@@ -153,6 +155,7 @@ enum ContractGenerator {
                 .kern: 1.0]
             let sigHeader: String
             if isNO { sigHeader = "UNDERSKRIFTER" }
+            else if isSwedish(household) { sigHeader = "UNDERSKRIFTER" }
             else if isFinnish(household) { sigHeader = "ALLEKIRJOITUKSET" }
             else if isDe { sigHeader = "UNTERSCHRIFTEN" }
             else if isEs { sigHeader = "FIRMAS" }
@@ -173,6 +176,7 @@ enum ContractGenerator {
             let lineY  = y + 44
             let signatureLabel: String
             if isNO { signatureLabel = "Underskrift" }
+            else if isSwedish(household) { signatureLabel = "Underskrift" }
             else if isFinnish(household) { signatureLabel = "Allekirjoitus" }
             else if isDe { signatureLabel = "Unterschrift" }
             else if isEs { signatureLabel = "Firma" }
@@ -269,15 +273,15 @@ enum ContractGenerator {
     /// Formats an annual rate (0.045) as a clean percentage string ("4.5%"),
     /// trimming trailing zeros — never rounding to a whole number, so the signed
     /// contract states exactly the rate the settlement engine uses.
-    private static func formatRate(_ rate: Double, norwegian: Bool = false) -> String {
+    private static func formatRate(_ rate: Double, norwegian: Bool = false, swedish: Bool = false) -> String {
         let pct = rate * 100
         var s = String(format: "%.2f", pct)
         if s.contains(".") {
             while s.hasSuffix("0") { s.removeLast() }
             if s.hasSuffix(".") { s.removeLast() }
         }
-        // Norwegian convention: decimal comma and a space before the percent sign.
-        if norwegian { return s.replacingOccurrences(of: ".", with: ",") + " %" }
+        // Norwegian/Swedish convention: decimal comma and a space before the percent sign.
+        if norwegian || swedish { return s.replacingOccurrences(of: ".", with: ",") + " %" }
         return s + "%"
     }
 
@@ -320,7 +324,7 @@ enum ContractGenerator {
         let isEs = isSpanish(household)
         // Print the exact rate (e.g. "4,5 %"), not a rounded integer — the signed
         // document must state the same rate the settlement engine actually uses.
-        let rateStr = formatRate(household.annualInterestRate, norwegian: isNO)
+        let rateStr = formatRate(household.annualInterestRate, norwegian: isNO, swedish: isSV)
         let docLocale: Locale
         if isNO { docLocale = Locale(identifier: "nb_NO") }
         else if isSV { docLocale = Locale(identifier: "sv_SE") }
@@ -386,6 +390,19 @@ enum ContractGenerator {
                 return "This agreement confirms each party's registered ownership of shared assets and documents what each has contributed financially.\(dissolution) \(regNote) Both parties agree to keep records up to date."
             }
         }(), .plain))
+
+        // § SAMBOLAGEN — Swedish only. Without an explicit written opt-out, the
+        // Cohabitation Act's equal-division rules (bodelning) would apply to the
+        // shared home and household goods regardless of registered shares — which
+        // would override this agreement's distribution model. 9 § sambolagen
+        // allows the parties to agree otherwise in writing; this signed document
+        // is that agreement.
+        if isSV {
+            sections.append(("\(n).  SAMBOLAGEN (2003:376)", {
+                n += 1
+                return "Parterna är överens om att bodelning enligt sambolagen (2003:376) inte ska ske när samboförhållandet upphör. Detta avtal gäller i stället för sambolagens bodelningsregler för samtliga tillgångar som omfattas av avtalet."
+            }(), .plain))
+        }
 
         // § SEPARATE PROPERTY — Samboappen § 2 (optional advanced; presumes co-owned property)
         if household.includeSeparatePropertyClause && !isRental {
@@ -479,10 +496,10 @@ enum ContractGenerator {
             let addrLabel = t(household, no: "Adresse", sv: "Adress", da: "Adresse",
                               fi: "Osoite", de: "Adresse", fr: "Adresse",
                               es: "Dirección", en: "Address")
-            // Norwegian convention: space before the percent sign.
-            let pctSuffix = isNO ? " %" : "%"
+            // Norwegian/Swedish convention: space before the percent sign.
+            let pctSuffix = (isNO || isSV) ? " %" : "%"
             let list = household.assets.map { a -> String in
-                let category = assetCategory(a, isNO: isNO)
+                let category = assetCategory(a, isNO: isNO, isSV: isSV)
                 // Same (disambiguated) name as in the contributions section.
                 var line = assetNames[a.id] ?? a.label
                 line += "\n\(typeLabel): \(category)"
@@ -530,7 +547,7 @@ enum ContractGenerator {
                         }
                     }
                     for item in a.furnitureItems {
-                        let valuePart = item.currentValue > 0 ? " (\(sym)\(Int(item.currentValue).formatted()))" : ""
+                        let valuePart = item.currentValue > 0 ? " (\(sym)\(Int(item.currentValue).formatted(.number.locale(docLocale))))" : ""
                         line += "\n    – \(item.label)\(valuePart): \(ownerName(item.ownerKey))"
                     }
                 }
@@ -545,7 +562,7 @@ enum ContractGenerator {
                 n += 1
                 let sym = household.currencySymbol
                 let hasRentDetails = household.rentAmount > 0
-                let amountStr = "\(sym)\(Int(household.rentAmount).formatted())"
+                let amountStr = "\(sym)\(Int(household.rentAmount).formatted(.number.locale(docLocale)))"
                 let day = household.rentPaymentDay
 
                 // The specific "who pays what, when" sentence — falls back to
@@ -668,7 +685,7 @@ enum ContractGenerator {
                 if isNO {
                     return "Ingen innbetalinger er registrert ved signering. Innskudd, ekstra nedbetalinger og oppussing kan registreres når som helst og forrentes med \(rateStr) per år."
                 } else if isSV {
-                    return "Inga ekonomiska bidrag har registrerats vid undertecknandet. Insättningar, extra amorteringar och renoveringar kan registreras när som helst och räknas upp med \(rateStr) per år."
+                    return "Inga ekonomiska bidrag har registrerats vid undertecknandet. Insättningar, extra amorteringar och renoveringar kan registreras när som helst och räknas upp med \(rateStr) per år. Registrerade bidrag ändrar inte parternas ägarandelar."
                 } else if isDA {
                     return "Ingen finansielle bidrag er registreret ved underskrivelsen. Indskud, ekstra afdrag og renoveringer kan registreres til enhver tid og forrentes med \(rateStr) per år."
                 } else if isFI {
@@ -693,7 +710,7 @@ enum ContractGenerator {
             if isNO {
                 interestNote = "Alle beløp forrentes med \(rateStr) per år fra innbetalingsdato, kapitalisert årlig.\n"
             } else if isSV {
-                interestNote = "Samtliga belopp räknas upp med \(rateStr) per år från inbetalningsdatumet, sammansatt årligen.\n"
+                interestNote = "Samtliga belopp räknas upp med \(rateStr) per år från inbetalningsdatumet, sammansatt årligen. Räntan löper fram till utbetalningsdagen. Registrerade bidrag ändrar inte parternas ägarandelar.\n"
             } else if isDA {
                 interestNote = "Alle beløb forrentes med \(rateStr) per år fra indbetalingsdatoen, kapitaliseret årligt.\n"
             } else if isFI {
@@ -797,7 +814,7 @@ enum ContractGenerator {
                 if isNO {
                     return "Dersom samboerforholdet opphører, gjelder følgende rekkefølge:\n\n(a) Innbetalinger tilbakebetales først. Det hver part har betalt inn — med opptjente renter (\(rateStr) per år) — utbetales til vedkommende før resterende verdi fordeles.\n\n(b) Ved underskudd. Er tilgjengelig verdi lavere enn de samlede innbetalingene, deles det som finnes forholdsmessig etter hva hver part har betalt inn.\n\n(c) Overskudd. Eventuell restverdi etter at innbetalinger er dekket, fordeles etter registrert eierbrøk."
                 } else if isSV {
-                    return "Vid upplösning av samboförhållandet gäller följande ordning:\n\n(a) Inbetalningar återbetalas först. Vad var och en har betalat in — med upplupna räntor (\(rateStr) per år) — återbetalas till den som betalat in, innan det återstående fördelas.\n\n(b) Underskott. Om tillgängliga intäkter understiger de sammanlagda inbetalningarna fördelas det tillgängliga beloppet proportionellt i förhållande till vad var och en betalat in.\n\n(c) Överskott. Eventuellt kvarstående värde efter att inbetalningarna återbetalats fördelas enligt parternas registrerade ägarandel."
+                    return "Vid upplösning av samboförhållandet — eller om en gemensam tillgång säljs medan samboförhållandet består — gäller följande ordning:\n\nInnan någon fördelning sker mellan parterna ska lån som belastar tillgången samt kostnader för försäljningen dras av. Med tillgängliga intäkter avses det belopp som återstår efter dessa avdrag. Detta avtal påverkar inte bankens eller andra borgenärers rättigheter enligt respektive låneavtal.\n\n(a) Inbetalningar återbetalas först. Vad var och en har betalat in — med upplupna räntor (\(rateStr) per år, löpande fram till utbetalningsdagen) — återbetalas till den som betalat in, innan det återstående fördelas.\n\n(b) Underskott. Om tillgängliga intäkter understiger de sammanlagda inbetalningarna fördelas det tillgängliga beloppet proportionellt i förhållande till vad var och en betalat in.\n\n(c) Överskott. Eventuellt kvarstående värde efter att inbetalningarna återbetalats fördelas enligt parternas registrerade ägarandel."
                 } else if isDA {
                     return "Hvis samlivsforholdet ophører, gælder følgende rækkefølge:\n\n(a) Indbetalinger tilbagebetales først. Hvad den enkelte part har indbetalt — med påløbne renter (\(rateStr) per år) — tilbagebetales til den pågældende, inden det resterende fordeles.\n\n(b) Underskud. Hvis de tilgængelige midler er lavere end de samlede indbetalinger, fordeles det tilgængelige beløb forholdsmæssigt i forhold til, hvad hver part har indbetalt.\n\n(c) Overskud. Et eventuelt restbeløb efter tilbagebetaling af indbetalinger fordeles efter parternes registrerede ejerandele."
                 } else if isFI {
@@ -933,7 +950,7 @@ enum ContractGenerator {
         }(), .plain))
 
         // § GOVERNING LAW
-        sections.append(("\(n).  \(t(household, no: "LOVVALG", fi: "SOVELLETTAVA LAKI", de: "ANWENDBARES RECHT", fr: "LOI APPLICABLE", es: "LEY APLICABLE", en: "GOVERNING LAW"))", {
+        sections.append(("\(n).  \(t(household, no: "LOVVALG", sv: "TILLÄMPLIG LAG", fi: "SOVELLETTAVA LAKI", de: "ANWENDBARES RECHT", fr: "LOI APPLICABLE", es: "LEY APLICABLE", en: "GOVERNING LAW"))", {
             if isNO {
                 return "Denne avtalen reguleres av norsk lov. Tvister som ikke løses mellom partene, bringes inn for de ordinære domstoler."
             } else if isUS(household) {
@@ -976,13 +993,25 @@ enum ContractGenerator {
             if !addr.isEmpty {
                 names[a.id] = "\(a.label) (\(addr))"
             } else {
-                names[a.id] = "\(a.label) (\(assetCategory(a, isNO: isNorwegian(household))))"
+                names[a.id] = "\(a.label) (\(assetCategory(a, isNO: isNorwegian(household), isSV: isSwedish(household))))"
             }
         }
         return names
     }
 
-    private static func assetCategory(_ asset: Asset, isNO: Bool) -> String {
+    private static func assetCategory(_ asset: Asset, isNO: Bool, isSV: Bool = false) -> String {
+        if isSV {
+            switch AssetType(rawValue: asset.assetType) ?? .other {
+            case .home:       return "Bostad"
+            case .cabin:      return "Fritidsboende"
+            case .car:        return "Motorfordon"
+            case .savings:    return "Sparkonto"
+            case .investment: return "Investeringsportfölj"
+            case .furniture:  return "Möbler och inventarier"
+            case .pet:        return "Sällskapsdjur"
+            case .other:      return "Övrig tillgång"
+            }
+        }
         switch AssetType(rawValue: asset.assetType) ?? .other {
         case .home:       return isNO ? "Bolig"                    : "Residential property"
         case .cabin:      return isNO ? "Fritidseiendom"           : "Leisure/holiday property"
