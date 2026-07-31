@@ -143,6 +143,11 @@ serve(async (req) => {
       client_reference_id: user.id,
       success_url: successUrl,
       cancel_url: cancelUrl,
+      // Managed Payments er påslått som standard på kontoen (ny API-versjon)
+      // og støtter ikke invoice_creation[invoice_data]. Vi slår det av per
+      // request slik at Hjard AS forblir selger og faktura utstedes med
+      // org.nr og inkludert MVA — samme klassiske flyt som Samboappen.
+      "managed_payments[enabled]": "false",
       // invoice_creation krever en Stripe-customer — opprett alltid (payment mode).
       customer_creation: "always",
       "invoice_creation[enabled]": "true",
@@ -172,7 +177,14 @@ serve(async (req) => {
     if (!stripeRes.ok) {
       const errText = await stripeRes.text();
       console.error("Stripe error", stripeRes.status, errText);
-      return json({ error: "Stripe checkout session failed" }, 500);
+      // Include Stripe's own message so the failing parameter is visible
+      // (same level of detail Samboappen returns from create-payment).
+      let detail = errText.slice(0, 300);
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed?.error?.message) detail = parsed.error.message;
+      } catch { /* keep raw text */ }
+      return json({ error: "Stripe checkout session failed", details: detail }, 500);
     }
 
     const session = await stripeRes.json();
