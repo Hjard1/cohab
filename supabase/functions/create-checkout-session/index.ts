@@ -22,6 +22,57 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  *                               only http://localhost:8080 is allowed (fail-safe).
  */
 
+// Hjard AS er MVA-registrert i Norge. Vi anvender 25 % MVA "exclusive"
+// (legges på toppen) for faktura-linjer — samme oppsett som Samboappen.
+let _cachedNoVatRateId: string | null = null;
+async function getNorwayVatRateId(stripeSecretKey: string): Promise<string | null> {
+  if (_cachedNoVatRateId) return _cachedNoVatRateId;
+  const headers = {
+    Authorization: `Bearer ${stripeSecretKey}`,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  try {
+    const listRes = await fetch("https://api.stripe.com/v1/tax_rates?active=true&limit=100", { headers });
+    if (listRes.ok) {
+      const list = await listRes.json();
+      const existing = (list.data ?? []).find(
+        (r: { country?: string; percentage?: number; inclusive?: boolean }) =>
+          r.country === "NO" && Number(r.percentage) === 25 && r.inclusive === false
+      );
+      if (existing) {
+        _cachedNoVatRateId = existing.id;
+        return existing.id;
+      }
+    }
+    const createRes = await fetch("https://api.stripe.com/v1/tax_rates", {
+      method: "POST",
+      headers,
+      body: new URLSearchParams({
+        display_name: "MVA",
+        description: "Merverdiavgift Norge",
+        jurisdiction: "NO",
+        percentage: "25",
+        inclusive: "false",
+        country: "NO",
+        tax_type: "vat",
+      }).toString(),
+    });
+    if (createRes.ok) {
+      const created = await createRes.json();
+      _cachedNoVatRateId = created.id;
+      return created.id;
+    }
+    console.error("Failed to create MVA tax rate:", createRes.status, await createRes.text());
+  } catch (err) {
+    console.error("Failed to resolve MVA tax rate:", err);
+  }
+  // Non-fatal: fall back to a session without tax rate rather than blocking the purchase.
+  return null;
+}
+
+// "MVA" skal kun stå etter selskapsnavn (Hjard AS), ikke etter org.nr.
+const INVOICE_FOOTER = "Hjard AS (MVA-registrert) — Org.nr 933 786 021";
+
 function allowedOrigins(): string[] {
   return (Deno.env.get("ALLOWED_WEB_ORIGIN") ?? "http://localhost:8080")
     .split(",")
@@ -92,7 +143,19 @@ serve(async (req) => {
       client_reference_id: user.id,
       success_url: successUrl,
       cancel_url: cancelUrl,
+      // invoice_creation krever en Stripe-customer — opprett alltid (payment mode).
+      customer_creation: "always",
+      "invoice_creation[enabled]": "true",
+      "invoice_creation[invoice_data][description]": "Cohab formal — engangsbetaling",
+      "invoice_creation[invoice_data][custom_fields][0][name]": "Org.nr",
+      "invoice_creation[invoice_data][custom_fields][0][value]": "933 786 021",
+      "invoice_creation[invoice_data][footer]": INVOICE_FOOTER,
+      "invoice_creation[invoice_data][rendering_options][amount_tax_display]": "exclude_tax",
     });
+    const vatRateId = await getNorwayVatRateId(stripeSecretKey);
+    if (vatRateId) {
+      params.set("line_items[0][tax_rates][0]", vatRateId);
+    }
     if (user.email) {
       params.set("customer_email", user.email);
     }
