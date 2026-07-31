@@ -12,8 +12,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  * with formal_unlocked=true (source 'stripe_web'), keyed by
  * client_reference_id (the Supabase user id set by create-checkout-session).
  *
- * On invoice.paid the invoice PDF is fetched from Stripe and forwarded to the
- * accountant (hjardas@ebilag.com) via Resend — same flow as Samboappen.
+ * On invoice.paid the invoice PDF is fetched from Stripe, forwarded to the
+ * accountant (hjardas@ebilag.com), and emailed to the customer via Resend.
  *
  * Signature is verified manually (HMAC-SHA256 over `${t}.${rawBody}` against
  * the v1 signature in the Stripe-Signature header; timestamp tolerance 5 min).
@@ -166,6 +166,43 @@ serve(async (req) => {
                 console.log("Invoice forwarded to accountant (hjardas@ebilag.com):", invoice.number);
               } else {
                 console.error("Failed to forward invoice to accountant:", await emailRes.text());
+              }
+
+              // Send the invoice to the customer as well (PDF + link).
+              if (invoice.customer_email) {
+                const customerRes = await fetch("https://api.resend.com/emails", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${resendApiKey}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    from: "Cohab <noreply@mycohab.app>",
+                    to: [invoice.customer_email],
+                    subject: `Your Cohab receipt — invoice #${invoice.number || invoice.id}`,
+                    html: `
+                      <h2>Thank you for your purchase</h2>
+                      <p>Your invoice from Cohab is attached as a PDF.</p>
+                      <p><strong>Invoice number:</strong> ${invoice.number || "N/A"}</p>
+                      <p><strong>Date:</strong> ${invoiceDate}</p>
+                      <p><strong>Amount:</strong> ${amountFormatted} ${currency} (VAT included)</p>
+                      <p><a href="${invoice.hosted_invoice_url}">View your invoice</a></p>
+                      <p>— Cohab</p>
+                    `,
+                    attachments: [
+                      {
+                        filename: `cohab-invoice-${invoice.number || invoice.id}.pdf`,
+                        content: pdfBase64,
+                      },
+                    ],
+                  }),
+                });
+
+                if (customerRes.ok) {
+                  console.log("Invoice emailed to customer:", invoice.customer_email, invoice.number);
+                } else {
+                  console.error("Failed to email invoice to customer:", await customerRes.text());
+                }
               }
             } else {
               console.error("Failed to fetch invoice PDF from Stripe:", pdfResponse.status);

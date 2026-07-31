@@ -22,8 +22,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  *                               only http://localhost:8080 is allowed (fail-safe).
  */
 
-// Hjard AS er MVA-registrert i Norge. Vi anvender 25 % MVA "exclusive"
-// (legges på toppen) for faktura-linjer — samme oppsett som Samboappen.
+// Hjard AS er MVA-registrert i Norge. Forbrukerprisen (f.eks. 45 USD) er
+// INKLUSIV 25 % MVA — momsen trekkes ut av prisen, ingenting legges på toppen.
 let _cachedNoVatRateId: string | null = null;
 async function getNorwayVatRateId(stripeSecretKey: string): Promise<string | null> {
   if (_cachedNoVatRateId) return _cachedNoVatRateId;
@@ -37,7 +37,7 @@ async function getNorwayVatRateId(stripeSecretKey: string): Promise<string | nul
       const list = await listRes.json();
       const existing = (list.data ?? []).find(
         (r: { country?: string; percentage?: number; inclusive?: boolean }) =>
-          r.country === "NO" && Number(r.percentage) === 25 && r.inclusive === false
+          r.country === "NO" && Number(r.percentage) === 25 && r.inclusive === true
       );
       if (existing) {
         _cachedNoVatRateId = existing.id;
@@ -52,7 +52,7 @@ async function getNorwayVatRateId(stripeSecretKey: string): Promise<string | nul
         description: "Merverdiavgift Norge",
         jurisdiction: "NO",
         percentage: "25",
-        inclusive: "false",
+        inclusive: "true",
         country: "NO",
         tax_type: "vat",
       }).toString(),
@@ -150,7 +150,7 @@ serve(async (req) => {
       "invoice_creation[invoice_data][custom_fields][0][name]": "Org.nr",
       "invoice_creation[invoice_data][custom_fields][0][value]": "933 786 021",
       "invoice_creation[invoice_data][footer]": INVOICE_FOOTER,
-      "invoice_creation[invoice_data][rendering_options][amount_tax_display]": "exclude_tax",
+      "invoice_creation[invoice_data][rendering_options][amount_tax_display]": "include_inclusive_tax",
     });
     const vatRateId = await getNorwayVatRateId(stripeSecretKey);
     if (vatRateId) {
