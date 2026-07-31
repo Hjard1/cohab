@@ -138,6 +138,9 @@ serve(async (req) => {
 
     const params = new URLSearchParams({
       mode: "payment",
+      // English checkout + English invoice PDF/hosted page (Stripe derives
+      // the invoice language from the session locale).
+      locale: "en",
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
       client_reference_id: user.id,
