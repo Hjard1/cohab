@@ -172,23 +172,27 @@ final class PurchaseManager: ObservableObject {
     /// signed-in user. A web purchase via Stripe sets formal_unlocked — this
     /// merges it with the local StoreKit entitlement. A subscription row only
     /// grants while expires_at is null (legacy lifetime) or in the future.
+    /// RLS also lets a household member read their partner's row, so a
+    /// purchase by either partner in the same household grants both access.
     /// Fails silently when offline or signed out; local behavior is unchanged
     /// in that case. Returns true when the server granted access.
     @discardableResult
     func refreshServerEntitlement() async -> Bool {
-        guard let session = try? await supabase.auth.session else { return false }
+        guard (try? await supabase.auth.session) != nil else { return false }
         do {
             let rows: [EntitlementRow] = try await supabase
                 .from("cohab_entitlements")
                 .select("formal_unlocked, expires_at")
-                .eq("user_id", value: session.user.id)
-                .limit(1)
                 .execute()
                 .value
-            guard let row = rows.first, row.formalUnlocked else { return false }
-            if let expiresAt = Self.parseServerDate(row.expiresAt), expiresAt < Date() {
-                return false
+            let granted = rows.contains { row in
+                guard row.formalUnlocked else { return false }
+                if let expiresAt = Self.parseServerDate(row.expiresAt), expiresAt < Date() {
+                    return false
+                }
+                return true
             }
+            guard granted else { return false }
             grant()
             return true
         } catch {
